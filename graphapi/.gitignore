@@ -1,0 +1,22 @@
+#ignore venv
+.venv/
+
+.vscode/
+
+#ignore attachment files
+attachments/
+
+#ignore output
+output/
+
+#ignore environmental variables
+.env
+
+#ignore pycahce
+__pycache__/
+
+#archived code
+archive/
+
+#ignore credentials 
+credentials/

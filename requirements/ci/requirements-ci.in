@@ -1,0 +1,17 @@
+# Keep CI dependencies compatible with the resolved runtime dependencies.
+-c requirements-container.lock
+
+# Versions verified in the local test environment.
+pytest==9.1.1
+pytest-socket==0.8.1
+
+# Additional CI tools; exact versions and hashes will be resolved into the lock.
+pytest-cov
+pytest-timeout
+ruff
+mypy
+bandit
+pip-audit
+jsonschema
+pip-licenses
+sqlfluff

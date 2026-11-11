@@ -1,0 +1,73 @@
+# Bootstrap utility only: no deployment, ACR push or application execution.
+trigger: none
+pr: none
+
+pool:
+  vmImage: ubuntu-24.04
+
+jobs:
+- job: GenerateLocks
+  displayName: Generate and validate Linux Python dependency locks
+  timeoutInMinutes: 30
+
+  steps:
+  - checkout: self
+    clean: true
+    persistCredentials: false
+
+  - task: UsePythonVersion@0
+    inputs:
+      versionSpec: '3.13'
+      architecture: x64
+
+  - bash: |
+      set -euo pipefail
+
+      test -f requirements/runtime/requirements-runtime.in
+      test -f requirements/requirements-container.txt
+      test -f requirements/ci/requirements-ci.in
+
+      python -m venv .venv-lock-tools
+      .venv-lock-tools/bin/python -m pip install "pip-tools==7.6.1"
+
+      .venv-lock-tools/bin/python --version
+      .venv-lock-tools/bin/python -m pip --version
+      .venv-lock-tools/bin/python -m piptools compile --version
+
+      .venv-lock-tools/bin/python -m piptools compile \
+        --resolver=backtracking \
+        --generate-hashes \
+        --allow-unsafe \
+        --output-file=requirements-container.lock \
+        requirements-runtime.in
+
+      .venv-lock-tools/bin/python -m piptools compile \
+        --resolver=backtracking \
+        --generate-hashes \
+        --allow-unsafe \
+        --output-file=requirements-ci.lock \
+        requirements-ci.in
+    displayName: Resolve runtime first, then constrained CI dependencies
+
+  - bash: |
+      set -euo pipefail
+
+      python -m venv .venv-lock-validation
+
+      .venv-lock-validation/bin/python -m pip install \
+        --require-hashes \
+        -r requirements/runtime/requirements-container.lock \
+        -r requirements/ci/requirements-ci.lock
+
+      .venv-lock-validation/bin/python -m pip check
+
+      mkdir -p "$(Build.ArtifactStagingDirectory)/dependency-locks"
+
+      cp requirements-container.lock requirements-ci.lock \
+        "$(Build.ArtifactStagingDirectory)/dependency-locks/"
+    displayName: Validate combined hash-locked installation
+
+  - task: PublishPipelineArtifact@1
+    inputs:
+      targetPath: '$(Build.ArtifactStagingDirectory)/dependency-locks'
+      artifact: dependency-locks

@@ -1,0 +1,149 @@
+# The build number is also used as the immutable image tag: yyyyMMdd.r
+name: $(Date:yyyyMMdd)$(Rev:.r)
+
+trigger: none
+pr: none
+
+pool:
+  name: vmadoagentprd_pool
+
+variables:
+  # Existing ACR accessible from the VM agent
+  ACR_NAME:         craiplatformsharedgrprd
+  ACR_LOGIN_SERVER: craiplatformsharedgrprd.azurecr.io
+
+  # Dedicated image repository for this application
+  IMAGE_NAME:       prd/emclf-graph-api
+  IMAGE_TAG:        $(Build.BuildNumber)
+
+  # Azure target
+  SUBSCRIPTION_ID:  753ed49c-40d0-4289-8730-3db54951ce44
+
+  # IMPORTANT: deploy only to our existing Container App
+  RESOURCE_GROUP:   LLM
+  CONTAINER_APP:    ca-emclf-llm-gr
+
+stages:
+
+  # ============================================================
+  # BUILD & PUSH
+  # ============================================================
+  - stage: Build
+    displayName: 'Build & push to ACR'
+
+    jobs:
+      - job: build
+        displayName: 'docker build + push'
+
+        steps:
+          - checkout: self
+            clean: true
+
+          - script: |
+              set -euo pipefail
+
+              az login --identity
+              az account set --subscription $(SUBSCRIPTION_ID)
+
+              az acr update \
+                --name $(ACR_NAME) \
+                --admin-enabled true \
+                --output none
+
+              ACR_USER=$(az acr credential show \
+                --name $(ACR_NAME) \
+                --query username \
+                -o tsv)
+
+              ACR_PASS=$(az acr credential show \
+                --name $(ACR_NAME) \
+                --query passwords[0].value \
+                -o tsv)
+
+              echo "$ACR_PASS" | docker login $(ACR_LOGIN_SERVER) \
+                --username "$ACR_USER" \
+                --password-stdin
+            displayName: 'Login to ACR'
+
+          - script: |
+              set -euo pipefail
+
+              docker build \
+                -t $(ACR_LOGIN_SERVER)/$(IMAGE_NAME):$(IMAGE_TAG) \
+                -t $(ACR_LOGIN_SERVER)/$(IMAGE_NAME):latest \
+                -f $(Build.SourcesDirectory)/Dockerfile \
+                $(Build.SourcesDirectory)
+            displayName: 'Docker build'
+
+          - script: |
+              set -euo pipefail
+
+              docker push $(ACR_LOGIN_SERVER)/$(IMAGE_NAME):$(IMAGE_TAG)
+              docker push $(ACR_LOGIN_SERVER)/$(IMAGE_NAME):latest
+            displayName: 'Docker push'
+
+
+  # ============================================================
+  # DEPLOY
+  # ============================================================
+  - stage: Deploy
+    displayName: 'Deploy to Container App'
+    dependsOn: Build
+
+    jobs:
+      - job: deploy
+        displayName: 'az containerapp update'
+
+        steps:
+          - checkout: none
+
+          - script: |
+              set -euo pipefail
+
+              az login --identity
+              az account set --subscription $(SUBSCRIPTION_ID)
+
+              az containerapp update \
+                --name $(CONTAINER_APP) \
+                --resource-group $(RESOURCE_GROUP) \
+                --image $(ACR_LOGIN_SERVER)/$(IMAGE_NAME):$(IMAGE_TAG)
+            displayName: 'Update Container App image'
+
+          - script: |
+              set -euo pipefail
+
+              az login --identity
+              az account set --subscription $(SUBSCRIPTION_ID)
+
+              IMAGE="$(ACR_LOGIN_SERVER)/$(IMAGE_NAME):$(IMAGE_TAG)"
+
+              for i in $(seq 1 30); do
+
+                STATE="$(az containerapp revision list \
+                  --name $(CONTAINER_APP) \
+                  --resource-group $(RESOURCE_GROUP) \
+                  --query "[?properties.template.containers[0].image=='$IMAGE'] | [0].{p:properties.provisioningState,r:properties.runningState,h:properties.healthState}" \
+                  -o tsv)"
+
+                echo "$(date -u +%H:%M:%S) ${STATE:-no revision yet}"
+
+                case "$STATE" in
+
+                  *Provisioned*Running*Healthy*|*Provisioned*Running*None*)
+                    echo "revision is up"
+                    exit 0
+                    ;;
+
+                  *Failed*)
+                    echo "##vso[task.logissue type=error]revision failed - see the app's logs in Log Analytics"
+                    exit 1
+                    ;;
+
+                esac
+
+                sleep 20
+              done
+
+              echo "##vso[task.logissue type=error]revision not running after 10 minutes"
+              exit 1
+            displayName: 'Monitor deployment until healthy'

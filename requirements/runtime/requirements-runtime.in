@@ -1,0 +1,2 @@
+# Preserve the current container dependency versions.
+-r requirements-container.txt

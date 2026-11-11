@@ -1,0 +1,11 @@
+.vscode/
+
+runs/
+
+.venv-container-check
+
+
+
+.ruff_cache
+
+.pytest_cache/
