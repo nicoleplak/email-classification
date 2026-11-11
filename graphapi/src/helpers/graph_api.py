@@ -1,21 +1,114 @@
-import os
-import requests
+from __future__ import annotations
 
+import hashlib
+import json
+import os
+from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
+from typing import Any, Iterator, Optional
+from urllib.parse import quote
+
+import requests
 from dotenv import load_dotenv
-from helpers.utils import paginate
 
 load_dotenv()
 
-GRAPH_API_ENDPOINT = os.getenv("GRAPH_API_ENDPOINT")
+GRAPH_API_ENDPOINT = os.getenv("GRAPH_API_ENDPOINT", "https://graph.microsoft.com/v1.0").rstrip("/")
 DOVALUEGREECE_ID = os.getenv("DOVALUEGREECE_ID")
 CLIENT_ID = os.getenv("CLIENT_ID")
 CLIENT_SECRET = os.getenv("CLIENT_SECRET")
-SCOPE = os.getenv("SCOPE")
+SCOPE = os.getenv("SCOPE", "https://graph.microsoft.com/.default")
 USER_ID = os.getenv("USER_ID")
+
+# The checkpoint is kept in Blob Storage, not on the container filesystem.
+DELTA_STATE_BLOB = os.getenv("DELTA_STATE_BLOB", "state/graph_delta_state.json")
+
+# Applied only when DELTA_STATE_BLOB does not yet exist. 1 = previous 24 hours.
+DELTA_BOOTSTRAP_DAYS = int(os.getenv("DELTA_BOOTSTRAP_DAYS", "1"))
+
+REQUEST_TIMEOUT = (10, 120)
+
+MESSAGE_SELECT = (
+    "id,internetMessageId,subject,from,toRecipients,receivedDateTime,"
+    "lastModifiedDateTime,body,categories,conversationId,hasAttachments"
+)
+
+
+@dataclass(frozen=True)
+class DeltaBatch:
+    messages: list[dict[str, Any]]
+    removed: list[dict[str, Any]]
+    candidate_delta_link: str
+
+
+class GraphApiError(RuntimeError):
+    pass
+
+
+def _require_settings() -> None:
+    values = {
+        "DOVALUEGREECE_ID": DOVALUEGREECE_ID,
+        "CLIENT_ID": CLIENT_ID,
+        "CLIENT_SECRET": CLIENT_SECRET,
+        "SCOPE": SCOPE,
+        "USER_ID": USER_ID,
+    }
+    missing = [name for name, value in values.items() if not value]
+    if missing:
+        raise RuntimeError(f"Missing required environment settings: {', '.join(missing)}")
+    if DELTA_BOOTSTRAP_DAYS < 0:
+        raise ValueError("DELTA_BOOTSTRAP_DAYS must be >= 0")
+
+
+def _graph_headers(access_token: str, accept: str = "application/json") -> dict[str, str]:
+    # Immutable IDs keep the storage identity stable when an Outlook item moves.
+    return {
+        "Authorization": f"Bearer {access_token}",
+        "Accept": accept,
+        "Prefer": 'IdType="ImmutableId"',
+    }
+
+
+def _raise_graph_error(response: requests.Response) -> None:
+    if response.ok:
+        return
+    try:
+        detail: Any = response.json()
+    except ValueError:
+        detail = response.text
+    raise GraphApiError(
+        f"Microsoft Graph request failed: {response.status_code} "
+        f"{response.request.method} {response.url}; response={detail}"
+    )
+
+
+def _get_json(
+    url: str,
+    headers: dict[str, str],
+    params: Optional[dict[str, Any]] = None,
+) -> dict[str, Any]:
+    response = requests.get(url, headers=headers, params=params, timeout=REQUEST_TIMEOUT)
+    _raise_graph_error(response)
+    return response.json()
+
+
+def _paginate_json(
+    url: str,
+    headers: dict[str, str],
+    params: Optional[dict[str, Any]] = None,
+) -> Iterator[dict[str, Any]]:
+    next_url: Optional[str] = url
+    next_params = params
+    while next_url:
+        page = _get_json(next_url, headers, next_params)
+        yield page
+        # Graph's nextLink is opaque and must be reused exactly as returned.
+        next_url = page.get("@odata.nextLink")
+        next_params = None
 
 
 def get_access_token() -> str:
-    """Obtain an OAuth2 access token via the client credentials flow."""
+    _require_settings()
     url = f"https://login.microsoftonline.com/{DOVALUEGREECE_ID}/oauth2/v2.0/token"
     data = {
         "client_id": CLIENT_ID,
@@ -24,137 +117,208 @@ def get_access_token() -> str:
         "grant_type": "client_credentials",
     }
     response = requests.post(url, data=data, timeout=(10, 30))
-    if not response.ok:
-        print("Status:", response.status_code)
-        try:
-            print("Response:", response.json())
-        except Exception:
-            print("Response:", response.text)
-    response.raise_for_status()
+    _raise_graph_error(response)
     return response.json()["access_token"]
 
 
-def get_emails(access_token: str) -> list[dict]:
+def load_delta_link() -> Optional[str]:
+    """Load the last successfully committed Graph deltaLink from Blob Storage."""
+    from helpers import blob_store
+
+    raw = blob_store.download(DELTA_STATE_BLOB)
+    if raw is None:
+        return None
+
+    state = json.loads(raw.decode("utf-8"))
+    delta_link = state.get("delta_link")
+    if not isinstance(delta_link, str) or not delta_link:
+        raise ValueError(f"Invalid delta state in blob {DELTA_STATE_BLOB}")
+    return delta_link
+
+
+def commit_delta_link(candidate_delta_link: str) -> None:
+    """Commit state only after the entire Graph -> Blob batch has succeeded."""
+    if not candidate_delta_link:
+        raise ValueError("candidate_delta_link must not be empty")
+
+    from helpers import blob_store
+
+    payload = json.dumps(
+        {
+            "delta_link": candidate_delta_link,
+            "committed_at_utc": datetime.now(timezone.utc).isoformat(),
+        },
+        ensure_ascii=False,
+        indent=2,
+    ).encode("utf-8")
+
+    if not blob_store.upload(payload, DELTA_STATE_BLOB, overwrite=True):
+        raise RuntimeError(f"Failed to commit delta state to blob {DELTA_STATE_BLOB}")
+
+
+def _bootstrap_from_utc() -> str:
+    """Calculate the initial rolling lookback boundary, e.g. the previous 24 hours."""
+    value = datetime.now(timezone.utc) - timedelta(days=DELTA_BOOTSTRAP_DAYS)
+    return value.replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def get_email_delta(
+    access_token: str,
+    committed_delta_link: Optional[str] = None,
+) -> DeltaBatch:
     """
-    Fetch all unread, uncategorized inbox messages.
+    Complete one Inbox delta round.
 
-    Returns every qualifying message with the following fields:
-        id, subject, from, toRecipients, receivedDateTime,
-        body, categories, conversationId, hasAttachments
+    First run:
+      - uses receivedDateTime >= now - DELTA_BOOTSTRAP_DAYS
+      - exhausts every @odata.nextLink
+      - returns the final @odata.deltaLink as an uncommitted candidate
 
-    Domain-based sender exclusion is applied client-side in main.py via
-    EXCLUDE_DOMAINS — the Graph API OData filter does not support endswith/contains
-    so per-domain filtering cannot be done server-side.
+    Later runs:
+      - use the saved @odata.deltaLink exactly as Graph returned it
+      - do NOT recalculate the bootstrap date
 
-    Pagination is handled automatically — all pages are collected and returned
-    as a single flat list.
+    No state is committed by this function.
     """
+    _require_settings()
+    headers = _graph_headers(access_token)
 
-    # Rolling 7-day window: always looks back exactly one week from the moment the script runs.
-    # e.g. script runs at 09:00 on 2026-08-05 → fetches from 2026-07-29T09:00:00Z up to 2026-08-05T09:00:00Z
-    # now = datetime.now(timezone.utc)
-    # week_ago = now - timedelta(days=7)
-    # now_str = now.strftime("%Y-%m-%dT%H:%M:%SZ")
-    # week_ago_str = week_ago.strftime("%Y-%m-%dT%H:%M:%SZ")
+    if committed_delta_link:
+        url = committed_delta_link
+        params = None
+        print(f"Delta resume: loading changes from checkpoint {DELTA_STATE_BLOB}")
+    else:
+        url = (
+            f"{GRAPH_API_ENDPOINT}/users/{quote(USER_ID, safe='')}/"
+            "mailFolders/inbox/messages/delta"
+        )
+        bootstrap_from = _bootstrap_from_utc()
+        params = {
+            "$select": MESSAGE_SELECT,
+            "$filter": f"receivedDateTime ge {bootstrap_from}",
+            "$orderby": "receivedDateTime desc",
+            "$top": 100,
+        }
+        print(
+            f"Delta bootstrap: no checkpoint found; retrieving Inbox changes "
+            f"from {bootstrap_from} (last {DELTA_BOOTSTRAP_DAYS} day(s))."
+        )
 
-    # filter_conditions = (
-    #     f"isRead eq false and not categories/any() "
-    #     f"and receivedDateTime ge {week_ago_str} "
-    #     f"and receivedDateTime lt {now_str}"
-    # )
+    messages: list[dict[str, Any]] = []
+    removed: list[dict[str, Any]] = []
+    candidate_delta_link: Optional[str] = None
 
-    filter_conditions = (
-        # "isRead eq false and not categories/any() "
-        "receivedDateTime ge 2026-08-03T00:00:00Z "
-        "and receivedDateTime lt 2026-08-04T00:00:00Z"
+    for page in _paginate_json(url, headers, params):
+        for item in page.get("value", []):
+            if "@removed" in item:
+                removed.append(item)
+            else:
+                messages.append(item)
+        if page.get("@odata.deltaLink"):
+            candidate_delta_link = page["@odata.deltaLink"]
+
+    if not candidate_delta_link:
+        raise GraphApiError("Delta synchronization ended without @odata.deltaLink")
+
+    return DeltaBatch(
+        messages=messages,
+        removed=removed,
+        candidate_delta_link=candidate_delta_link,
     )
 
-    # hasAttachments is a native Graph field — including it in $select costs nothing
-    # extra and lets us skip a separate attachments API call in the main flow.
-    email_selection = (
-        "id,subject,from,toRecipients,receivedDateTime,"
-        "body,categories,conversationId,hasAttachments"
-    )
-    headers = {"Authorization": f"Bearer {access_token}", "Accept": "application/json"}
-    params = {"$top": 5, "$filter": filter_conditions, "$select": email_selection}
-    url = f"{GRAPH_API_ENDPOINT}/users/{USER_ID}/mailFolders/inbox/messages"
 
-    emails = []
-    for page in paginate(url, headers, params):
-        emails.extend(page)
-    return emails
+def get_emails(access_token: str) -> DeltaBatch:
+    """Load the Blob checkpoint and execute the next Inbox delta round."""
+    return get_email_delta(access_token, load_delta_link())
+
+
+def get_message_mime(access_token: str, message_id: str) -> bytes:
+    """Retrieve raw RFC 5322 MIME bytes for storage as message.eml."""
+    _require_settings()
+    encoded_id = quote(message_id, safe="")
+    url = (
+        f"{GRAPH_API_ENDPOINT}/users/{quote(USER_ID, safe='')}/"
+        f"messages/{encoded_id}/$value"
+    )
+    response = requests.get(
+        url,
+        headers=_graph_headers(access_token, accept="message/rfc822"),
+        timeout=REQUEST_TIMEOUT,
+    )
+    _raise_graph_error(response)
+    return response.content
+
+
+def stable_message_key(message: dict[str, Any]) -> str:
+    """Create a deterministic Blob-safe identity for idempotent retries."""
+    identity = message.get("id") or message.get("internetMessageId")
+    if not identity:
+        raise ValueError("Message has neither id nor internetMessageId")
+    return hashlib.sha256(identity.encode("utf-8")).hexdigest()
+
+
+def message_blob_prefix(message: dict[str, Any]) -> str:
+    key = stable_message_key(message)
+    return f"messages/{key[:2]}/{key}"
 
 
 def get_conversation_thread(access_token: str, conversation_id: str) -> list[dict]:
-    """
-    Retrieve all messages that share the given conversationId, across ALL mail
-    folders (inbox, sent, deleted items, etc.), ordered chronologically
-    (oldest first).
-
-    This gives us the complete mail chain for a conversation, regardless of
-    which folder each message landed in.
-
-    Pagination is handled automatically.
-    """
-    headers = {"Authorization": f"Bearer {access_token}", "Accept": "application/json"}
-    thread_selection = (
-        "id,subject,from,toRecipients,receivedDateTime,"
+    """Retrieve a complete conversation across folders, oldest first."""
+    _require_settings()
+    headers = _graph_headers(access_token)
+    selection = (
+        "id,internetMessageId,subject,from,toRecipients,receivedDateTime,"
         "body,hasAttachments,conversationId"
     )
     params = {
         "$filter": f"conversationId eq '{conversation_id}'",
-        "$select": thread_selection,
+        "$select": selection,
         "$top": 50,
-        # NOTE: $orderby cannot be combined with $filter on the /messages endpoint —
-        # the Graph API returns a 400. We sort client-side after collecting all pages.
     }
-    # /users/{id}/messages searches across all folders — intentional.
-    url = f"{GRAPH_API_ENDPOINT}/users/{USER_ID}/messages"
+    url = f"{GRAPH_API_ENDPOINT}/users/{quote(USER_ID, safe='')}/messages"
 
-    messages = []
-    for page in paginate(url, headers, params):
-        messages.extend(page)
+    messages: list[dict] = []
+    for page in _paginate_json(url, headers, params):
+        messages.extend(page.get("value", []))
 
-    # Sort chronologically (oldest → newest) so conversation_thread is always
-    # in the correct order and reply_to_message_id reliably points to the latest.
-    messages.sort(key=lambda m: m.get("receivedDateTime", ""))
+    messages.sort(key=lambda item: item.get("receivedDateTime", ""))
     return messages
 
 
 def copy_message_to_folder(
-    access_token: str, message_id: str, destination_folder_id: str
+    access_token: str,
+    message_id: str,
+    destination_folder_id: str,
 ) -> dict:
-    """
-    Copy a message to a destination mail folder via the Graph API.
-
-    The original message is left completely untouched — it stays unread in the
-    inbox exactly as it was. The copy lands in the destination folder.
-
-    POST /users/{userId}/messages/{messageId}/copy
-    Body: { "destinationId": "<folder_id>" }
-
-    Returns the Graph API representation of the newly created copy.
-    """
-    headers = {
-        "Authorization": f"Bearer {access_token}",
-        "Content-Type": "application/json",
-    }
-    url = f"{GRAPH_API_ENDPOINT}/users/{USER_ID}/messages/{message_id}/copy"
-    payload = {"destinationId": destination_folder_id}
-    response = requests.post(url, headers=headers, json=payload)
-    response.raise_for_status()
+    """Copy a message to an Outlook folder without moving the original."""
+    _require_settings()
+    encoded_id = quote(message_id, safe="")
+    url = (
+        f"{GRAPH_API_ENDPOINT}/users/{quote(USER_ID, safe='')}/"
+        f"messages/{encoded_id}/copy"
+    )
+    headers = _graph_headers(access_token)
+    headers["Content-Type"] = "application/json"
+    response = requests.post(
+        url,
+        headers=headers,
+        json={"destinationId": destination_folder_id},
+        timeout=REQUEST_TIMEOUT,
+    )
+    _raise_graph_error(response)
     return response.json()
 
 
 def get_attachments(access_token: str, message_id: str) -> list[dict]:
-    """Fetch all attachment objects for one message, including file contentBytes.
+    """Fetch all attachment objects for one message, preserving existing behavior."""
+    _require_settings()
+    encoded_id = quote(message_id, safe="")
+    url = (
+        f"{GRAPH_API_ENDPOINT}/users/{quote(USER_ID, safe='')}/"
+        f"messages/{encoded_id}/attachments"
+    )
 
-    The caller persists file attachments and replaces Base64 payloads with local
-    paths before exporting enriched email JSON.
-    """
-    headers = {"Authorization": f"Bearer {access_token}", "Accept": "application/json"}
-    url = f"{GRAPH_API_ENDPOINT}/users/{USER_ID}/messages/{message_id}/attachments"
     attachments: list[dict] = []
-    for page in paginate(url, headers, {"$top": 100}):
-        attachments.extend(page)
+    for page in _paginate_json(url, _graph_headers(access_token), {"$top": 100}):
+        attachments.extend(page.get("value", []))
     return attachments
