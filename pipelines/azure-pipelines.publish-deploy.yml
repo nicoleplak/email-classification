@@ -64,7 +64,19 @@ stages:
                 --username "$ACR_USER" \
                 --password-stdin
             displayName: 'Login to ACR'
-            
+
+          - script: |
+              set -euo pipefail
+
+              az login --identity
+              az account set --subscription $(SUBSCRIPTION_ID)
+
+              echo "=== ACR repositories ==="
+              az acr repository list \
+                --name $(ACR_NAME) \
+                --output table
+            displayName: 'List available ACR repositories'
+
           - script: |
               echo "=== Docker Hub connectivity ==="
               curl -Iv --max-time 10 https://registry-1.docker.io/v2/ || true
