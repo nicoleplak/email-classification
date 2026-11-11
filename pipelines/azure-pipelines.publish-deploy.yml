@@ -64,6 +64,17 @@ stages:
                 --username "$ACR_USER" \
                 --password-stdin
             displayName: 'Login to ACR'
+            
+          - script: |
+              echo "=== Docker Hub connectivity ==="
+              curl -Iv --max-time 10 https://registry-1.docker.io/v2/ || true
+
+              echo "=== DNS ==="
+              getent hosts registry-1.docker.io || true
+
+              echo "=== Docker pull ==="
+              docker pull python:3.13-slim-bookworm
+            displayName: 'Test Docker Hub connectivity'
 
           - script: |
               set -euo pipefail
