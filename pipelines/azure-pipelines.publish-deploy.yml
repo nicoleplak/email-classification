@@ -48,8 +48,20 @@ stages:
                 --username "$ACR_USER" \
                 --password-stdin
 
-              # Push target: AcrPush via the agent's managed identity
-              az acr login --name acrdatallm-b2fabgebc6a7dygd.azurecr.io
+              # Push target: AcrPush via the agent's managed identity.
+              # `az acr login` needs ARM read on the registry to resolve its suffixed login
+              # server, which the identity doesn't have, so exchange the Entra token directly.
+              TARGET=acrdatallm-b2fabgebc6a7dygd.azurecr.io
+              AAD_TOKEN=$(az account get-access-token --query accessToken -o tsv)
+              ACR_REFRESH=$(curl -sS --fail -X POST "https://$TARGET/oauth2/exchange" \
+                --data-urlencode "grant_type=access_token" \
+                --data-urlencode "service=$TARGET" \
+                --data-urlencode "access_token=$AAD_TOKEN" \
+                | python3 -c 'import json,sys; print(json.load(sys.stdin)["refresh_token"])')
+
+              echo "$ACR_REFRESH" | docker login $TARGET \
+                --username 00000000-0000-0000-0000-000000000000 \
+                --password-stdin
             displayName: 'Login to ACR'
 
           - script: |
