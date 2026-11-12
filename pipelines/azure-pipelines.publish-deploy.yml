@@ -65,26 +65,6 @@ stages:
                 --password-stdin
             displayName: 'Login to ACR'
 
-          # The agent VM cannot reach Docker Hub; ACR imports the base image server-side.
-          - script: |
-              set -euo pipefail
-
-              az login --identity
-              az account set --subscription $(SUBSCRIPTION_ID)
-
-              if az acr repository show \
-                   --name $(ACR_NAME) \
-                   --image mirror/python:3.13-slim-bookworm \
-                   --output none 2>/dev/null; then
-                echo "mirror/python:3.13-slim-bookworm already in ACR"
-              else
-                az acr import \
-                  --name $(ACR_NAME) \
-                  --source docker.io/library/python:3.13-slim-bookworm \
-                  --image mirror/python:3.13-slim-bookworm
-              fi
-            displayName: 'Ensure base image mirror in ACR'
-
           - script: |
               set -euo pipefail
 
