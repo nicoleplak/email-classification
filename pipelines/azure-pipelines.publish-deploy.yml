@@ -7,22 +7,6 @@ pr: none
 pool:
   name: vmadoagentprd_pool
 
-variables:
-  # Existing ACR accessible from the VM agent
-  ACR_NAME:         craiplatformsharedgrprd
-  ACR_LOGIN_SERVER: craiplatformsharedgrprd.azurecr.io
-
-  # Dedicated image repository for this application
-  IMAGE_NAME:       prd/emclf-graph-api
-  IMAGE_TAG:        $(Build.BuildNumber)
-
-  # Azure target
-  SUBSCRIPTION_ID:  753ed49c-40d0-4289-8730-3db54951ce44
-
-  # IMPORTANT: deploy only to our existing Container App
-  RESOURCE_GROUP:   LLM
-  CONTAINER_APP:    ca-emclf-llm-gr
-
 stages:
 
   # ============================================================
@@ -43,34 +27,37 @@ stages:
               set -euo pipefail
 
               az login --identity
-              az account set --subscription $(SUBSCRIPTION_ID)
+              az account set --subscription 753ed49c-40d0-4289-8730-3db54951ce44
 
               az acr update \
-                --name $(ACR_NAME) \
+                --name craiplatformsharedgrprd \
                 --admin-enabled true \
                 --output none
 
               ACR_USER=$(az acr credential show \
-                --name $(ACR_NAME) \
+                --name craiplatformsharedgrprd \
                 --query username \
                 -o tsv)
 
               ACR_PASS=$(az acr credential show \
-                --name $(ACR_NAME) \
+                --name craiplatformsharedgrprd \
                 --query passwords[0].value \
                 -o tsv)
 
-              echo "$ACR_PASS" | docker login $(ACR_LOGIN_SERVER) \
+              echo "$ACR_PASS" | docker login craiplatformsharedgrprd.azurecr.io \
                 --username "$ACR_USER" \
                 --password-stdin
+
+              # Push target: AcrPush via the agent's managed identity
+              az acr login --name acrdatallm
             displayName: 'Login to ACR'
 
           - script: |
               set -euo pipefail
 
               docker build \
-                -t $(ACR_LOGIN_SERVER)/$(IMAGE_NAME):$(IMAGE_TAG) \
-                -t $(ACR_LOGIN_SERVER)/$(IMAGE_NAME):latest \
+                -t acrdatallm-b2fabgebc6a7dygd.azurecr.io/email-classification:$(Build.BuildNumber) \
+                -t acrdatallm-b2fabgebc6a7dygd.azurecr.io/email-classification:latest \
                 -f $(Build.SourcesDirectory)/Dockerfile \
                 $(Build.SourcesDirectory)
             displayName: 'Docker build'
@@ -78,8 +65,8 @@ stages:
           - script: |
               set -euo pipefail
 
-              docker push $(ACR_LOGIN_SERVER)/$(IMAGE_NAME):$(IMAGE_TAG)
-              docker push $(ACR_LOGIN_SERVER)/$(IMAGE_NAME):latest
+              docker push acrdatallm-b2fabgebc6a7dygd.azurecr.io/email-classification:$(Build.BuildNumber)
+              docker push acrdatallm-b2fabgebc6a7dygd.azurecr.io/email-classification:latest
             displayName: 'Docker push'
 
 
@@ -101,27 +88,27 @@ stages:
               set -euo pipefail
 
               az login --identity
-              az account set --subscription $(SUBSCRIPTION_ID)
+              az account set --subscription 753ed49c-40d0-4289-8730-3db54951ce44
 
               az containerapp update \
-                --name $(CONTAINER_APP) \
-                --resource-group $(RESOURCE_GROUP) \
-                --image $(ACR_LOGIN_SERVER)/$(IMAGE_NAME):$(IMAGE_TAG)
+                --name ca-emclf-llm-gr \
+                --resource-group LLM \
+                --image acrdatallm-b2fabgebc6a7dygd.azurecr.io/email-classification:$(Build.BuildNumber)
             displayName: 'Update Container App image'
 
           - script: |
               set -euo pipefail
 
               az login --identity
-              az account set --subscription $(SUBSCRIPTION_ID)
+              az account set --subscription 753ed49c-40d0-4289-8730-3db54951ce44
 
-              IMAGE="$(ACR_LOGIN_SERVER)/$(IMAGE_NAME):$(IMAGE_TAG)"
+              IMAGE="acrdatallm-b2fabgebc6a7dygd.azurecr.io/email-classification:$(Build.BuildNumber)"
 
               for i in $(seq 1 30); do
 
                 STATE="$(az containerapp revision list \
-                  --name $(CONTAINER_APP) \
-                  --resource-group $(RESOURCE_GROUP) \
+                  --name ca-emclf-llm-gr \
+                  --resource-group LLM \
                   --query "[?properties.template.containers[0].image=='$IMAGE'] | [0].{p:properties.provisioningState,r:properties.runningState,h:properties.healthState}" \
                   -o tsv)"
 
