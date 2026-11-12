@@ -49,7 +49,7 @@ stages:
                 --password-stdin
 
               # Push target: AcrPush via the agent's managed identity
-              az acr login --name acrdatallm
+              az acr login --name acrdatallm-b2fabgebc6a7dygd.azurecr.io
             displayName: 'Login to ACR'
 
           - script: |
