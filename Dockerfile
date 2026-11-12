@@ -1,15 +1,12 @@
-FROM python:3.13-slim-bookworm
+# ACR mirror of python:3.13-slim-bookworm (the build VM cannot reach Docker Hub or deb.debian.org).
+# The image already ships ca-certificates.
+FROM craiplatformsharedgrprd.azurecr.io/mirror/python:3.13-slim-bookworm
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     UPLOAD_RESULTS_TO_BLOB=true
 
 WORKDIR /app
-
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-        ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
 
 COPY requirements/runtime/requirements-container.lock \
     /app/requirements-container.lock
