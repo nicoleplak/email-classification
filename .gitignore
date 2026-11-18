@@ -13,3 +13,4 @@ runs/
 **/case_store/
 **/DWH_Output_Storage/
 **/debug_attachment_extractions/
+__pycache__/

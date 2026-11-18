@@ -172,6 +172,73 @@ python router.py
 
 A historical attachment document mentions `tests/smoke_test_attachment_processor.py` (relevant TXT, ignored logo, missing referenced attachment); that script is **not in the supplied tree**. The listed AFM and processor test filenames do not establish their coverage or pass status. For a controlled integration check, select a strict Graph date window and small UAT cap, verify attachment `SAVED`/`local_path` and no exported Base64, exercise Document Intelligence and Azure OpenAI, check evidence in initial/retry prompts, and confirm review-required cases do not auto-route. Record actual JSON/Excel/Blob output locations and a reproducible test result.
 
+### Review app (local, multi-user)
+
+`AI_email_classifier/evaluation/review_server.py` serves the review tool. It has a queue of unclassified, to-review and reviewed emails, date and field filters, live "who has this open" indicators, and an audit log of every change. It uses only the Python standard library and keeps everything in one SQLite file, `runs/eval/review.db` by default. That file holds client emails, so keep it on your machine or in the client's Azure.
+
+**1. Load emails.** Run this from `AI_email_classifier/`, in PowerShell. It reads the classifier's evaluation outputs (`runs/eval/probs_v1.jsonl`, `facts_v3.jsonl`, `fields_v2.jsonl`) and the business spec, so set the same variables as for `evaluate.py`:
+
+```powershell
+$env:ENV_FILE     = "C:\Documents\clients\Email-Classification\ATT55131.env"
+$env:EVAL_RUN_DIR = "C:\Documents\clients\Email-Classification\runs\combined"
+$env:SPEC_XLSX    = "C:\Documents\clients\Email-Classification\Email Classification Documentantion - IDS comments.xlsx"
+python evaluation\review_server.py import probs_v1
+```
+
+The import takes a few minutes, because it scans the 1.2 GB registry. Re-run it after each classification run: new emails are added, changed ones are updated, and existing reviews are never touched. To try the app without client data, load invented emails into a separate file instead:
+
+```powershell
+$env:REVIEW_DB = "demo.db"
+python evaluation\review_server.py demo
+```
+
+**2. Start the server**, in the same window, so the same `REVIEW_DB` applies:
+
+```powershell
+python evaluation\review_server.py serve        # http://127.0.0.1:8765, or: serve 9000
+```
+
+Open http://127.0.0.1:8765 in Edge or Chrome and sign in with your name. Locally there is no password, so the server only listens on this computer. To review together, everyone opens the same server: run it on one shared machine, such as the VDI, or later in Azure. Two browser windows on one computer, signed in with different names, also show the multi-user behaviour.
+
+**3. Export reviews for scoring.** This writes `runs/eval/business_review_server.csv`, in the same columns as the old per-reviewer exports, so `evaluate.py score` picks it up:
+
+```powershell
+python evaluation\review_server.py export
+```
+
+**Sign-in in Azure.** Set `REVIEW_AUTH=easyauth` and turn on Container Apps authentication with Microsoft Entra ID. The app then uses the signed-in user's name, and refuses any request that did not come through that sign-in. In this mode it listens on all interfaces, port `PORT`. Only run it this way behind Container Apps authentication.
+
+**Settings:**
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `REVIEW_DB` | `runs/eval/review.db` | SQLite file with emails, reviews and the audit log |
+| `REVIEW_AUTH` | `dev` | `dev`: sign in with a name, this computer only. `easyauth`: Entra ID through Container Apps |
+| `PORT` | `8765` | Port to listen on |
+| `EVAL_OUT_DIR` | `runs/eval` | Where the evaluation outputs and the default database live |
+
+**Limits:**
+- **One server process.** "Who has this open" is kept in the server's memory, so run a single instance until it moves into the database.
+- **Dates are in UTC**, as Graph gives them. The "Today" filter can be a couple of hours off around midnight Greek time.
+
+**Tests.** Run these from the repository root; one older test reads a relative path:
+
+```powershell
+python -m pytest AI_email_classifier\tests                      # unit tests, incl. tests\test_review_server.py
+python AI_email_classifier\evaluation\browser_test\run_server.py        # two reviewers at once, invented emails
+python AI_email_classifier\evaluation\browser_test\run_server.py --real # every imported email; prints counts only
+```
+
+The browser tests use Playwright's bundled Chromium, installed globally with `npm install -g @playwright/test`, followed by `npx playwright install chromium`. They save screenshots of the invented emails to `runs/eval/ui_test_output/server_*.png`. The `--real` run never takes screenshots.
+
+### Reading .eml files without a mail client
+
+A `.eml` is the raw email: Greek text and attachments are encoded, so Notepad or a browser shows unreadable text. Double-clicking opens it properly in Outlook. For anyone without Outlook, or to print, `tools/eml_to_html.py` writes a readable `.html` page next to each `.eml`, plus a `<name>_files/` folder with the attachments. It uses only the standard library, and the page blocks scripts and remote images.
+
+```powershell
+python tools\eml_to_html.py <file.eml or folder>   # no arguments: run its self-check
+```
+
 ## 9. Troubleshooting and failure behavior
 
 - **No messages:** inspect mailbox, Inbox, UTC date range, active unread/category filter and excluded domains. A Graph filter cannot begin with `and`.

@@ -1,0 +1,142 @@
+{
+  "Διοίκηση": {"rules": [{"do": "manual"}]},
+  "Follow -up": {"rules": [{"do": "activity"}]},
+  "GDPR": {"rules": [{"do": "request", "open": "62", "closed": "132"}]},
+  "Αγωγές": {"rules": [{"do": "forward"}]},
+  "Αιτήματα Ν.3869": {
+    "online": "portal",
+    "rules": [
+      {"when": {"decision_3869_attached": true}, "do": "request", "codes": ["161"], "bypass_online": true},
+      {"when": {"asks_instalment": true}, "do": "request", "open": "113", "closed": "114"},
+      {"when": {"asks_payment_history": true}, "do": "request", "open": "103", "closed": "104"},
+      {"when": {"asks_debt_certificate": true}, "do": "request", "codes": ["105"]},
+      {"when": {"asks_reversal": true}, "do": "request", "codes": ["108"]},
+      {"when": {"disputes_debt": true}, "do": "request", "codes": ["112"]},
+      {"when": {"areios_pagos_decision": true}, "do": "request", "codes": ["184"]},
+      {"when": {"asks_source_of_funds": true}, "do": "request", "codes": ["109"]},
+      {"else": true, "do": "manual"}
+    ]
+  },
+  "Αιτήματα πελατών για λογαριασμούς που δεν είναι στην διαχείριση μας": {"rules": [{"do": "manual"}]},
+  "Αιτήματα που αφορούν στον εξωδικαστικό 4605": {
+    "rules": [
+      {"when": {"disputes_debt": true}, "do": "request", "codes": ["158"]},
+      {"else": true, "do": "request", "open": "78", "closed": "127"}
+    ]
+  },
+  "Αιτήματα που αφορούν στον εξωδικαστικό 4738": {
+    "rules": [
+      {"when": {"disputes_debt": true}, "do": "request", "open": "157", "closed": "159"},
+      {"when": {"asks_schedule": true}, "do": "request", "open": "168", "closed": "170"},
+      {"else": true, "do": "request", "open": "81", "closed": "129"}
+    ]
+  },
+  "Αμφισβήτηση οφειλής": {
+    "rules": [
+      {"when": {"registry_3869": true}, "do": "request", "codes": ["112"]},
+      {"else": true, "do": "request", "open": "146", "closed": "147"}
+    ]
+  },
+  "Αναβολές δικασίμων": {"rules": [{"do": "forward"}]},
+  "Αντίγραφα συμβάσεων": {"rules": [{"do": "request", "open": "154", "closed": "155"}]},
+  "Αντιλογισμοί": {
+    "rules": [
+      {"when": {"reversal_form_attached": false}, "do": "reply"},
+      {"when": {"registry_3869": true, "reversal_form_attached": true}, "do": "request", "codes": ["108"]},
+      {"when": {"registry_3869": false, "reversal_form_attached": true}, "do": "request", "open": "152", "closed": "153"}
+    ]
+  },
+  "Αποδείξεις πληρωμών": {"online": "portal", "rules": [{"do": "manual", "online_gated": true}]},
+  "Ασφαλιστήρια": {
+    "rules": [
+      {"when": {"insurance_replacement": true}, "do": "request", "open": "61", "closed": "137"},
+      {"when": {"insurance_info": true}, "do": "request", "open": "162", "closed": "163"},
+      {"when": {"insurance_compensation": true}, "do": "request", "codes": ["164"]},
+      {"else": true, "do": "request", "open": "60", "closed": "136"}
+    ]
+  },
+  "Βεβαιώσεις εξόφλησης": {
+    "rules": [{"do": "request", "open": "87", "closed": "99", "requires_contract": true}]
+  },
+  "Βεβαιώσεις οφειλής": {
+    "online": "portal",
+    "rules": [
+      {"when": {"is_heir": true}, "do": "request", "codes": ["111"], "bypass_online": true},
+      {"when": {"is_heir": false, "registry_3869": true}, "do": "request", "codes": ["105"]},
+      {"when": {"is_heir": false, "registry_3869": false, "wants_breakdown": true}, "do": "request", "open": "91", "closed": "118"},
+      {"when": {"is_heir": false, "registry_3869": false, "wants_breakdown": false}, "do": "request", "open": "89", "closed": "117"}
+    ]
+  },
+  "Βεβαίωση άρσης προσημείωσης": {
+    "rules": [
+      {"when": {"release_partial": true}, "do": "request", "open": "52", "closed": "139"},
+      {"else": true, "do": "request", "open": "50", "closed": "100"}
+    ]
+  },
+  "Βεβαίωση_Καταβολών_Βεβαίωση_Τόκων": {"rules": [{"do": "request", "open": "98", "closed": "120"}]},
+  "Βιογραφικά με επισυναπτόμενα": {"rules": [{"do": "forward"}]},
+  "Γνωστοποίησης κωδικού πληρωμής / δόσης": {"online": "portal", "rules": [{"do": "manual", "online_gated": true}]},
+  "Διαμεσολάβηση - ρύθμιση": {"rules": [{"do": "request", "open": "41", "closed": "141"}]},
+  "Διαφημιστικά- σεμινάρια": {"rules": [{"do": "forward"}]},
+  "Δοσολόγιο": {"online": "portal", "rules": [{"do": "request", "open": "144", "closed": "145"}]},
+  "Εθελοντική εκποίηση": {"rules": [{"do": "request", "open": "42", "closed": "143"}]},
+  "Εξασφαλίσεις": {"rules": [{"do": "request", "open": "51", "closed": "140"}]},
+  "Εξουσιοδοτήσεις": {"rules": [{"do": "request", "open": "45", "closed": "124"}]},
+  "Εξώδικα": {"rules": [{"do": "manual"}]},
+  "Επικαιροποίηση στοιχείων με επισύναψη υπεύθυνης δήλωσης": {
+    "rules": [
+      {"when": {"erb": true}, "do": "bank_referral"},
+      {"else": true, "do": "request", "open": "64", "closed": "131"}
+    ]
+  },
+  "Ηχογραφημένες κλήσεις": {
+    "rules": [
+      {"when": {"call_preservation": true}, "do": "request", "codes": ["ΔΙΑΤΗΡΗΣΗ ΚΛΗΣΕΩΝ"]},
+      {"else": true, "do": "request", "open": "85", "closed": "148"}
+    ]
+  },
+  "Κίνηση λογαριασμού": {"online": "portal", "rules": [{"do": "request", "open": "95", "closed": "119"}]},
+  "Κώδικας δεοντολογίας": {"rules": [{"do": "manual"}]},
+  "Νομιμοποίηση κληρονόμων με επισύναψη εγγράφων": {
+    "rules": [
+      {"when": {"erb": true}, "do": "bank_referral"},
+      {"else": true, "do": "request", "open": "44", "closed": "123"}
+    ]
+  },
+  "Φορείς": {"rules": [{"do": "manual"}]},
+  "Πλειστηριασμοί": {
+    "rules": [
+      {"when": {"asks_negotiation": true}, "do": "request", "open": "40", "closed": "142"},
+      {"when": {"authorization_attached": true}, "do": "request", "open": "45", "closed": "124"},
+      {"when": {"auction_imminent": true}, "do": "forward", "to": ["auctions_proceeds_collections_acquisition@dovaluegreece.gr", "legalretail@dovaluegreece.gr", "support_special_cases@dovaluegreece.gr", "client_branch_reques@dovaluegreece.gr"]},
+      {"when": {"auction_cancel_4738": true}, "do": "request", "codes": ["81"]},
+      {"when": {"auction_cancel_4738": true}, "do": "forward", "to": ["L4738_Support@dovaluegreece.gr", "auctions_proceeds_collections_acquisition@dovaluegreece.gr", "legalretail@dovaluegreece.gr", "client_branch_reques@dovaluegreece.gr"]},
+      {"else": true, "do": "manual"}
+    ]
+  },
+  "Πόθεν έσχες": {
+    "rules": [
+      {"when": {"erb": true}, "do": "bank_referral"},
+      {"when": {"erb": false, "registry_3869": true}, "do": "request", "codes": ["109"]},
+      {"when": {"erb": false, "registry_3869": false}, "do": "request", "open": "111", "closed": "122"}
+    ]
+  },
+  "Ρύθμιση": {
+    "rules": [
+      {"when": {"health_data": true, "health_doc_attached": false}, "do": "reply"},
+      {"when": {"health_data": true, "health_doc_attached": true}, "do": "request", "open": "40", "closed": "142"},
+      {"when": {"health_data": true, "health_doc_attached": true}, "do": "forward", "to": ["support_special_cases@dovaluegreece.gr"]},
+      {"when": {"health_data": false}, "do": "request", "open": "40", "closed": "142"}
+    ]
+  },
+  "Συμβάσεις αναδιαρθωσης από pqh": {"rules": [{"do": "no_action"}]},
+  "Τα απεσταλμένα από dovaluegreece και όσα είναι κοινοποιημένο από εσωτερικά κανάλια": {"rules": [{"do": "no_action"}]},
+  "Τιμολόγια": {"rules": [{"do": "forward"}]},
+  "ΥΑΣ- Διαμεσολάβηση": {"rules": [{"do": "forward"}]},
+  "φόρμες ενδιαφέροντος ρύθμισης": {"rules": [{"do": "manual"}]},
+  "φόρμες παραπόνων": {"rules": [{"do": "manual"}]},
+  "φόρμες επικοινωνίας επενδυτή": {"rules": [{"do": "forward"}]},
+  "Παράπονα": {"rules": [{"do": "manual"}]},
+  "Marketing-SPAM": {"rules": [{"do": "no_action"}]},
+  "No Match Found": {"rules": [{"do": "manual"}]}
+}
