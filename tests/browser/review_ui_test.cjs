@@ -99,8 +99,11 @@ async function behaviour(browser) {
   ok("viewer has email + attachment tabs", tabs >= 2, { tabs });
   if (tabs >= 2) {
     await page.click("#viewer-tabs button:nth-child(2)");
-    const kind = await page.$eval("#viewer-body", (b) => b.firstElementChild ? b.firstElementChild.tagName + (b.firstElementChild.className ? "." + b.firstElementChild.className : "") : "none");
-    ok("attachment opens in the viewer", ["IFRAME", "DIV.img", "DIV.nopreview"].includes(kind), { kind });
+    const kind = await page.$eval("#viewer-body", (b) => {
+      const el = b.querySelector("iframe, .img img, .nopreview");
+      return el ? el.tagName + (el.className ? "." + el.className : "") : "none";
+    });
+    ok("attachment opens in the viewer", ["IFRAME", "IMG", "DIV.nopreview"].includes(kind), { kind });
     const dl = await page.locator("#viewer-tools a[href*='download=1']").count();
     ok("attachment has a download link", dl === 1);
   }
@@ -111,6 +114,24 @@ async function behaviour(browser) {
     await chips.last().click();
     ok("a source chip switches the viewer", (await page.locator("#viewer-tabs button[aria-selected=true]").count()) === 1);
   }
+
+  // Loading: clicking an email shows a loading state at once, which clears when the email is shown.
+  const busyAtClick = await page.evaluate(() => {
+    const rows = [...document.querySelectorAll("#list .item")];
+    rows[rows.length - 1].click();
+    return { busy: document.querySelector("#case").getAttribute("aria-busy"), skeleton: document.querySelectorAll("#case .sk").length };
+  });
+  ok("opening an email shows a loading state at once", busyAtClick.busy === "true" && busyAtClick.skeleton > 0, busyAtClick);
+  await page.waitForFunction(() => !document.querySelector("#case").hasAttribute("aria-busy"));
+  ok("the loading state clears", (await page.locator("#case .sk").count()) === 0);
+  ok("the splash is gone after start", await page.$eval("#splash", (s) => s.hidden));
+
+  // Clock: hovering shows how and when emails arrive.
+  await page.hover("#clock-btn");
+  await page.waitForTimeout(250);
+  const clock = await page.$eval("#clock-pop", (p) => ({ opacity: +getComputedStyle(p).opacity, filled: p.children.length }));
+  ok("hovering the clock shows the intake card", clock.opacity === 1 && clock.filled >= 3, clock);
+  await page.mouse.move(5, 300);
 
   // Motion: opening a case animates its cards (sampled mid-way, not just the end state).
   const other = await page.$$eval("#list .item", (items) => items.map((i) => i.dataset.id));

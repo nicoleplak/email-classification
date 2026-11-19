@@ -19,3 +19,4 @@ __pycache__/
 *.env
 ui_test_output/
 node_modules/
+review_app/.session_secret

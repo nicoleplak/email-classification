@@ -8,6 +8,7 @@
 <script src="/app.js" defer></script>
 </head>
 <body>
+<div id="splash" class="splash" role="status" aria-label="Φόρτωση"><span class="spinner big" aria-hidden="true"></span></div>
 <div id="signin" class="signin" hidden>
   <form id="signin-form" class="signin-card" novalidate>
     <h1 data-t="appName">Έλεγχος email</h1>
@@ -30,6 +31,13 @@
   <header class="topbar">
     <div class="brand"><span class="logo" aria-hidden="true"></span><span data-t="appName"></span></div>
     <div class="topbar-right">
+      <div class="clock">
+        <button id="clock-btn" class="clock-btn" type="button" aria-describedby="clock-pop" aria-label="Παραλαβή email">
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+        </button>
+        <div id="clock-pop" class="clock-pop" role="tooltip"></div>
+      </div>
       <button id="activity-open" class="link" type="button" data-t="activity"></button>
       <button id="lang" class="link" type="button"></button>
       <span id="me" class="me"></span>

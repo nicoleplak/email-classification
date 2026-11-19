@@ -48,7 +48,10 @@ configure_app() {
   : "${REVIEW_ACCESS_CODE:?set REVIEW_ACCESS_CODE (12+ characters, handed to reviewers)}"
   [ "${#REVIEW_ACCESS_CODE}" -ge 12 ] || { echo "REVIEW_ACCESS_CODE must be 12+ characters" >&2; exit 2; }
   local session="${REVIEW_SESSION_SECRET:-$(python -c 'import secrets; print(secrets.token_hex(32))')}"
-  local uami_id uami_client
+  local uami_id uami_client cron
+  # The clock in the app shows the job's schedule; empty when the job is manual.
+  cron=$(az containerapp job show -n "$JOB" -g "$RG" --subscription "$SUB" \
+    --query "properties.configuration.scheduleTriggerConfig.cronExpression" -o tsv 2>/dev/null || true)
   uami_id=$(az identity show -n "$UAMI" -g "$RG" --subscription "$SUB" --query id -o tsv)
   uami_client=$(az identity show -n "$UAMI" -g "$RG" --subscription "$SUB" --query clientId -o tsv)
   azq containerapp identity assign -n "$APP" -g "$RG" --user-assigned "$uami_id"
@@ -61,7 +64,8 @@ configure_app() {
       REVIEW_AUTH=demo REVIEW_ACCESS_CODE=secretref:review-access-code \
       REVIEW_SESSION_SECRET=secretref:review-session-secret HOST=0.0.0.0 PORT=8000 \
       CASE_STORE=cosmos "COSMOS_ENDPOINT=$COSMOS" "COSMOS_DATABASE=$COSMOS_DB" \
-      RESULT_STORAGE_ACCOUNT=datallmdev RESULT_CONTAINER=email-classification "AZURE_CLIENT_ID=$uami_client"
+      RESULT_STORAGE_ACCOUNT=datallmdev RESULT_CONTAINER=email-classification "AZURE_CLIENT_ID=$uami_client" \
+      "FETCH_CRON=$cron"
   azq containerapp ingress enable -n "$APP" -g "$RG" --type external --target-port 8000 --transport auto
   for secret in graph-client-secret azure-openai-api-key doc-intel-api-key; do
     azq containerapp secret remove -n "$APP" -g "$RG" --secret-names "$secret" 2>/dev/null || true

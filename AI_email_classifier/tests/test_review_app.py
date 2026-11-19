@@ -137,3 +137,49 @@ def test_the_activity_log_shows_who_did_what_on_which_email(app):
     assert events[0]["subject"] == "Βεβαίωση" and events[0]["after"]["finalCategory"] == "Βεβαίωση άρσης προσημείωσης"
     listed = json.loads(call(f"{base}/api/cases", cookie=cookie)[2])["items"][0]
     assert listed["reviewedBy"]["name"] == "Ann Example"  # the list can say who reviewed it
+
+
+def test_a_review_can_be_reset_back_to_the_review_queue(app):
+    server, base, case_id = app
+    cookie = sign_in(base)
+    etag = json.loads(call(f"{base}/api/cases/{case_id}", cookie=cookie)[2])["case"]["_etag"]
+    assert call(f"{base}/api/cases/{case_id}/reset", {"_etag": etag}, cookie)[0] == 400  # not reviewed yet
+    call(f"{base}/api/cases/{case_id}/review", {"_etag": etag, "finalCategory": "Βεβαίωση άρσης προσημείωσης"}, cookie)
+    reviewed = server.STORE.get("cases", case_id)
+    assert call(f"{base}/api/cases/{case_id}/reset", {"_etag": "stale"}, cookie)[0] == 409
+    assert call(f"{base}/api/cases/{case_id}/reset", {"_etag": reviewed["_etag"]}, cookie)[0] == 200
+    case = server.STORE.get("cases", case_id)
+    assert case["status"] == "RECEIVED" and case["finalCategory"] is None and case["reviewedBy"] is None
+    reset = [e for e in server.STORE.find("audit", "caseId", case_id) if e["action"] == "reset"][0]
+    assert reset["before"]["finalCategory"] == "Βεβαίωση άρσης προσημείωσης" and reset["byName"] == "Ann Example"
+
+
+def test_a_classified_email_returns_as_review_even_if_it_was_automatic(app):
+    server, base, case_id = app
+    cookie = sign_in(base)
+    case = server.STORE.get("cases", case_id)
+    server.STORE.replace("cases", {**case, "route": "AUTO", "classifiedAt": "2026-11-19T08:30:00Z",
+                                   "status": "REVIEWED", "finalCategory": "Βεβαίωση άρσης προσημείωσης"})
+    etag = server.STORE.get("cases", case_id)["_etag"]
+    assert call(f"{base}/api/cases/{case_id}/reset", {"_etag": etag}, cookie)[0] == 200
+    case = server.STORE.get("cases", case_id)
+    assert case["status"] == "CLASSIFIED" and case["route"] == "REVIEW"
+    assert case["routeReasons"][-1].startswith("review reset by Ann Example")
+
+
+def test_next_fetch_time_follows_the_cron(app):
+    from datetime import datetime, timezone
+
+    server = app[0]
+    at = lambda s: datetime.strptime(s, "%Y-%m-%dT%H:%M").replace(tzinfo=timezone.utc)  # noqa: E731
+    assert server.next_run("0 */4 * * *", at("2026-11-19T10:30")) == at("2026-11-19T12:00")
+    # Friday 15:00 UTC -> weekday schedule resumes Monday 06:00
+    assert server.next_run("0 6,10,14 * * 1-5", at("2026-11-20T15:00")) == at("2026-11-23T06:00")
+    assert server.next_run("not a cron", at("2026-11-19T10:30")) is None
+
+
+def test_each_visit_renews_the_sign_in(app):
+    _, base, _ = app
+    cookie = sign_in(base)
+    status, headers, body = call(f"{base}/api/session", cookie=cookie)
+    assert json.loads(body)["user"]["name"] == "Ann Example" and "Max-Age=" in headers["Set-Cookie"]

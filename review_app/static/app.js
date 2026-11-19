@@ -53,6 +53,15 @@ const T = {
     evClassifiedAs: "Πρόταση: {c} ({p}) → {r}", evChanged: "{a} → {b}", evFirst: "Ορίστηκε: {b}",
     routeAUTO: "αυτόματο", routeREVIEW: "προς έλεγχο", routeEXCEPTION: "σφάλμα",
     evRerouted: "Νέο όριο αυτόματης ταξινόμησης",
+    signingIn: "Σύνδεση…", saving: "Αποθήκευση…", loading: "Φόρτωση…", loadingEmail: "Φόρτωση email…",
+    resetReview: "Επαναφορά σε «Προς έλεγχο»", resetConfirm: "Ναι, επαναφορά", cancel: "Άκυρο",
+    resetQuestion: "Ο έλεγχος θα αναιρεθεί και το email θα επιστρέψει στα «Προς έλεγχο». Το ιστορικό τον κρατά.",
+    resetDone: "Επέστρεψε στα «Προς έλεγχο»", evReset: "Ο έλεγχος αναιρέθηκε", evResetDetail: "Ήταν: {b}",
+    ingestTitle: "Παραλαβή email", ingestManual: "Τα email παραλαμβάνονται χειροκίνητα, όταν κάποιος ξεκινήσει τη λήψη.",
+    ingestSchedule: "Τα email παραλαμβάνονται αυτόματα, με πρόγραμμα.", ingestNext: "Επόμενη παραλαβή",
+    ingestLast: "Τελευταία παραλαβή", ingestCount: "{n} email", ingestImported: "εισαγωγή αρχείων",
+    ingestNone: "Δεν έχει γίνει ακόμη παραλαβή.", ingestDelay: "Ένα νέο email εμφανίζεται εδώ μετά την επόμενη παραλαβή.",
+    error: "Κάτι πήγε στραβά. Δοκιμάστε ξανά.",
   },
   en: {
     appName: "Email review", signIn: "Sign in", signOut: "Sign out", yourName: "Full name",
@@ -104,6 +113,15 @@ const T = {
     evClassifiedAs: "Suggested: {c} ({p}) → {r}", evChanged: "{a} → {b}", evFirst: "Set to: {b}",
     routeAUTO: "automatic", routeREVIEW: "to review", routeEXCEPTION: "error",
     evRerouted: "New automatic threshold",
+    signingIn: "Signing in…", saving: "Saving…", loading: "Loading…", loadingEmail: "Loading email…",
+    resetReview: "Reset to “To review”", resetConfirm: "Yes, reset", cancel: "Cancel",
+    resetQuestion: "The review will be undone and the email goes back to “To review”. The history keeps it.",
+    resetDone: "Back in “To review”", evReset: "Review reset", evResetDetail: "Was: {b}",
+    ingestTitle: "Email intake", ingestManual: "Emails are fetched by hand, when someone starts a fetch.",
+    ingestSchedule: "Emails are fetched automatically, on a schedule.", ingestNext: "Next fetch",
+    ingestLast: "Last fetch", ingestCount: "{n} emails", ingestImported: "file import",
+    ingestNone: "No fetch has run yet.", ingestDelay: "A new email shows up here after the next fetch.",
+    error: "Something went wrong. Please try again.",
   },
 };
 const FIELD = {
@@ -325,13 +343,49 @@ async function loadCases() {
 }
 
 // ------------------------------------------------------------------ case
+// ------------------------------------------------------------------ loading states
+const spinner = (label) => h("div", { class: "loading", role: "status" }, h("span", { class: "spinner", "aria-hidden": "true" }),
+  h("span", { text: label || t("loading") }));
+const skeletonLines = (n) => Array.from({ length: n }, (_, i) => h("div", { class: "sk", style: `width:${[92, 70, 84, 56, 77][i % 5]}%` }));
+function showCaseLoading() {
+  const pane = $("#case");
+  pane.setAttribute("aria-busy", "true");
+  pane.replaceChildren(h("div", { class: "case-head" }, h("div", { class: "sk sk-title" }), h("div", { class: "sk", style: "width:45%" })),
+    spinner(t("loadingEmail")),
+    ...[4, 3, 5].map((n) => h("section", { class: "card sk-card" }, h("div", { class: "body" }, ...skeletonLines(n)))));
+  $("#viewer-body").replaceChildren(spinner(t("loadingEmail")));
+}
+/* Wrap an iframe/img so a spinner covers it until it has actually loaded. */
+function whenLoaded(el, label, watch = el) {
+  const cover = spinner(label);
+  cover.classList.add("cover");
+  const done = () => cover.remove();
+  watch.addEventListener("load", done);
+  watch.addEventListener("error", done);
+  setTimeout(done, 20000);  // never leave a spinner over a frame the browser handled silently
+  return h("div", { class: "frame-wrap" }, el, cover);
+}
+function busy(button, label) {
+  const text = button.textContent;
+  button.disabled = true;
+  button.classList.add("busy");
+  button.textContent = label;
+  return () => { button.disabled = false; button.classList.remove("busy"); button.textContent = text; };
+}
+
+let openToken = 0;
 async function openCase(id, keepViewer) {
   if (S.openId && S.openId !== id) api(`/api/cases/${encodeURIComponent(S.openId)}/release`, { json: {} });
   S.openId = id;
   history.replaceState(null, "", `#${id}`);
   renderList();
-  const res = await api(`/api/cases/${encodeURIComponent(id)}`);
-  if (!res.ok) return;
+  const token = ++openToken;
+  if (!keepViewer) showCaseLoading();
+  document.querySelector(`#list .item[data-id="${CSS.escape(id)}"]`)?.classList.add("opening");
+  const res = await api(`/api/cases/${encodeURIComponent(id)}`).catch(() => null);
+  if (token !== openToken) return;  // a newer click won; drop this answer
+  document.querySelector(`#list .item[data-id="${CSS.escape(id)}"]`)?.classList.remove("opening");
+  if (!res || !res.ok) { $("#case").removeAttribute("aria-busy"); $("#case").replaceChildren(h("div", { class: "empty" }, h("p", { text: t("error") }))); return; }
   S.detail = res.data;
   S.choice = null;
   S.enter = true; // animate this render only, not re-renders while reviewing
@@ -404,9 +458,32 @@ function decisionCard(c) {
       (c.otherCategories || []).length ? h("div", { class: "muted", text: `+ ${c.otherCategories.join(", ")}` }) : null,
       c.reviewComment ? h("div", { class: "snippet", text: c.reviewComment }) : null,
       h("div", { class: "reviewed" }, h("span", { class: "muted", text: t("reviewedBy", { n: c.reviewedBy?.name || "—", d: when(c.reviewedAt) }) }),
-        h("button", { class: "secondary", type: "button", text: t("change"), onclick: () => { S.choice = "other"; renderCase(); } }))));
+        h("button", { class: "secondary", type: "button", text: t("change"), onclick: () => { S.choice = "other"; renderCase(); } }),
+        resetControl(c))));
   } else parts.push(reviewForm(c));
   return card(t("decision"), null, ...parts);
+}
+
+/* "Reset to To review": a second, in-page step confirms (browsers' confirm() is not used). */
+function resetControl(c) {
+  const box = h("div", { class: "reset" });
+  const ask = () => box.replaceChildren(h("div", { class: "reset-ask" },
+    h("p", { text: t("resetQuestion") }),
+    h("div", { class: "row" },
+      h("button", { class: "danger", type: "button", text: t("resetConfirm"), onclick: async (e) => {
+        const restore = busy(e.currentTarget, t("saving"));
+        const res = await api(`/api/cases/${encodeURIComponent(c.id)}/reset`, { json: { _etag: c._etag } }).catch(() => ({ ok: false, data: {} }));
+        restore();
+        if (res.status === 409) { S.detail = res.data.case || S.detail; S.choice = null; renderCase(); notice(t("changed")); return; }
+        if (!res.ok) { notice(t("error")); return; }
+        toast(t("resetDone"));
+        await loadCases();
+        openCase(c.id, true);
+      } }),
+      h("button", { class: "link", type: "button", text: t("cancel"), onclick: idle }))));
+  const idle = () => box.replaceChildren(h("button", { class: "link reset-link", type: "button", text: t("resetReview"), onclick: ask }));
+  idle();
+  return box;
 }
 
 // ------------------------------------------------------------------ category picker
@@ -486,9 +563,9 @@ function reviewForm(c) {
     if (S.choice === "none") body.noMatch = true;
     else body.finalCategory = S.choice === "accept" ? c.modelCategory : S.pick;
     if (!body.noMatch && !S.categories.includes(body.finalCategory)) { err.textContent = t("badCat"); return; }
-    save.disabled = true;
-    const res = await api(`/api/cases/${encodeURIComponent(c.id)}/review`, { json: body });
-    save.disabled = false;
+    const restore = busy(save, t("saving"));
+    const res = await api(`/api/cases/${encodeURIComponent(c.id)}/review`, { json: body }).catch(() => ({ ok: false, data: {} }));
+    restore();
     if (res.status === 409) { S.detail = res.data.case || S.detail; S.choice = null; renderCase(); notice(t("changed")); return; }
     if (!res.ok) { err.textContent = res.data.error === "category" ? t("badCat") : "Error"; return; }
     store("next", next.checked ? "1" : "0");
@@ -577,13 +654,15 @@ function foundCard(u) {
 
 /* One audit entry as a timeline row: when, who, what changed. Used per case and in the activity log. */
 const EVENT_LABEL = { registered: "evRegistered", classified: "evClassified", reviewed: "evReviewed", "left mailbox": "evLeft",
-  rerouted: "evRerouted" };
+  rerouted: "evRerouted", reset: "evReset" };
 function eventRow(e, extra) {
   const who = e.byName || (e.by === "classifier" ? t("system") : e.by || "");
   let detail = "";
   if ((e.action === "classified" || e.action === "rerouted") && e.after) {
     const pct = e.after.confidence == null ? "—" : `${Math.round(e.after.confidence * 100)}%`;
     detail = t("evClassifiedAs", { c: catLabel(e.after.category || "—"), p: pct, r: t(`route${e.after.route}`) });
+  } else if (e.action === "reset" && e.before) {
+    detail = t("evResetDetail", { b: e.before.noMatch ? t("noneFits") : catLabel(e.before.finalCategory || "—") });
   } else if (e.action === "reviewed" && e.after) {
     const b = e.after.finalCategory ? catLabel(e.after.finalCategory) : t("noneFits");
     const a = e.before && e.before.finalCategory ? catLabel(e.before.finalCategory) : "";
@@ -606,7 +685,7 @@ async function openActivity() {
   panel.hidden = false;
   requestAnimationFrame(() => panel.classList.add("open"));
   const body = $("#activity-body");
-  body.replaceChildren(h("p", { class: "muted", text: "…" }));
+  body.replaceChildren(spinner(t("loading")));
   const res = await api("/api/activity");
   const onlyReviews = $("#activity-reviews");
   const paint = () => {
@@ -638,6 +717,7 @@ function renderCase() {
   const u = c.understanding || {};
   const lockedByOther = d.lock && d.lock.holder !== S.user.id;
   const pane = $("#case");
+  pane.removeAttribute("aria-busy");
   pane.dataset.caseId = c.id;
   pane.classList.remove("enter");
   if (S.enter) { void pane.offsetWidth; pane.classList.add("enter"); pane.scrollTop = 0; S.enter = false; }
@@ -678,8 +758,8 @@ function renderViewer() {
       h("span", { class: "spacer" }),
       original ? h("a", { href: `/api/cases/${id}/export/original`, text: t("downloadEmail", { x: "." + original }) }) : null,
       h("a", { href: `/api/cases/${id}/export/zip`, text: t("downloadAll") }));
-    body.replaceChildren(h("iframe", { title: t("email"), sandbox: "allow-popups allow-popups-to-escape-sandbox",
-      src: `/api/cases/${id}/message${S.viewer.images ? "?images=1" : ""}` }));
+    body.replaceChildren(whenLoaded(h("iframe", { title: t("email"), sandbox: "allow-popups allow-popups-to-escape-sandbox",
+      src: `/api/cases/${id}/message${S.viewer.images ? "?images=1" : ""}` }), t("loadingEmail")));
     return;
   }
   const att = d.attachments.find((a) => `a${a.n}` === S.viewer.tab);
@@ -690,8 +770,11 @@ function renderViewer() {
     h("a", { href: `${url}?download=1`, text: t("download") }));
   const kind = (att.contentType || "").toLowerCase();
   if (!att.viewable) body.replaceChildren(h("div", { class: "nopreview" }, h("p", { text: t("noPreview") }), h("a", { class: "secondary", href: `${url}?download=1`, text: t("download") })));
-  else if (kind.startsWith("image/")) body.replaceChildren(h("div", { class: "img" }, h("img", { src: url, alt: att.name })));
-  else body.replaceChildren(h("iframe", { title: att.name, src: S.viewer.page ? `${url}#page=${S.viewer.page}` : url }));
+  else if (kind.startsWith("image/")) {
+    const img = h("img", { src: url, alt: att.name });
+    body.replaceChildren(whenLoaded(h("div", { class: "img" }, img), t("loading"), img));
+  }
+  else body.replaceChildren(whenLoaded(h("iframe", { title: att.name, src: S.viewer.page ? `${url}#page=${S.viewer.page}` : url }), t("loading")));
 }
 
 // ------------------------------------------------------------------ chrome
@@ -711,7 +794,24 @@ function applyWords() {
   opts("#sort", [["newest", "newest"], ["oldest", "oldest"]], S.sort);
 }
 
+// ------------------------------------------------------------------ email intake (clock in the top bar)
+async function loadIngest() {
+  const res = await api("/api/ingest").catch(() => null);
+  if (!res || !res.ok) return;
+  const info = res.data;
+  const last = info.lastRun;
+  $("#clock-pop").replaceChildren(
+    h("strong", { text: t("ingestTitle") }),
+    h("p", { text: info.mode === "schedule" ? t("ingestSchedule") : t("ingestManual") }),
+    h("dl", { class: "kv" },
+      h("dt", { text: t("ingestLast") }),
+      h("dd", { text: last ? `${when(last.at)} · ${t("ingestCount", { n: last.emails ?? "—" })}${last.imported ? ` (${t("ingestImported")})` : ""}` : t("ingestNone") }),
+      info.mode === "schedule" ? [h("dt", { text: t("ingestNext") }), h("dd", { text: info.nextRun ? when(info.nextRun) : "—" })] : ""),
+    h("p", { class: "muted small", text: t("ingestDelay") }));
+}
+
 function showSignin() {
+  $("#splash").hidden = true;
   $("#app").hidden = true;
   $("#signin").hidden = false;
   $("#si-code-row").hidden = S.mode !== "demo";
@@ -721,12 +821,16 @@ function showSignin() {
 }
 
 async function start() {
+  $("#splash").hidden = true;
   $("#signin").hidden = true;
   $("#app").hidden = false;
+  $("#list").replaceChildren(...Array.from({ length: 6 }, () => h("div", { class: "item sk-item" }, ...skeletonLines(3))));
   const meta = await api("/api/meta");
   S.categories = meta.data.categories || [];
   $("#me").textContent = S.user.name;
   applyWords();
+  loadIngest();
+  setInterval(loadIngest, 60000);
   await loadCases();
   const fromHash = decodeURIComponent(location.hash.slice(1));
   if (fromHash) openCase(fromHash);
@@ -745,11 +849,17 @@ async function sync() {
 function wire() {
   $("#signin-form").addEventListener("submit", async (ev) => {
     ev.preventDefault();
+    $("#si-error").textContent = "";
+    const restore = busy($("#signin-form button[type=submit]"), t("signingIn"));
     const body = { name: $("#si-name").value, email: $("#si-email").value, code: $("#si-code").value };
     const res = await fetch("/api/login", { method: "POST", credentials: "same-origin",
-      headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) { $("#si-error").textContent = t({ code: "errCode", too_many: "errMany" }[data.error] || "errName"); return; }
+      headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).catch(() => null);
+    const data = res ? await res.json().catch(() => ({})) : { error: "network" };
+    restore();
+    if (!res || !res.ok) {
+      $("#si-error").textContent = t({ code: "errCode", too_many: "errMany", network: "error" }[data.error] || "errName");
+      return;
+    }
     store("name", body.name); store("email", body.email);
     S.user = data.user;
     start();
