@@ -38,7 +38,11 @@ HERE = Path(__file__).resolve().parent
 APP = HERE.parent / "AI_email_classifier"
 sys.path.insert(0, str(APP))
 
+sys.path.insert(0, str(HERE))
+
 from data.case_store import Conflict, open_store  # noqa: E402
+from highlight import STYLE as HL_STYLE  # noqa: E402
+from highlight import mark_html, text_page  # noqa: E402
 
 AUTH = os.getenv("REVIEW_AUTH", "dev").strip().lower()
 ACCESS_CODE = os.getenv("REVIEW_ACCESS_CODE", "")
@@ -239,6 +243,10 @@ def case_detail(case_id: str) -> dict | None:
         return None
     events = sorted(store().find("audit", "caseId", case_id), key=lambda e: e.get("at") or "")
     message = run_message(case) or {}
+    silver = (case.get("sourceRefs") or {}).get("silver")
+    has_text = bool(silver) and any(n.endswith(".txt") for n in blob().list_names(silver + "text/"))
+    read = {r.get("filename") for rec in (case.get("payload") or {}).get("records", [])[:1]
+            for r in rec.get("attachment_records") or [] if r.get("status") == "ANALYZED"}
     attachments = [
         {
             "n": n,
@@ -247,6 +255,7 @@ def case_detail(case_id: str) -> dict | None:
             "size": a.get("size") or a.get("decoded_size"),
             "inline": bool(a.get("isInline")),
             "viewable": _content_type(a) in INLINE_TYPES,
+            "hasText": has_text and a.get("name") in read,  # the classifier read it, so a text view exists
         }
         for n, a in enumerate(message.get("attachments") or [])
         if a.get("blob_name")
@@ -406,9 +415,60 @@ def _disposition(kind: str, name: str) -> str:
 
 
 CID_RE = re.compile(r"""(["'(])cid:([^"')\s]+)""", re.IGNORECASE)
+ID_TITLES = {"afm": "ΑΦΜ", "account": "Δανειακός λογαριασμός", "contract": "Αρ. σύμβασης", "payment_code": "Κωδικός πληρωμής",
+             "adt": "Αρ. ταυτότητας", "iban": "IBAN", "phone": "Τηλέφωνο", "case_ref": "Αρ. υπόθεσης", "email": "Email"}
 
 
-def message_html(case: dict, show_images: bool) -> bytes:
+def evidence_terms(case: dict, file: str | None = None) -> list[tuple[str, str, str]]:
+    """What to mark in one document: the email body (file=None) or one attachment (its file name).
+
+    Customer details are marked wherever they appear; quotes only in the document they were taken from.
+    """
+    from core.action_rules import REASONS
+
+    u = case.get("understanding") or {}
+    terms: list[tuple[str, str, str]] = []
+    for e in u.get("extracted") or []:
+        terms.append((e["value"], "id", f"{ID_TITLES.get(e['type'], e['type'])} · στοιχείο πελάτη"))
+    for p in u.get("people") or []:
+        if p.get("principal") or p.get("role") in ("debtor", "co_debtor", "deceased_debtor", "heir"):
+            terms.append((p["name"], "id", "Πρόσωπο · στοιχείο πελάτη"))
+
+    def here(where: dict) -> bool:
+        return where.get("file") == file if file else where.get("kind") in ("body", "subject")
+
+    for e in u.get("evidence") or []:
+        if not here(e.get("where") or {}):
+            continue
+        if e["supports"] == "category":
+            terms.append((e["quote"], "class", f"Τεκμήριο κατηγορίας: {case.get('modelCategory') or ''}"))
+        else:
+            terms.append((e["quote"], "action", REASONS.get(f"{e.get('flag')}=true", "Τεκμήριο ενέργειας")))
+    if file:  # phrases the attachment reader itself flagged as supporting the category
+        for record in (case.get("payload") or {}).get("records", [])[:1]:
+            for item in record.get("attachment_records") or []:
+                if item.get("filename") == file:
+                    terms += [(q, "class", "Τεκμήριο κατηγορίας (από το συνημμένο)") for q in item.get("evidence_phrases") or []]
+    return terms
+
+
+def attachment_text(case: dict, name: str) -> str | None:
+    """The attachment's OCR text the classifier saved in silver, found through its sidecar (real file name)."""
+    prefix = ((case.get("sourceRefs") or {}).get("silver") or "") + "text/"
+    if prefix == "text/":
+        return None
+    names = blob().list_names(prefix)
+    for sidecar in (n for n in names if n.endswith(".json")):
+        if json.loads(blob().download(sidecar)).get("filename") == name:
+            text = sidecar[:-5] + ".txt"
+            return blob().download(text).decode("utf-8") if text in names else None
+    # Runs before sidecars existed: the reader names the file after the attachment's own name.
+    stem = re.sub(r"[^A-Za-z0-9._-]+", "_", Path(name).stem).strip("_") or "attachment"
+    guess = [n for n in names if n.rsplit("/", 1)[-1].startswith(stem + "_") and n.endswith(".txt")]
+    return blob().download(guess[0]).decode("utf-8") if len(guess) == 1 else None
+
+
+def message_html(case: dict, show_images: bool, highlight: bool = False) -> bytes:
     """The email body as sent, made safe to show: no scripts (CSP + sandboxed frame), inline images
     pointed at our own attachment URLs, remote images blocked unless asked for."""
     message = run_message(case) or {}
@@ -425,10 +485,12 @@ def message_html(case: dict, show_images: bool) -> bytes:
         return f"{match.group(1)}/api/cases/{quote(case['id'])}/files/{n}" if n is not None else match.group(0)
 
     content = CID_RE.sub(swap, content or "")
+    if highlight:
+        content = mark_html(content, evidence_terms(case))
     images = "img-src 'self' data: https:" if show_images else "img-src 'self' data:"
     head = ("<meta charset='utf-8'><base target='_blank'>"
             "<style>body{font:14px/1.5 'Segoe UI',Arial,sans-serif;color:#1d2733;margin:16px;word-wrap:break-word}"
-            "img{max-width:100%;height:auto}table{max-width:100%}</style>")
+            f"img{{max-width:100%;height:auto}}table{{max-width:100%}}{HL_STYLE}</style>")
     page = f"<!doctype html><html><head>{head}</head><body>{content}</body></html>"
     return page.encode("utf-8"), f"default-src 'none'; {images}; style-src 'unsafe-inline'; font-src data:; sandbox"
 
@@ -616,8 +678,22 @@ class Handler(BaseHTTPRequestHandler):
             if case is None:
                 return self.json(404, {"error": "not_found"})
             if tail == ["message"] and method == "GET":
-                page, csp = message_html(case, query.get("images") == ["1"])
+                page, csp = message_html(case, query.get("images") == ["1"], query.get("hl") == ["1"])
                 return self.send(200, page, "text/html; charset=utf-8", {"Content-Security-Policy": csp})
+            if len(tail) == 3 and tail[0] == "files" and tail[1].isdigit() and tail[2] == "text" and method == "GET":
+                found = run_message(case) or {}
+                items = found.get("attachments") or []
+                n = int(tail[1])
+                if not 0 <= n < len(items):
+                    return self.json(404, {"error": "not_found"})
+                name = items[n].get("name") or ""
+                text = attachment_text(case, name)
+                if text is None:
+                    return self.json(404, {"error": "no_text"})
+                terms = evidence_terms(case, name) if query.get("hl") == ["1"] else []
+                page = text_page(text, terms, name, "Σελίδα {n}").encode("utf-8")
+                return self.send(200, page, "text/html; charset=utf-8",
+                                 {"Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; sandbox"})
             if len(tail) == 2 and tail[0] == "files" and tail[1].isdigit() and method == "GET":
                 found = attachment(case, int(tail[1]))
                 if not found:

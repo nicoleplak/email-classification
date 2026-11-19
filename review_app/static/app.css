@@ -183,6 +183,25 @@ button.src:hover { background: var(--blue-wash); }
 .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 9px 18px; border-radius: 6px; z-index: 30; animation: toast-in .22s ease-out; }
 .toast.leaving { opacity: 0; transform: translate(-50%, 8px); transition: opacity .25s, transform .25s; }
 
+/* evidence colours: blue = category, purple = action, green = customer details (registry / Qualco) */
+:root { --ev-class: #007cba; --ev-class-wash: #d6e9f8; --ev-action: #6941c6; --ev-action-wash: #ece4fb; --ev-id: #1e7b4b; --ev-id-wash: #d9f2e3; }
+.legend { display: inline-flex; gap: 8px; flex-wrap: wrap; animation: fade .2s ease-out; }
+.lg { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--ink-2); }
+.lg::before { content: ""; width: 12px; height: 12px; border-radius: 3px; }
+.lg-class::before { background: var(--ev-class-wash); box-shadow: inset 0 -2px var(--ev-class); }
+.lg-action::before { background: var(--ev-action-wash); box-shadow: inset 0 -2px var(--ev-action); }
+.lg-id::before { background: var(--ev-id-wash); box-shadow: inset 0 -2px var(--ev-id); }
+.hl-toggle { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; color: var(--ink-2); cursor: pointer; }
+.quotes { margin-top: 10px; display: grid; gap: 6px; }
+.quote { font-size: 13px; padding: 5px 8px; border-radius: 4px; line-height: 1.45; }
+.quote.q-class { background: var(--ev-class-wash); box-shadow: inset 3px 0 var(--ev-class); }
+.quote.q-action { background: var(--ev-action-wash); box-shadow: inset 3px 0 var(--ev-action); margin-top: 6px; }
+table.mini td strong { background: var(--ev-id-wash); box-shadow: inset 0 -2px var(--ev-id); border-radius: 3px; padding: 0 3px; }
+.viewer-tools .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.viewer-tools .seg button { background: #fff; border: 0; padding: 4px 10px; font-size: 12.5px; color: var(--ink-2); transition: background-color .15s, color .15s; }
+.viewer-tools .seg button + button { border-left: 1px solid var(--line); }
+.viewer-tools .seg button[aria-pressed="true"] { background: var(--blue); color: #fff; }
+
 /* loading states */
 .splash { position: fixed; inset: 0; display: grid; place-items: center; background: var(--bg); z-index: 40; }
 .spinner { display: inline-block; width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--blue-wash);

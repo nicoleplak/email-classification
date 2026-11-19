@@ -183,3 +183,36 @@ def test_each_visit_renews_the_sign_in(app):
     cookie = sign_in(base)
     status, headers, body = call(f"{base}/api/session", cookie=cookie)
     assert json.loads(body)["user"]["name"] == "Ann Example" and "Max-Age=" in headers["Set-Cookie"]
+
+
+def _highlight():
+    spec = importlib.util.spec_from_file_location("highlight_under_test", SERVER.parent / "highlight.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_highlights_wrap_text_only_and_cannot_inject_markup():
+    hl = _highlight()
+    html_in = ('<p title="ΑΦΜ 094014298">ΑΦΜ <b>094 014 298</b> &amp; παρακαλώ βεβαίωση</p>'
+               "<script>var x='094014298'</script>")
+    out = hl.mark_html(html_in, [("094014298", "id", "ΑΦΜ"), ("παρακαλώ βεβαίωση", "action", "<b>x</b>")])
+    assert '<mark class="hl hl-id" title="ΑΦΜ">094 014 298</mark>' in out          # spaced digits still match
+    assert 'title="ΑΦΜ 094014298"' in out                                          # attributes untouched
+    assert "<script>var x='094014298'</script>" in out                             # scripts untouched
+    assert 'title="&lt;b&gt;x&lt;/b&gt;"' in out and "&amp; " in out              # everything inserted is escaped
+    evil = hl.mark_text("say <img src=x onerror=alert(1)> now", [("say", "class", "t")])
+    assert "<img" not in evil and "&lt;img" in evil
+
+
+def test_customer_details_win_where_marks_overlap():
+    hl = _highlight()
+    out = hl.mark_text("ο οφειλέτης με ΑΦΜ 094014298 ζητά", [("με ΑΦΜ 094014298 ζητά", "class", "c"), ("094014298", "id", "i")])
+    assert '<mark class="hl hl-id" title="i">094014298</mark>' in out
+
+
+def test_attachment_text_view_has_one_section_per_page():
+    hl = _highlight()
+    page = hl.text_page("one<!-- PageBreak --><table><tr><td>ΑΦΜ</td><td>094014298</td></tr></table>",
+                        [("094014298", "id", "ΑΦΜ")], "a.pdf", "Σελίδα {n}")
+    assert 'id="p1"' in page and 'id="p2"' in page and "hl-id" in page and "<td>" not in page

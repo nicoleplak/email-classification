@@ -126,6 +126,37 @@ async function behaviour(browser) {
   ok("the loading state clears", (await page.locator("#case .sk").count()) === 0);
   ok("the splash is gone after start", await page.$eval("#splash", (s) => s.hidden));
 
+  // Evidence highlights: coloured marks in the email and in an attachment's text view (counts only).
+  const marks = async (frameSel) => page.frameLocator(frameSel).locator("mark.hl").evaluateAll(
+    (ms) => ms.reduce((acc, m) => { const k = m.className.replace("hl hl-", ""); acc[k] = (acc[k] || 0) + 1; return acc; }, {}));
+  let emailMarks = {}, textMarks = {}, quotes = 0, textViews = 0;
+  for (const id of await page.$$eval("#list .item", (items) => items.map((i) => i.dataset.id))) {
+    await page.click(`#list .item[data-id="${id}"]`);
+    await page.waitForFunction((x) => document.querySelector("#case").dataset.caseId === x, id);
+    await page.waitForSelector("#viewer-body iframe");
+    await page.waitForTimeout(300);
+    const m = await marks("#viewer-body iframe").catch(() => ({}));
+    for (const [k, v] of Object.entries(m)) emailMarks[k] = (emailMarks[k] || 0) + v;
+    quotes += await page.locator("#case .quote").count();
+    const textButton = page.locator("#viewer-tools .seg button").nth(1);
+    for (const tab of await page.locator("#viewer-tabs button").all()) {
+      if ((await tab.getAttribute("aria-selected")) === "true") continue;
+      await tab.click();
+      if (!(await textButton.count())) continue;
+      await textButton.click();
+      await page.waitForSelector("#viewer-body iframe[src*='/text']");
+      await page.waitForTimeout(300);
+      textViews++;
+      const tm = await marks("#viewer-body iframe").catch(() => ({}));
+      for (const [k, v] of Object.entries(tm)) textMarks[k] = (textMarks[k] || 0) + v;
+      break;
+    }
+  }
+  ok("emails show customer-detail highlights", (emailMarks.id || 0) > 0, emailMarks);
+  ok("attachment text views open", textViews > 0, { textViews });
+  ok("attachment text shows highlights", Object.values(textMarks).reduce((a, b) => a + b, 0) > 0, textMarks);
+  ok("evidence quotes are listed on cases", quotes > 0, { quotes });
+
   // Clock: hovering shows how and when emails arrive.
   await page.hover("#clock-btn");
   await page.waitForTimeout(250);

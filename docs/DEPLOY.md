@@ -25,20 +25,26 @@ The pipeline `pipelines/azure-pipelines.publish-deploy.yml` is started by hand f
 2. Review app settings (identity, secrets, command, ingress):
    `REVIEW_ACCESS_CODE=<12+ chars> bash deployment/configure_azure.sh app`
    Hand the access code to reviewers in person or through Teams, never by email.
-3. Job settings (classifier on, 2 CPU / 4 GiB, manual trigger):
+3. Job settings (classifier on, 2 CPU / 4 GiB; the 4-hour schedule is kept):
    `AZURE_OPENAI_API_KEY=... DOC_INTEL_API_KEY=... bash deployment/configure_azure.sh job`
 4. Fetch and classify once: portal → `caj-job-emclf-llm-gr` → **Run now**.
 
-## Fetching email: manual now, scheduled later
+## Fetching email
 
-Kick-off is **manual only**. Start a run from the portal (**Run now**) or:
+The job runs **automatically every 4 hours** (`0 */4 * * *`, UTC) and can also be started at any time:
+portal → `caj-job-emclf-llm-gr` → **Run now**, or
 
     az containerapp job start -n caj-job-emclf-llm-gr -g LLM --subscription "doValue - Prod Envs"
 
-To switch to the agreed schedule (cron is in UTC; Athens is UTC+2 in winter, UTC+3 in summer):
+**Every run fetches only mail that arrived since the last successful run.** The ingest keeps a Graph delta
+checkpoint (`state/` in blob) and moves it forward only after a run fully succeeds; it never re-reads the
+mailbox history. The very first run with no checkpoint fetches the last day (`DELTA_BOOTSTRAP_DAYS`, default 1).
+The classifier also ignores ingest runs from before `REGISTER_RUNS_FROM` (set at deploy time).
 
-    bash deployment/fetch_mode.sh schedule "0 6,10,14 * * 1-5"    # 08:00, 12:00, 16:00 Athens, weekdays (winter)
-    bash deployment/fetch_mode.sh manual                           # back to manual
+To switch between automatic and manual (also updates the clock icon in the review app):
+
+    bash deployment/fetch_mode.sh manual
+    bash deployment/fetch_mode.sh schedule "0 */4 * * *"          # cron in UTC
 
 This is a job setting rather than an environment variable: Container Apps decides when a job starts, and the
 container cannot tell a scheduled start from **Run now**.
