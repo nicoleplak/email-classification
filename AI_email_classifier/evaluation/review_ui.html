@@ -1,0 +1,1267 @@
+<!doctype html>
+<html lang="el"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Έλεγχος email</title>
+<style>
+/* doValue design tokens, as in the data-review frontend */
+:root{--primary:#007cba;--primary-hover:#006aa1;--primary-dark:#005a8a;--primary-light:rgba(0,124,186,.1);--primary-light-2:rgba(0,124,186,.16);
+--bg:#f7f8fa;--surface:#fff;--surface-2:#f1f4f8;--text:#0f172a;--text-2:#475569;--text-3:#64748b;--muted:#94a3b8;
+--border:#e5e9f0;--border-strong:#cbd5e1;--divider:#eef1f6;
+--ok:#0e6e0e;--ok-light:#e7f2e7;--ok-mid:#10a37f;--err:#dc2626;--err-light:#fef2f2;--err-border:#fecaca;
+--slate:#475569;--slate-light:#e2e8f0;--violet:#7c3aed;--violet-light:#f1eafe;
+--r-sm:6px;--r:10px;--r-lg:14px;
+--sh-xs:0 1px 2px rgba(15,23,42,.04);--sh-sm:0 1px 3px rgba(15,23,42,.06),0 1px 2px rgba(15,23,42,.04);
+--sh-md:0 6px 16px -4px rgba(15,23,42,.10),0 2px 4px -2px rgba(15,23,42,.05);--sh-lg:0 24px 60px -22px rgba(4,24,40,.45);
+--focus:0 0 0 3px rgba(0,124,186,.25);
+--font:"Inter","Segoe UI",-apple-system,BlinkMacSystemFont,Roboto,"Helvetica Neue",Arial,sans-serif;
+--side:236px;--speed:.22s;--ease:cubic-bezier(.4,0,.2,1);--assess:460px;color-scheme:light}
+/* Shorter, not removed: managed PCs often force this setting on. */
+@media (prefers-reduced-motion:reduce){:root{--speed:.14s}}
+*{box-sizing:border-box}[hidden]{display:none!important}
+html{scroll-padding-top:76px;scrollbar-gutter:stable}
+html:has(dialog[open]){overflow:hidden}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.5 var(--font);-webkit-font-smoothing:antialiased}
+h1,h2,h3,p{margin:0}
+a{color:var(--primary);text-decoration:none}
+:focus-visible{outline:none;box-shadow:var(--focus);border-radius:var(--r-sm)}
+button,input,select,textarea{font:inherit;color:inherit}
+.ic{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.ic.sm{width:15px;height:15px}.ic.lg{width:22px;height:22px}
+.grow{flex:1 1 0}
+.hint{font-size:13px;color:var(--text-3)}
+.mono{font-variant-numeric:tabular-nums;letter-spacing:.01em}
+
+/* Buttons and fields */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:36px;padding:7px 14px;border-radius:var(--r);border:1px solid var(--border-strong);background:var(--surface);color:var(--text);font-weight:500;cursor:pointer;white-space:nowrap;box-shadow:var(--sh-xs);transition:background var(--speed),border-color var(--speed),box-shadow var(--speed),transform .08s}
+.btn:hover:not(:disabled){border-color:var(--primary);color:var(--primary-dark)}
+.btn:active:not(:disabled){transform:translateY(1px)}
+.btn:disabled{opacity:.5;cursor:default;box-shadow:none}
+.btn.primary{background:var(--primary);border-color:var(--primary);color:#fff;font-weight:600;box-shadow:0 1px 2px rgba(0,124,186,.25)}
+.btn.primary:hover:not(:disabled){background:var(--primary-hover);border-color:var(--primary-hover);color:#fff}
+.btn.ghost{border-color:transparent;background:none;box-shadow:none;color:var(--primary-dark)}
+.btn.ghost:hover:not(:disabled){background:var(--primary-light);border-color:transparent}
+.btn.lg{min-height:42px;padding:9px 18px;font-size:15px}
+.btn.sm{min-height:30px;padding:4px 10px;font-size:13px}
+.btn.busy{position:relative;color:transparent!important;pointer-events:none}
+.btn.busy>*{visibility:hidden}
+.btn.busy::after{content:"";position:absolute;inset:0;margin:auto;width:16px;height:16px;border-radius:50%;border:2px solid var(--primary-light-2);border-top-color:var(--primary);animation:spin .7s linear infinite}
+.btn.primary.busy::after{border-color:rgba(255,255,255,.35);border-top-color:#fff}
+.icon-btn{display:inline-grid;place-items:center;width:32px;height:32px;border-radius:var(--r-sm);border:0;background:none;color:var(--text-3);cursor:pointer;transition:background var(--speed),color var(--speed)}
+.icon-btn:hover:not(:disabled){background:var(--surface-2);color:var(--text)}.icon-btn:disabled{opacity:.35;cursor:default}
+.link{border:0;background:none;color:var(--primary);cursor:pointer;padding:4px 6px;font-weight:500}
+input[type=search],input[type=text],input[type=date],select,textarea{background:var(--surface);border:1px solid var(--border-strong);border-radius:var(--r);padding:8px 11px;min-height:36px;transition:border-color var(--speed),box-shadow var(--speed)}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--primary);box-shadow:var(--focus)}
+select{padding-right:30px;appearance:none;background:var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 9px center/14px;cursor:pointer;max-width:100%}
+textarea{width:100%;min-height:76px;resize:vertical;line-height:1.5}
+.seg{display:inline-flex;padding:3px;background:var(--surface-2);border-radius:var(--r);gap:2px}
+.seg button{border:0;background:none;border-radius:8px;padding:5px 12px;min-height:30px;color:var(--text-2);font-weight:500;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:background var(--speed),color var(--speed),box-shadow var(--speed)}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--primary-dark);box-shadow:var(--sh-sm);font-weight:600}
+
+/* Pills, badges, avatars */
+.pill{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;padding:2px 10px;border-radius:999px;white-space:nowrap}
+.p-blue{background:var(--primary-light);color:var(--primary-dark)}.p-ok{background:var(--ok-light);color:var(--ok)}.p-slate{background:var(--slate-light);color:var(--slate)}.p-violet{background:var(--violet-light);color:var(--violet)}
+.badge{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:3px 10px 3px 8px;border-radius:999px;white-space:nowrap}
+.badge i{width:7px;height:7px;border-radius:50%;background:currentColor;flex:none}
+.b-unclassified{background:var(--slate-light);color:var(--slate)}.b-classified{background:var(--primary-light);color:var(--primary-dark)}.b-reviewed{background:var(--ok-light);color:var(--ok)}
+.badge.pop{animation:pop .45s var(--ease)}
+.av{--h:205;display:inline-grid;place-items:center;flex:none;width:30px;height:30px;border-radius:50%;background:hsl(var(--h) 52% 42%);color:#fff;font-size:12px;font-weight:600;letter-spacing:.02em;box-shadow:0 0 0 2px var(--surface)}
+.av.sm{width:24px;height:24px;font-size:10.5px}.av.xs{width:20px;height:20px;font-size:9.5px}
+.av-stack{display:inline-flex}.av-stack .av+.av{margin-left:-7px}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--violet);animation:pulse 1.8s infinite;flex:none}
+
+/* Skeletons, progress */
+.sk{display:inline-block;height:.85em;min-width:2ch;border-radius:6px;vertical-align:middle;background:linear-gradient(90deg,#eef1f6 0,#e2e8f0 40%,#eef1f6 80%) 0 0/900px 100%;animation:shimmer 1.3s linear infinite}
+.sk.block{display:block;height:auto}
+.sk-av{background:#e2e8f0;box-shadow:none}
+
+/* Shell */
+.side{position:fixed;inset:0 auto 0 0;width:var(--side);background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;z-index:20;transition:width var(--speed) var(--ease),transform var(--speed) var(--ease);overflow:hidden}
+.side-top{display:flex;align-items:center;gap:10px;height:60px;padding:0 12px 0 16px;border-bottom:1px solid var(--divider)}
+.logo{display:grid;place-items:center;width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,var(--primary),#38bdf8);color:#fff;flex:none}
+.brand{font-weight:700;font-size:15px;white-space:nowrap;letter-spacing:-.01em}
+.side-toggle{margin-left:auto}
+.side-nav{display:flex;flex-direction:column;gap:2px;padding:12px 10px;flex:1}
+.nav-item{position:relative;display:flex;align-items:center;gap:12px;min-height:40px;padding:8px 10px;border-radius:var(--r);border:0;background:none;color:var(--text-2);font-weight:500;cursor:pointer;text-align:left;white-space:nowrap;transition:background var(--speed),color var(--speed)}
+.nav-item:hover{background:var(--surface-2);color:var(--text)}
+.nav-item.on{background:var(--primary-light);color:var(--primary-dark);font-weight:600}
+.nav-item .count{margin-left:auto;font-size:12px;font-weight:600;background:var(--primary);color:#fff;border-radius:999px;padding:1px 8px}
+.side-label{transition:opacity var(--speed);min-width:0}
+.side-foot{display:flex;align-items:center;gap:8px;padding:12px;border-top:1px solid var(--divider)}
+.me{display:flex;align-items:center;gap:10px;min-width:0;flex:1}
+.me b{display:block;font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.me small{display:block;font-size:12px;color:var(--text-3);white-space:nowrap}
+body.collapsed{--side:68px}
+body.collapsed .side-label{opacity:0;pointer-events:none}
+body.collapsed .side-top{padding:0 18px}body.collapsed .side-toggle{position:absolute;left:18px;opacity:0}body.collapsed .side-top:hover .side-toggle,body.collapsed .side-toggle:focus-visible{opacity:1;background:var(--surface)}
+body.collapsed .nav-item .count{position:absolute;left:30px;top:3px;padding:0 6px;font-size:10.5px}
+.shell{margin-left:var(--side);min-height:100vh;display:flex;flex-direction:column;transition:margin-left var(--speed) var(--ease)}
+.top{position:sticky;top:0;z-index:10;height:60px;display:flex;align-items:center;gap:12px;padding:0 24px;background:rgba(247,248,250,.86);backdrop-filter:saturate(1.4) blur(8px);border-bottom:1px solid var(--border)}
+.top h1{font-size:17px;font-weight:600;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.online{display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--text-3);white-space:nowrap}
+.conn{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--text-3);white-space:nowrap}
+.conn i{width:8px;height:8px;border-radius:50%;background:var(--ok-mid);box-shadow:0 0 0 3px rgba(16,163,127,.15)}
+.conn.off{color:var(--err)}.conn.off i{background:var(--err);box-shadow:0 0 0 3px rgba(220,38,38,.15)}
+.only-mobile{display:none}
+main{flex:1;min-width:0;padding:24px 24px 0}
+.view{animation:fadeUp calc(var(--speed) * 1.2) var(--ease) both}
+
+/* Cards */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);box-shadow:var(--sh-xs)}
+.card-head{display:flex;align-items:center;gap:10px;padding:14px 18px 0}
+.card-head h3{font-size:15px;font-weight:600}
+.card-ic{display:grid;place-items:center;width:30px;height:30px;border-radius:8px;background:var(--primary-light);color:var(--primary);flex:none}
+.card-body{padding:12px 18px 18px;display:flex;flex-direction:column;gap:12px}
+
+/* Queue */
+.page-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:18px}
+.page-h{font-size:24px;font-weight:700;letter-spacing:-.02em;margin-bottom:4px}
+.date-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+.menu-wrap{position:relative}
+.menu{position:absolute;top:calc(100% + 6px);left:0;z-index:15;min-width:250px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--sh-md);padding:6px;display:flex;flex-direction:column;animation:slideDown var(--speed) var(--ease)}
+.menu button{border:0;background:none;text-align:left;padding:8px 12px;border-radius:8px;cursor:pointer;display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.menu button:hover,.menu button:focus-visible{background:var(--surface-2)}
+.menu button[aria-checked="true"]{color:var(--primary-dark);font-weight:600;background:var(--primary-light)}
+.custom{display:flex;gap:8px;align-items:center;flex-wrap:wrap;animation:slideDown var(--speed) var(--ease)}
+.custom label{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-2)}
+.range-note{font-size:13px;color:var(--text-3)}
+.stats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin-bottom:16px}
+.stat{--tone:var(--primary);--tone-bg:var(--primary-light);display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:var(--r-lg);border:1px solid var(--border);background:var(--surface);box-shadow:var(--sh-xs);cursor:pointer;text-align:left;min-width:0;transition:border-color var(--speed),box-shadow var(--speed),transform var(--speed)}
+.stat:hover{box-shadow:var(--sh-md);transform:translateY(-1px)}
+.stat[aria-pressed="true"]{border-color:var(--tone);box-shadow:0 0 0 1px var(--tone),var(--sh-sm)}
+.stat-ic{display:grid;place-items:center;width:40px;height:40px;border-radius:11px;background:var(--tone-bg,var(--primary-light));color:var(--tone,var(--primary));flex:none}
+.stat-v{display:block;font-size:22px;font-weight:700;line-height:1.15;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.stat-l{display:block;font-size:12.5px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stat>span:last-child{min-width:0}
+.t-slate{--tone:var(--slate);--tone-bg:var(--slate-light)}.t-ok{--tone:var(--ok);--tone-bg:var(--ok-light)}.t-violet{--tone:var(--violet);--tone-bg:var(--violet-light)}
+.filters{padding:12px;margin-bottom:16px}
+.f-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.f-row.more{padding-top:10px}
+.search{position:relative;flex:1 1 300px;display:flex;align-items:center;min-width:0}
+.search .ic{position:absolute;left:11px;color:var(--muted);pointer-events:none}
+.search input{width:100%;padding-left:36px}
+.f-row select{flex:0 1 220px;min-width:150px}
+.more-n{display:inline-grid;place-items:center;min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:var(--primary);color:#fff;font-size:11.5px;font-weight:700}
+.fold{display:grid;grid-template-rows:1fr;transition:grid-template-rows var(--speed) var(--ease)}.fold.closed{grid-template-rows:0fr}
+.fold-in{min-height:0;overflow:hidden}.fold.closed .fold-in{visibility:hidden;transition:visibility 0s var(--speed)}
+.table{overflow:hidden;position:relative;margin-bottom:24px}
+.thead,.row{display:grid;grid-template-columns:132px minmax(0,1fr) 128px minmax(150px,.5fr) 200px;gap:14px;align-items:center;padding:0 18px}
+.thead{height:40px;font-size:12px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.04em;background:var(--surface-2);border-bottom:1px solid var(--border)}
+.progress-line{position:absolute;left:0;right:0;top:40px;height:2px;overflow:hidden;opacity:0;transition:opacity .15s}
+.progress-line::after{content:"";position:absolute;inset:0;width:40%;background:var(--primary);animation:progress 1s ease-in-out infinite}
+.table.busy .progress-line{opacity:1}.table.busy #rows{opacity:.55}
+#rows{transition:opacity .2s}
+.row{min-height:62px;padding-top:10px;padding-bottom:10px;border-bottom:1px solid var(--divider);color:var(--text);transition:background var(--speed)}
+.row:hover{background:#f8fafc}.row:focus-visible{box-shadow:inset 3px 0 var(--primary),var(--focus);border-radius:0}
+.row.in{animation:rowIn .32s var(--ease) both;animation-delay:calc(var(--i,0) * 22ms)}
+.c-st{min-width:0}
+.c-subj{min-width:0}.c-subj b{display:block;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.c-subj small{display:flex;align-items:center;gap:4px;color:var(--text-3);font-size:12.5px;white-space:nowrap;overflow:hidden;min-width:0}
+.c-subj small span{overflow:hidden;text-overflow:ellipsis}
+.c-date{font-size:13px;color:var(--text-2);font-variant-numeric:tabular-nums}
+.c-cat{min-width:0;display:flex;flex-direction:column;gap:2px}
+.c-cat .cat{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.c-cat .sub{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-3);min-width:0;white-space:nowrap;overflow:hidden}
+.c-cat s{overflow:hidden;text-overflow:ellipsis}
+.mini-meter{flex:none;width:46px;height:5px;border-radius:3px;background:var(--surface-2);overflow:hidden}.mini-meter i{display:block;height:100%;width:var(--w);background:var(--primary);border-radius:3px}
+.low .mini-meter i{background:var(--muted)}
+.c-who{display:flex;flex-direction:column;gap:4px;min-width:0}
+.live-slot:empty{display:none}
+.reviewer{display:flex;align-items:center;gap:8px;min-width:0}.reviewer>span{min-width:0}.reviewer b{display:block;font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.reviewer small{display:block;font-size:12px;color:var(--text-3)}
+.live{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--violet);background:var(--violet-light);border-radius:999px;padding:2px 10px 2px 8px;max-width:100%;animation:slideDown var(--speed) var(--ease)}
+.live span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.day{padding:14px 18px 6px;font-size:12px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.04em;background:var(--surface);border-bottom:1px solid var(--divider)}
+.empty{display:flex;flex-direction:column;align-items:center;gap:10px;padding:56px 16px;text-align:center;color:var(--text-3)}
+.empty .stat-ic{width:52px;height:52px;border-radius:14px}
+.empty b{color:var(--text);font-size:15px}
+.pager{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 18px;flex-wrap:wrap;font-size:13px;color:var(--text-3)}
+.pager:empty{display:none}
+.pages{display:flex;gap:4px;align-items:center;flex-wrap:wrap}
+.pages button{display:inline-grid;place-items:center;min-width:34px;height:34px;border-radius:8px;border:1px solid transparent;background:none;cursor:pointer;color:var(--text-2);font-variant-numeric:tabular-nums}
+.pages button:hover:not(:disabled){background:var(--surface-2)}.pages button[aria-current="page"]{background:var(--primary);color:#fff;font-weight:600;opacity:1}.pages button:disabled:not([aria-current]){opacity:.35;cursor:default}
+
+/* Email review */
+.email-head{margin-bottom:14px}
+.crumbs{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--text-3);margin-bottom:8px;flex-wrap:wrap}
+.crumbs a{display:inline-flex;align-items:center;gap:4px;font-weight:500}
+.subject{font-size:22px;font-weight:700;letter-spacing:-.015em;line-height:1.3;overflow-wrap:anywhere;max-width:60em}
+.meta{display:flex;flex-wrap:wrap;gap:4px 18px;margin-top:6px;font-size:13px;color:var(--text-3)}
+.meta span{display:inline-flex;align-items:center;gap:5px;overflow-wrap:anywhere;min-width:0}
+#banners{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}#banners:empty{display:none}
+.banner{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:var(--r);font-size:13.5px;animation:slideDown var(--speed) var(--ease);flex-wrap:wrap}
+.banner>span:not(.av-stack){min-width:0;flex:1 1 220px}
+.b-violet{background:var(--violet-light);color:#4c1d95;border:1px solid #ddd0fb}
+.b-blue{background:var(--primary-light);color:var(--primary-dark);border:1px solid var(--primary-light-2)}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 14px minmax(360px,min(var(--assess),calc(100% - 380px)));align-items:start;padding-bottom:18px}
+.reading,.assess{display:flex;flex-direction:column;gap:14px;min-width:0}
+.assess.stagger>*{animation:fadeUp calc(var(--speed) * 1.6) var(--ease) both}
+.assess.stagger>:nth-child(2){animation-delay:40ms}.assess.stagger>:nth-child(3){animation-delay:80ms}.assess.stagger>:nth-child(4){animation-delay:120ms}.assess.stagger>:nth-child(5){animation-delay:160ms}.assess.stagger>:nth-child(n+6){animation-delay:200ms}
+.assess.flash>.hero{animation:flash .9s var(--ease)}
+.vbar{align-self:stretch;position:relative;cursor:col-resize}
+.vbar::before{content:"";position:absolute;top:0;bottom:0;left:50%;width:2px;margin-left:-1px;border-radius:2px;background:transparent;transition:background var(--speed)}
+.vbar:hover::before,.vbar.drag::before,.vbar:focus-visible::before{background:var(--primary);width:4px;margin-left:-2px}
+.sheet{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);box-shadow:var(--sh-xs)}
+.sheet.old{background:#fbfcfd;margin-left:calc(var(--depth,1) * 14px)}
+.fold-head{display:flex;width:100%;justify-content:space-between;align-items:center;gap:12px;text-align:left;background:none;border:0;border-radius:var(--r-lg);padding:12px 20px;cursor:pointer}
+.fold-head:hover{background:#fafbfc}
+.fold-title{min-width:0;font-weight:600;overflow-wrap:anywhere}.fold-title small{display:block;font-weight:400;font-size:12.5px;color:var(--text-3)}
+.chev{flex:none;color:var(--text-3);transition:transform var(--speed) var(--ease)}.fold-head[aria-expanded="false"] .chev{transform:rotate(-90deg)}
+.fold-pad{padding:0 20px 18px}
+.body{font-size:14.5px;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere;max-width:72ch}
+mark{background:#cfe6f5;color:inherit;border-radius:3px;padding:0 2px}
+.seam{display:flex;align-items:center;gap:12px}
+.seam::before,.seam::after{content:"";flex:1 1 24px;min-width:24px;border-top:1px dashed var(--border-strong)}
+.seam span{font-size:12px;font-weight:600;color:var(--text-3);background:var(--surface-2);border-radius:999px;padding:3px 12px;white-space:nowrap}
+.att{border-top:1px solid var(--divider)}.att .fold-head{padding:10px 0;border-radius:0}.att .fold-pad{padding:0 0 12px}.att .fold-head:hover{background:none}
+.att-sub{font-size:13px;color:var(--text-3);margin-top:4px;overflow-wrap:anywhere}
+.hero{padding:18px;display:flex;flex-direction:column;gap:14px;background:linear-gradient(180deg,#f3f9fd 0,var(--surface) 70%)}
+.hero-row{display:flex;align-items:center;gap:16px;min-width:0}
+.eyebrow{font-size:12px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em}
+.hero-cat{font-size:18px;font-weight:700;letter-spacing:-.01em;line-height:1.3;margin:2px 0 6px;overflow-wrap:anywhere}
+.hero-cat.muted{color:var(--text-3);font-weight:600}
+.hero-txt{min-width:0}
+.hero-txt .pill{white-space:normal}
+.ring{width:64px;height:64px;flex:none}
+.ring circle{fill:none;stroke-width:6}.ring .track{stroke:var(--primary-light-2)}
+.ring .val{stroke:var(--primary);stroke-linecap:round;transform:rotate(-90deg);transform-origin:50% 50%;animation:ringIn .8s var(--ease) both}
+.ring.low .val{stroke:var(--muted)}.ring.low .track{stroke:var(--slate-light)}
+.ring text{font:700 14px var(--font);fill:var(--text)}
+.hero-done{display:flex;align-items:center;gap:8px;padding:9px 12px;border-radius:var(--r);background:var(--ok-light);color:var(--ok);font-size:13.5px;animation:slideDown var(--speed) var(--ease)}
+.hero-actions{display:flex;gap:8px;flex-wrap:wrap}
+.hero-actions .btn.primary{flex:1 1 auto}
+.slots{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.slot{display:flex;align-items:center;gap:10px;min-height:40px;padding:4px 6px;border:1px solid var(--border);border-radius:var(--r);background:var(--surface)}
+.slot.empty{border-style:dashed;color:var(--muted);background:none}
+.rank{flex:none;width:30px;height:28px;border-radius:7px;display:grid;place-items:center;font-size:12px;font-weight:700}
+.r1 .rank{background:var(--primary);color:#fff}.r2 .rank{background:#3b97cf;color:#fff}.r3 .rank{border:2px solid var(--primary);color:var(--primary)}
+.slot.empty .rank{background:none;border:2px dashed var(--border-strong);color:var(--muted)}
+.slot-name{flex:1;min-width:0;font-weight:600;font-size:13.5px;line-height:1.3;overflow-wrap:anywhere}.slot.empty .slot-name{font-weight:400}
+.lead{font-size:12px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;margin-top:2px}
+.cand{display:flex;flex-direction:column;gap:6px;width:100%;text-align:left;padding:11px 13px;border:1px solid var(--border);border-radius:var(--r);background:var(--surface);cursor:pointer;transition:border-color var(--speed),background var(--speed),box-shadow var(--speed)}
+.cand:hover:not(:disabled){border-color:var(--primary);box-shadow:var(--sh-sm)}
+.cand.on{border-color:var(--primary);background:#f2f8fc;box-shadow:0 0 0 1px var(--primary)}
+.cand:disabled{opacity:.55;cursor:default}
+.cand-top{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.cand-name{display:flex;align-items:center;gap:8px;font-weight:600;line-height:1.3;overflow-wrap:anywhere;min-width:0}
+.cand-pct{font-size:16px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+.cand.low .cand-pct{color:var(--text-3)}
+.mini-rank{flex:none;font-size:11px;font-weight:700;color:#fff;background:var(--primary);border-radius:6px;padding:2px 6px;animation:pop .35s var(--ease)}
+.meter{display:block;height:6px;border-radius:4px;background:var(--primary-light);overflow:hidden}
+.meter i{display:block;height:100%;width:var(--w);border-radius:4px;background:var(--primary)}
+.assess.stagger .meter i{animation:grow .7s var(--ease) both}
+.cand.low .meter i{background:var(--muted)}
+.why{font-size:13.5px;line-height:1.5;color:var(--text-2);overflow-wrap:anywhere}
+.cand-tag{font-size:12px;color:var(--text-3)}
+.act{display:flex;flex-direction:column;gap:8px;padding:12px 13px;border:1px solid var(--border);border-radius:var(--r);transition:opacity var(--speed),border-color var(--speed)}
+.act.off{opacity:.55;border-style:dashed}
+.act-head{display:flex;align-items:center;gap:10px;min-width:0}
+.act-ic{display:grid;place-items:center;width:32px;height:32px;border-radius:9px;background:var(--primary-light);color:var(--primary);flex:none}
+.act-title{min-width:0}.act-title b{display:block;font-weight:600;line-height:1.3}.act-title small{display:block;font-size:12.5px;color:var(--text-3);overflow-wrap:anywhere}
+.act-what{font-size:13.5px;color:var(--text-2);overflow-wrap:anywhere}
+.codes{display:flex;flex-direction:column;gap:6px}
+.code{display:flex;align-items:baseline;gap:9px;padding:7px 10px;border-radius:8px;background:var(--surface-2);font-size:13.5px;overflow-wrap:anywhere;min-width:0}
+.code>span:last-child{min-width:0}
+.code-n{flex:none;font-weight:700;color:var(--primary-dark);font-variant-numeric:tabular-nums}
+.code small{color:var(--text-3)}
+details{font-size:13px}
+summary{cursor:pointer;color:var(--primary);font-weight:500;width:fit-content;list-style:none;display:inline-flex;align-items:center;gap:4px}
+summary::-webkit-details-marker{display:none}
+summary .ic{transition:transform var(--speed) var(--ease)}details[open] summary .ic{transform:rotate(90deg)}
+details>div{margin-top:8px;padding:10px 12px;background:var(--surface-2);border-radius:8px;white-space:pre-wrap;overflow-wrap:anywhere;color:var(--text-2);animation:slideDown var(--speed) var(--ease)}
+details ul{margin:0;padding-left:18px;display:grid;gap:3px;white-space:normal}
+.chips{display:flex;flex-wrap:wrap;gap:6px;animation:slideDown var(--speed) var(--ease)}
+.chip{display:inline-flex;align-items:center;gap:6px;min-height:32px;padding:5px 12px;border-radius:999px;border:1px solid var(--border-strong);background:var(--surface);cursor:pointer;font-size:13px;text-align:left;transition:background var(--speed),border-color var(--speed),color var(--speed)}
+.chip:hover{border-color:var(--primary)}
+.chip[aria-pressed="true"]{background:var(--primary);border-color:var(--primary);color:#fff;font-weight:600}
+.fix-note{font-size:13px;color:var(--primary-dark);background:var(--primary-light);border-radius:8px;padding:8px 11px}
+.steps{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.step{display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:10px 11px;border-radius:var(--r);border:1px solid var(--border);min-width:0}
+.step b{font-size:13px;font-weight:600}.step small{font-size:12px;color:var(--text-3);overflow-wrap:anywhere}
+.step-dot{display:grid;place-items:center;width:24px;height:24px;border-radius:50%;font-size:12px;font-weight:700}
+.step.yes{background:#f5faf5;border-color:#cfe5cf}.step.yes .step-dot{background:var(--ok);color:#fff}
+.step.no{background:var(--err-light);border-color:var(--err-border)}.step.no .step-dot{background:var(--err);color:#fff}
+.step.na .step-dot{background:var(--slate-light);color:var(--slate)}
+.kv{margin:0;display:grid;grid-template-columns:auto minmax(0,1fr);font-size:13.5px;border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
+.kv dt,.kv dd{padding:8px 12px;border-bottom:1px solid var(--divider)}
+.kv dt{color:var(--text-3);background:#fafbfc;max-width:12em}
+.kv dd{margin:0;min-width:0;display:flex;flex-direction:column;gap:4px}
+.kv dt:last-of-type,.kv dd:last-of-type{border-bottom:0}
+.kv-v{display:flex;align-items:center;gap:6px;flex-wrap:wrap;min-width:0}
+.kv-v .mono{font-weight:600;overflow-wrap:anywhere;min-width:0}
+.kv-v small{color:var(--text-3);font-size:12px}
+.kv-v .icon-btn{width:26px;height:26px;margin-left:auto}
+.none{color:var(--muted)}
+.timeline{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.tl{display:grid;grid-template-columns:24px minmax(0,1fr);gap:10px;position:relative;padding-bottom:14px}
+.tl:not(:last-child)::before{content:"";position:absolute;left:11px;top:26px;bottom:2px;width:2px;background:var(--divider)}
+.tl.in{animation:fadeUp var(--speed) var(--ease)}
+.tl-main{min-width:0;font-size:13.5px}.tl-main time{display:block;font-size:12px;color:var(--text-3)}
+.diff{margin:4px 0 0;padding:0;list-style:none;font-size:12.5px;color:var(--text-2);display:grid;gap:2px}
+.diff li{overflow-wrap:anywhere}
+.diff s{color:var(--muted)}
+.dock{position:sticky;bottom:0;z-index:9;display:flex;align-items:center;gap:8px 10px;flex-wrap:wrap;margin:0 -24px;padding:10px 24px;background:rgba(255,255,255,.92);backdrop-filter:saturate(1.4) blur(8px);border-top:1px solid var(--border);box-shadow:0 -6px 16px -10px rgba(15,23,42,.15)}
+.dock-nav{display:flex;align-items:center;gap:4px;font-size:13px;color:var(--text-3);font-variant-numeric:tabular-nums;white-space:nowrap}
+.dock-state{display:inline-flex;align-items:center;gap:7px;font-size:13.5px;color:var(--text-3);min-width:0}
+.dock-state.saved{color:var(--ok);font-weight:500}.dock-state.dirty{color:var(--primary-dark);font-weight:600}
+.dock-state.dirty .dot{background:var(--primary);animation:pulseBlue 1.8s infinite}
+
+/* Activity */
+.feed{list-style:none;margin:0;padding:0}
+.ev{display:grid;grid-template-columns:32px minmax(0,1fr) auto;gap:12px;align-items:start;padding:14px 18px;border-bottom:1px solid var(--divider)}
+.ev.in{animation:rowIn .35s var(--ease) both}
+.ev-main{min-width:0;font-size:14px}.ev-main a{font-weight:500;overflow-wrap:anywhere}
+.ev time{font-size:12.5px;color:var(--text-3);white-space:nowrap}
+
+/* Dialogs, toasts */
+dialog{border:0;border-radius:16px;background:var(--surface);color:var(--text);padding:20px 22px;width:min(640px,calc(100vw - 32px));max-height:calc(100vh - 32px);box-shadow:var(--sh-lg);overflow:auto}
+dialog[open]{animation:dlgIn calc(var(--speed) * 1.2) var(--ease)}
+dialog::backdrop{background:rgba(10,34,51,.45);backdrop-filter:blur(2px)}
+.dlg-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:12px}
+.dlg-head h2{font-size:19px;font-weight:700;letter-spacing:-.01em}
+.pick-list{display:flex;flex-direction:column;gap:4px;margin-top:10px;max-height:min(56vh,520px);overflow:auto;padding:2px}
+.option{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:9px 12px;border-radius:var(--r);border:1px solid transparent;background:none;cursor:pointer}
+.option:hover:not(:disabled),.option:focus-visible{background:var(--surface-2)}
+.option[aria-selected="true"]{background:var(--primary-light);border-color:var(--primary-light-2)}
+.option:disabled{opacity:.45;cursor:default}
+.option .nm{flex:1;min-width:0;overflow-wrap:anywhere}
+.option small{color:var(--text-3);font-variant-numeric:tabular-nums}
+.login{width:min(420px,calc(100vw - 32px));padding:28px}
+.login form{display:flex;flex-direction:column;gap:12px}
+.login .logo{width:44px;height:44px;border-radius:12px}
+.login label{font-weight:600;font-size:13px}
+.err{color:var(--err);font-size:13px;min-height:1em}
+#helpDlg ol{padding-left:20px;margin:0 0 14px;display:grid;gap:8px}
+kbd{font:600 12px var(--font);background:var(--surface-2);border:1px solid var(--border-strong);border-bottom-width:2px;border-radius:5px;padding:1px 6px}
+#toasts{position:fixed;right:20px;bottom:86px;z-index:60;display:flex;flex-direction:column;align-items:flex-end;gap:8px;pointer-events:none}
+.toast{display:flex;align-items:center;gap:10px;max-width:min(420px,calc(100vw - 40px));padding:11px 14px;border-radius:var(--r);background:var(--text);color:#fff;font-size:13.5px;box-shadow:var(--sh-md);animation:toastIn calc(var(--speed) * 1.3) var(--ease);pointer-events:auto;transition:opacity var(--speed),transform var(--speed)}
+.toast.ok .ic{color:#6ee7b7}.toast.err{background:#991b1b}.toast.info .ic{color:#7dd3fc}
+.toast.out{opacity:0;transform:translateY(8px)}
+.error-box{display:flex;flex-direction:column;align-items:center;gap:10px;padding:40px 16px;text-align:center;color:var(--text-2)}
+
+@keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes rowIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+@keyframes slideDown{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:none}}
+@keyframes dlgIn{from{opacity:0;transform:translateY(8px) scale(.985)}to{opacity:1;transform:none}}
+@keyframes toastIn{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:none}}
+@keyframes shimmer{from{background-position:-450px 0}to{background-position:450px 0}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(124,58,237,.45)}70%{box-shadow:0 0 0 7px rgba(124,58,237,0)}100%{box-shadow:0 0 0 0 rgba(124,58,237,0)}}
+@keyframes pulseBlue{0%{box-shadow:0 0 0 0 rgba(0,124,186,.45)}70%{box-shadow:0 0 0 7px rgba(0,124,186,0)}100%{box-shadow:0 0 0 0 rgba(0,124,186,0)}}
+@keyframes pop{0%{transform:scale(.8)}60%{transform:scale(1.08)}100%{transform:scale(1)}}
+@keyframes progress{from{transform:translateX(-100%)}to{transform:translateX(260%)}}
+@keyframes ringIn{from{stroke-dashoffset:var(--c)}}
+@keyframes grow{from{width:0}}
+@keyframes flash{0%{box-shadow:0 0 0 0 rgba(0,124,186,.35)}100%{box-shadow:0 0 0 12px rgba(0,124,186,0)}}
+
+@media (max-width:1280px){.stats{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:1180px){.thead,.row{grid-template-columns:120px minmax(0,1fr) minmax(130px,.55fr) 170px}.c-date,.thead .h-date{display:none}}
+@media (max-width:1100px){.layout{display:block}.vbar{display:none}.assess{margin-top:14px}}
+@media (max-width:900px){
+  .thead{display:none}
+  .row{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"subj st" "cat who";row-gap:6px}
+  .c-st{grid-area:st}.c-subj{grid-area:subj}.c-cat{grid-area:cat}.c-who{grid-area:who;align-items:flex-end}
+  .stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:760px){
+  .side{transform:translateX(-100%);width:260px;box-shadow:var(--sh-lg)}body.side-open .side{transform:none}
+  body.collapsed{--side:236px}body.collapsed .side-label{opacity:1;pointer-events:auto}
+  .shell{margin-left:0}.only-mobile{display:inline-grid}.side-toggle{display:none}
+  .top{padding:0 14px}main{padding:16px 16px 0}.dock{margin:0 -16px;padding:10px 16px}
+  .online .who-label,.conn span{display:none}
+  .page-h{font-size:21px}.subject{font-size:19px}
+  .steps{grid-template-columns:1fr}
+  .sheet.old{margin-left:0}.fold-head{padding:11px 14px}.fold-pad{padding:0 14px 14px}
+  .f-row select{flex:1 1 140px}
+  .dock .btn{flex:1 1 auto}
+}
+@media (max-width:420px){.stat{padding:12px;gap:10px}.stat-ic{width:34px;height:34px}.stat-v{font-size:19px}.kv{grid-template-columns:1fr}.kv dt{max-width:none;border-bottom:0;padding-bottom:0;background:none}}
+</style></head>
+<body>
+<aside class="side" id="side">
+  <div class="side-top"><span class="logo" aria-hidden="true"><i data-ic="mail"></i></span><span class="side-label brand">Έλεγχος email</span>
+    <button class="icon-btn side-toggle" id="sideToggle" aria-label="Σύμπτυξη μενού" title="Σύμπτυξη μενού"><i data-ic="menu"></i></button></div>
+  <nav class="side-nav" aria-label="Κύριο μενού">
+    <a class="nav-item" href="#/" data-nav="queue"><i data-ic="inbox"></i><span class="side-label">Ουρά ελέγχου</span><span class="count" id="navCount" hidden></span></a>
+    <a class="nav-item" href="#/activity" data-nav="activity"><i data-ic="activity"></i><span class="side-label">Δραστηριότητα</span></a>
+    <button class="nav-item" id="helpBtn" type="button"><i data-ic="help"></i><span class="side-label">Οδηγίες</span></button>
+  </nav>
+  <div class="side-foot"><div class="me" id="me"><span class="av sk-av"></span><span class="side-label"><b><span class="sk" style="width:96px"></span></b><small><span class="sk" style="width:60px"></span></small></span></div>
+    <button class="icon-btn side-label" id="logout" title="Αποσύνδεση" aria-label="Αποσύνδεση"><i data-ic="logout"></i></button></div>
+</aside>
+<div class="shell">
+  <header class="top">
+    <button class="icon-btn only-mobile" id="sideOpen" aria-label="Μενού"><i data-ic="menu"></i></button>
+    <h1 id="pageTitle">Ουρά ελέγχου</h1><span class="grow"></span>
+    <div class="online" id="online" aria-live="polite"></div>
+    <span class="conn" id="conn"><i></i><span>Συνδεδεμένο</span></span>
+  </header>
+  <main id="main">
+    <section class="view" id="vQueue">
+      <div class="page-head">
+        <div><h2 class="page-h">Ουρά ελέγχου</h2><p class="hint">Τα email της ταξινόμησης. Ανοίξτε ένα, ή πατήστε «Επόμενο προς έλεγχο» για να συνεχίσετε από όπου υπάρχει δουλειά.</p></div>
+        <button class="btn primary lg" id="startNext"><span>Επόμενο προς έλεγχο</span><i data-ic="right"></i></button>
+      </div>
+      <div class="date-bar">
+        <div class="menu-wrap"><button class="btn" id="presetBtn" aria-haspopup="menu" aria-expanded="false"><i data-ic="calendar"></i><span id="presetLabel">Όλες οι ημερομηνίες</span><i data-ic="down" class="sm"></i></button>
+          <div class="menu" id="presetMenu" role="menu" hidden></div></div>
+        <div class="seg" id="dateField" role="group" aria-label="Ποια ημερομηνία">
+          <button data-v="received" aria-pressed="true">Παραλαβή</button><button data-v="classified" aria-pressed="false">Ταξινόμηση</button><button data-v="reviewed" aria-pressed="false">Έλεγχος</button></div>
+        <div class="custom" id="customDates" hidden><label>Από <input type="date" id="fFrom"></label><label>Έως <input type="date" id="fTo"></label></div>
+        <span class="range-note" id="rangeNote"></span>
+      </div>
+      <div class="stats" id="stats">
+        <button class="stat t-slate" data-k="everything" aria-pressed="false"><span class="stat-ic"><i data-ic="mail"></i></span><span><span class="stat-v"><span class="sk" style="width:3ch"></span></span><span class="stat-l">Όλα</span></span></button>
+        <button class="stat t-slate" data-k="unclassified" aria-pressed="false"><span class="stat-ic"><i data-ic="clock"></i></span><span><span class="stat-v"><span class="sk" style="width:3ch"></span></span><span class="stat-l">Αταξινόμητα</span></span></button>
+        <button class="stat" data-k="classified" aria-pressed="true"><span class="stat-ic"><i data-ic="inbox"></i></span><span><span class="stat-v"><span class="sk" style="width:3ch"></span></span><span class="stat-l">Προς έλεγχο</span></span></button>
+        <button class="stat t-ok" data-k="reviewed" aria-pressed="false"><span class="stat-ic"><i data-ic="check"></i></span><span><span class="stat-v"><span class="sk" style="width:3ch"></span></span><span class="stat-l">Ελεγμένα</span></span></button>
+        <button class="stat t-violet" data-k="mine_today" aria-pressed="false"><span class="stat-ic"><i data-ic="user"></i></span><span><span class="stat-v"><span class="sk" style="width:3ch"></span></span><span class="stat-l">Δικοί μου σήμερα</span></span></button>
+      </div>
+      <div class="card filters">
+        <div class="f-row">
+          <label class="search"><i data-ic="search"></i><input id="fQ" type="search" placeholder="Αναζήτηση σε θέμα, αποστολέα, κείμενο, ΑΦΜ, ΑΔΤ…" aria-label="Αναζήτηση" autocomplete="off"></label>
+          <select id="fCat" aria-label="Κατηγορία"></select>
+          <select id="fSort" aria-label="Σειρά"><option value="new">Νεότερα πρώτα</option><option value="old">Παλαιότερα πρώτα</option><option value="uncertain">Αβέβαια πρώτα</option><option value="reviewed">Πρόσφατα ελεγμένα</option></select>
+          <button class="btn ghost" id="moreF" aria-expanded="false" aria-controls="moreBox">Περισσότερα φίλτρα <span class="more-n" id="moreN" hidden></span></button>
+          <button class="link" id="clearF" hidden>Καθαρισμός φίλτρων</button>
+        </div>
+        <div class="fold closed" id="moreBox"><div class="fold-in"><div class="f-row more">
+          <select id="fLevel" aria-label="Βεβαιότητα μοντέλου"></select>
+          <select id="fAction" aria-label="Προτεινόμενη ενέργεια"></select>
+          <select id="fDataset" aria-label="Παρτίδα"></select>
+          <select id="fReviewer" aria-label="Ελεγκτής"></select>
+          <select id="fAgree" aria-label="Συμφωνία"><option value="">Κάθε αποτέλεσμα ελέγχου</option><option value="no">Διαφωνία με το μοντέλο</option></select>
+        </div></div></div>
+      </div>
+      <div class="card table" id="table">
+        <div class="thead" aria-hidden="true"><span>Κατάσταση</span><span>Email</span><span class="h-date">Παραλαβή</span><span>Κατηγορία</span><span>Ελεγκτής</span></div>
+        <div class="progress-line"></div>
+        <div id="rows" role="list" aria-busy="true"></div>
+        <div class="pager" id="pager"></div>
+      </div>
+    </section>
+    <section class="view" id="vEmail" hidden></section>
+    <section class="view" id="vActivity" hidden>
+      <div class="page-head"><div><h2 class="page-h">Δραστηριότητα</h2><p class="hint">Κάθε αλλαγή, από όλους, με τη σειρά που έγινε. Ενημερώνεται μόνη της.</p></div>
+        <select id="aUser" aria-label="Ποιος"></select></div>
+      <div class="card"><ul class="feed" id="feed"></ul><div class="pager" id="feedMore"></div></div>
+    </section>
+  </main>
+</div>
+
+<dialog id="loginDlg" class="login" aria-labelledby="loginTitle">
+  <form id="loginForm" novalidate>
+    <span class="logo" aria-hidden="true"><i data-ic="mail" class="lg"></i></span>
+    <h2 id="loginTitle">Έλεγχος email</h2>
+    <p class="hint">Τοπική έκδοση: γράψτε το όνομά σας. Στο Azure η σύνδεση γίνεται με τον εταιρικό σας λογαριασμό (Entra ID).</p>
+    <label for="loginName">Όνομα</label>
+    <input type="text" id="loginName" autocomplete="name" maxlength="60" required>
+    <button class="btn primary lg" id="loginBtn" type="submit"><span>Σύνδεση</span></button>
+    <p class="err" id="loginErr" role="alert"></p>
+  </form>
+</dialog>
+<dialog id="pickDlg" aria-labelledby="pickTitle">
+  <div class="dlg-head"><div><h2 id="pickTitle">Κατηγορίες</h2><p class="hint" id="pickHint"></p></div><button class="btn primary" id="pickDone">Τέλος</button></div>
+  <label class="search"><i data-ic="search"></i><input id="pickQ" type="search" placeholder="Αναζήτηση κατηγορίας" aria-label="Αναζήτηση κατηγορίας" autocomplete="off"></label>
+  <div class="pick-list" id="pickList" role="listbox" aria-multiselectable="true" aria-label="Κατηγορίες"></div>
+</dialog>
+<dialog id="cfDlg" aria-labelledby="cfTitle">
+  <div class="dlg-head"><h2 id="cfTitle">Κάποιος αποθήκευσε πριν από εσάς</h2></div>
+  <div id="cfBody" class="card-body" style="padding:0 0 16px"></div>
+  <div class="hero-actions"><button class="btn" id="cfTheirs">Κράτηση της δικής τους</button><button class="btn primary" id="cfMine">Αποθήκευση της δικής μου</button></div>
+</dialog>
+<dialog id="helpDlg" aria-labelledby="helpTitle">
+  <div class="dlg-head"><h2 id="helpTitle">Οδηγίες</h2><button class="btn primary" id="helpClose">Κλείσιμο</button></div>
+  <ol>
+    <li><b>Ουρά.</b> Οι κάρτες στην κορυφή είναι και φίλτρα: «Προς έλεγχο» δείχνει όσα ταξινόμησε το μοντέλο και δεν έχει ελέγξει κανείς. Η ημερομηνία αλλάζει πάνω αριστερά και μπορεί να αφορά την παραλαβή, την ταξινόμηση ή τον έλεγχο.</li>
+    <li><b>Ποιος δουλεύει τι.</b> Όταν κάποιος έχει ανοιχτό ένα email, το βλέπετε με μωβ ένδειξη στη λίστα και πάνω στο email. Το «Επόμενο προς έλεγχο» προσπερνά όσα έχουν ανοίξει άλλοι, ώστε να μη δουλεύετε το ίδιο.</li>
+    <li><b>Έλεγχος.</b> Αν η πρόταση του μοντέλου είναι σωστή, πατήστε «Αποδοχή και επόμενο». Αλλιώς επιλέξτε έως τρεις κατηγορίες με σειρά σημασίας, διορθώστε τις ενέργειες και πατήστε «Αποθήκευση».</li>
+    <li><b>Ιστορικό.</b> Κάθε αποθήκευση καταγράφεται με όνομα και ώρα. Αν κάποιος άλλος αποθηκεύσει πριν από εσάς, η εφαρμογή σάς ρωτά ποια εκδοχή κρατάμε.</li>
+  </ol>
+  <p class="hint">Πλήκτρα: <kbd>j</kbd>/<kbd>k</kbd> επόμενο/προηγούμενο, <kbd>Ctrl</kbd>+<kbd>S</kbd> αποθήκευση, <kbd>Ctrl</kbd>+<kbd>Enter</kbd> αποθήκευση και επόμενο, <kbd>/</kbd> αναζήτηση, <kbd>Esc</kbd> πίσω στην ουρά. Τα email περιέχουν προσωπικά δεδομένα πελατών.</p>
+</dialog>
+<div id="toasts" aria-live="polite"></div>
+
+<script>
+'use strict';
+const NS = 'http://www.w3.org/2000/svg';
+const ICONS = {
+  inbox: '<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>',
+  activity: '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
+  help: '<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>',
+  logout: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/>',
+  left: '<path d="m15 18-6-6 6-6"/>', right: '<path d="m9 18 6-6-6-6"/>', down: '<path d="m6 9 6 6 6-6"/>',
+  search: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+  calendar: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
+  check: '<path d="M20 6 9 17l-5-5"/>', x: '<path d="M18 6 6 18M6 6l12 12"/>',
+  clip: '<path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/>',
+  copy: '<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>',
+  menu: '<path d="M3 12h18M3 6h18M3 18h18"/>',
+  user: '<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
+  mail: '<rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/>',
+  clock: '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+  tag: '<path d="M12.6 2.6 21.4 11.4a2 2 0 0 1 0 2.8l-7.2 7.2a2 2 0 0 1-2.8 0L2.6 12.6A2 2 0 0 1 2 11.2V4a2 2 0 0 1 2-2h7.2a2 2 0 0 1 1.4.6z"/><circle cx="7.5" cy="7.5" r="1"/>',
+  bolt: '<path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/>',
+  note: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>',
+  history: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/>',
+  refresh: '<path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/>',
+  send: '<path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/>',
+  reply: '<path d="m9 17-5-5 5-5"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/>',
+  bank: '<path d="M3 21h18M3 10h18M5 6l7-3 7 3M4 10v11M20 10v11M8 14v3M12 14v3M16 14v3"/>',
+  ban: '<circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/>',
+  link: '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
+  file: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>',
+  sparkle: '<path d="M12 3l1.9 5.8L20 10.7l-5.6 3.1L16 20l-4-3.5L8 20l1.6-6.2L4 10.7l6.1-1.9z"/>',
+};
+const ACT_ICON = { request: 'file', portal_referral: 'link', forward: 'send', manual: 'user', activity: 'clip', reply: 'reply', bank_referral: 'bank', no_action: 'ban', ask_identification: 'help' };
+const STATUS = { unclassified: 'Αταξινόμητο', classified: 'Προς έλεγχο', reviewed: 'Ελέγχθηκε' };
+const ORD = ['1η', '2η', '3η'], SLOT_HINT = ['Η κύρια κατηγορία', 'Δεύτερη, αν το email ζητά κι άλλο', 'Τρίτη, αν το email ζητά κι άλλο'];
+const WHO = { Customer: 'Πελάτης', Agent: 'Εκπρόσωπος', Internal: 'Εσωτερικός', Unknown: 'Άγνωστος' };
+const REL = { relevant: 'σχετικό', possibly_relevant: 'πιθανώς σχετικό', irrelevant: 'μη σχετικό' };
+const VIA = { afm: 'Με ΑΦΜ', account: 'Με αριθμό λογαριασμού', contract: 'Με αριθμό σύμβασης', payment_code: 'Με κωδικό πληρωμής' };
+const CAVEATS = { not_identified: 'Εκτίμηση · χρειάζεται πρώτα ταυτοποίηση', not_in_registry: 'Εκτίμηση · ο πελάτης δεν βρέθηκε στο μητρώο' };
+const PRESETS = { all: 'Όλες οι ημερομηνίες', today: 'Σήμερα', yesterday: 'Χθες', week: 'Αυτή την εβδομάδα', lastweek: 'Προηγούμενη εβδομάδα', d10: 'Τελευταίες 10 ημέρες', month: 'Αυτόν τον μήνα', d30: 'Τελευταίες 30 ημέρες', custom: 'Από – έως…' };
+const DATEFIELD = { received: 'Παραλαβή', classified: 'Ταξινόμηση', reviewed: 'Έλεγχος' };
+const PAGE = 50;
+const DEF = { status: 'classified', q: '', cat: '', level: '', action: '', dataset: '', reviewer: '', agree: '', sort: 'new', preset: 'all', datefield: 'received', from: '', to: '' };
+
+const $ = id => document.getElementById(id);
+function h(tag, attrs, ...kids) {
+  const n = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (v == null || v === false) continue;
+    if (k === 'class') n.className = v;
+    else if (k === 'key') n.dataset.key = v;
+    else if (k.startsWith('on')) n[k] = v;
+    else n.setAttribute(k, v === true ? '' : v);
+  }
+  n.append(...kids.flat(3).filter(x => x != null && x !== false && x !== ''));
+  return n;
+}
+function icon(name, cls) {
+  const s = document.createElementNS(NS, 'svg');
+  s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('class', 'ic' + (cls ? ' ' + cls : '')); s.setAttribute('aria-hidden', 'true');
+  s.innerHTML = ICONS[name] || ''; return s;
+}
+const load = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d } catch (e) { return d } };
+const store = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)) } catch (e) {} };
+const norm = s => (s || '').normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().replace(/ς/g, 'σ');
+const COLL = new Intl.Collator('el', { sensitivity: 'base' });
+const RTF = new Intl.RelativeTimeFormat('el', { numeric: 'auto' });
+const DAYF = new Intl.DateTimeFormat('el-GR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+const pad = n => String(n).padStart(2, '0');
+const ymd = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const fmt = s => { const m = /^(\d{4})-(\d\d)-(\d\d)[T ](\d\d:\d\d)/.exec(s || ''); return m ? `${m[3]}/${m[2]}/${m[1]} ${m[4]}` : (s || '') };
+const dmy = s => { const m = /^(\d{4})-(\d\d)-(\d\d)/.exec(s || ''); return m ? `${m[3]}/${m[2]}/${m[1]}` : '…' };
+const fmtLocal = iso => { const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleString('el-GR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) };
+function ago(iso) {
+  const t = Date.parse(iso); if (!t) return '';
+  const s = Math.round((t - Date.now()) / 1000), a = Math.abs(s);
+  if (a < 45) return 'μόλις τώρα';
+  if (a < 3600) return RTF.format(Math.round(s / 60), 'minute');
+  if (a < 86400) return RTF.format(Math.round(s / 3600), 'hour');
+  if (a < 7 * 86400) return RTF.format(Math.round(s / 86400), 'day');
+  return fmtLocal(iso);
+}
+const dayLabel = d => { const [y, m, dd] = (d || '').split('-').map(Number); return y ? DAYF.format(new Date(y, m - 1, dd)) : 'Χωρίς ημερομηνία' };
+const timeEl = iso => h('time', { datetime: iso, title: fmtLocal(iso), 'data-ago': iso }, ago(iso));
+const sameSet = (a, b) => a.length === b.length && a.every(x => b.includes(x));
+const sameList = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
+const HUES = [205, 222, 190, 262, 172, 284, 214, 240];
+const hue = id => { let x = 0; for (const c of id || '') x = (x * 31 + c.charCodeAt(0)) >>> 0; return HUES[x % HUES.length] };
+const initials = n => { const w = (n || '?').trim().split(/\s+/); return ((w[0] || '?')[0] + (w.length > 1 ? w[w.length - 1][0] : '')).toUpperCase() };
+const avatar = (id, name, cls) => h('span', { class: 'av' + (cls ? ' ' + cls : ''), style: `--h:${hue(id)}`, title: name }, initials(name));
+const focusedKey = () => { const a = document.activeElement; return a && a.dataset ? a.dataset.key : null };
+const refocus = (box, key) => { if (!key) return; const n = box.querySelector(`[data-key="${CSS.escape(key)}"]`); if (n && !n.disabled) n.focus({ preventScroll: true }) };
+
+// ---------------------------------------------------------------- state and server
+const S = { meta: null, me: null, view: null, presence: [], last: null, list: null, ids: [], page: 0, seq: 0, eseq: 0, online: true,
+  cur: null, curId: null, drafts: new Map(), fix: new Set(), stale: null, saving: false, listStale: false, syncT: null, bannerSig: '', histSeen: 0, actBefore: null };
+const F = Object.assign({}, DEF, load('rv-filters', {}));
+const UI = load('rv-ui', {});
+
+class ApiError extends Error { constructor(status, data) { super((data && data.error) || 'error ' + status); this.status = status; this.data = data } }
+async function api(path, opts = {}) {
+  let r;
+  try {
+    r = await fetch(path, { method: opts.method || 'GET', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'review' }, body: opts.body ? JSON.stringify(opts.body) : undefined });
+  } catch (e) { throw new ApiError(0, { error: 'Δεν υπάρχει σύνδεση με τον server.' }) }
+  const data = await r.json().catch(() => ({}));
+  if (r.status === 401) signIn(data.auth);
+  if (!r.ok) throw new ApiError(r.status, data);
+  return data;
+}
+function signIn(auth) {
+  if (auth === 'easyauth') { location.href = '/.auth/login/aad?post_login_redirect_uri=' + encodeURIComponent('/' + location.hash); return }
+  if (!$('loginDlg').open) { $('loginDlg').showModal(); setTimeout(() => $('loginName').focus(), 50) }
+}
+$('loginDlg').addEventListener('cancel', ev => ev.preventDefault());
+$('loginForm').onsubmit = async ev => {
+  ev.preventDefault();
+  const name = $('loginName').value.trim(), btn = $('loginBtn');
+  if (!name) { $('loginErr').textContent = 'Γράψτε το όνομά σας.'; return }
+  btn.classList.add('busy');
+  try { await api('/api/login', { method: 'POST', body: { name } }); location.reload() }
+  catch (e) { $('loginErr').textContent = e.message; btn.classList.remove('busy') }
+};
+
+// ---------------------------------------------------------------- toasts
+function toast(text, kind = 'info') {
+  const t = h('div', { class: 'toast ' + kind, role: kind === 'err' ? 'alert' : 'status' }, icon(kind === 'ok' ? 'check' : kind === 'err' ? 'x' : 'sparkle'), h('span', null, text));
+  $('toasts').append(t);
+  while ($('toasts').children.length > 4) $('toasts').firstChild.remove();
+  setTimeout(() => { t.classList.add('out'); setTimeout(() => t.remove(), 300) }, kind === 'err' ? 6000 : 3800);
+}
+function errorBox(text, retry) {
+  return h('div', { class: 'error-box' }, h('span', { class: 'stat-ic t-slate' }, icon('refresh', 'lg')), h('b', null, text),
+    retry && h('button', { class: 'btn', onclick: retry }, 'Δοκιμή ξανά'));
+}
+
+// ---------------------------------------------------------------- shell
+function setOnline(ok) {
+  if (S.online === ok) return; S.online = ok;
+  $('conn').classList.toggle('off', !ok); $('conn').lastChild.textContent = ok ? 'Συνδεδεμένο' : 'Χωρίς σύνδεση, ξαναδοκιμάζει…';
+}
+function paintOnline() {
+  const seen = new Map(); for (const p of S.presence) seen.set(p.user, p);
+  const people = [...seen.values()].sort((a, b) => (a.user === S.me.id) - (b.user === S.me.id) || COLL.compare(a.name, b.name));
+  const others = people.filter(p => p.user !== S.me.id).length;
+  $('online').replaceChildren(
+    h('span', { class: 'av-stack' }, people.slice(0, 5).map(p => avatar(p.user, p.name + (p.email ? ' · σε email' : ' · στην ουρά'), 'sm')),
+      people.length > 5 && h('span', { class: 'av sm', style: '--h:215' }, '+' + (people.length - 5))),
+    h('span', { class: 'who-label' }, others ? `${others + 1} συνδεδεμένοι` : 'Μόνο εσείς'));
+}
+function paintPresence() {
+  for (const row of $('rows').querySelectorAll('.row[data-id]')) {
+    const slot = row.querySelector('.live-slot'), id = row.dataset.id;
+    const v = S.presence.filter(p => p.email === id && p.user !== S.me.id);
+    const sig = v.map(p => p.user).join();
+    if ((slot.dataset.sig || '') === sig) continue;
+    slot.dataset.sig = sig;
+    slot.replaceChildren(...(v.length ? [h('span', { class: 'live', title: 'Το έχει ανοιχτό τώρα' }, h('i', { class: 'dot' }), h('span', null, v.map(p => p.name).join(', ')))] : []));
+  }
+}
+function show(view) {
+  if (S.view === view) return;
+  S.view = view;
+  for (const [v, id] of [['queue', 'vQueue'], ['email', 'vEmail'], ['activity', 'vActivity']]) {
+    const el = $(id); el.hidden = v !== view;
+    if (v === view) { el.classList.remove('view'); void el.offsetWidth; el.classList.add('view') }
+  }
+  document.querySelectorAll('[data-nav]').forEach(a => a.classList.toggle('on', a.dataset.nav === (view === 'email' ? 'queue' : view)));
+  $('pageTitle').textContent = { queue: 'Ουρά ελέγχου', email: 'Έλεγχος email', activity: 'Δραστηριότητα' }[view];
+  document.body.classList.remove('side-open');
+}
+function route() {
+  const path = location.hash.slice(1) || '/';
+  if (path.startsWith('/email/')) return openEmail(decodeURIComponent(path.slice(7)));
+  S.curId = null;
+  if (path === '/activity') { show('activity'); loadActivity(true) }
+  else { const back = S.view === 'email'; show('queue'); if (back || S.listStale || !S.list) loadList({ quiet: !!S.list }) }
+  sync();
+}
+
+// ---------------------------------------------------------------- queue
+function range(p) {
+  const t = new Date(); t.setHours(0, 0, 0, 0);
+  const add = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x };
+  const mon = add(t, -((t.getDay() + 6) % 7));
+  return { today: [t, t], yesterday: [add(t, -1), add(t, -1)], week: [mon, t], lastweek: [add(mon, -7), add(mon, -1)],
+    d10: [add(t, -9), t], month: [new Date(t.getFullYear(), t.getMonth(), 1), t], d30: [add(t, -29), t] }[p] || null;
+}
+// ponytail: dates compare as written in the data (Graph gives UTC), so a day boundary can be off by the UTC offset.
+function dates() { if (F.preset === 'custom') return [F.from, F.to]; const r = range(F.preset); return r ? r.map(ymd) : ['', ''] }
+function qs(extra) {
+  const [from, to] = dates();
+  const p = { status: F.status, q: F.q, cat: F.cat, level: F.level, action: F.action, dataset: F.dataset, reviewer: F.reviewer,
+    agree: F.agree, sort: F.sort, datefield: F.datefield, from, to, ...extra };
+  return new URLSearchParams(Object.entries(p).filter(([, v]) => v !== '' && v != null)).toString();
+}
+const statusOf = r => r.reviewed_by ? 'reviewed' : r.cat ? 'classified' : 'unclassified';
+const badge = st => h('span', { class: 'badge b-' + st }, h('i'), STATUS[st]);
+function rowEl(r, i) {
+  const changed = r.reviewed_cat && r.cat && r.reviewed_cat !== r.cat, low = r.top_p != null && r.top_p < S.meta.high;
+  return h('a', { class: 'row' + (i >= 0 ? ' in' : ''), href: '#/email/' + encodeURIComponent(r.id), 'data-id': r.id, role: 'listitem', style: i >= 0 ? `--i:${Math.min(i, 14)}` : null },
+    h('span', { class: 'c-st' }, badge(statusOf(r))),
+    h('span', { class: 'c-subj' }, h('b', null, r.subject || '(χωρίς θέμα)'),
+      h('small', null, h('span', null, r.sender), r.n_att ? [' · ', icon('clip', 'sm'), String(r.n_att)] : null)),
+    h('span', { class: 'c-date' }, fmt(r.received)),
+    h('span', { class: 'c-cat' + (low ? ' low' : '') },
+      h('span', { class: 'cat', title: r.reviewed_cat || r.cat || '' }, r.reviewed_cat || r.cat || 'Χωρίς κατηγορία'),
+      changed ? h('span', { class: 'sub' }, 'μοντέλο: ', h('s', null, r.cat))
+        : r.top_p != null && !r.reviewed_cat ? h('span', { class: 'sub' }, h('span', { class: 'mini-meter' }, h('i', { style: `--w:${r.top_p}%` })), r.top_p + '%') : null),
+    h('span', { class: 'c-who' }, h('span', { class: 'live-slot' }),
+      r.reviewed_by && h('span', { class: 'reviewer' }, avatar(r.reviewed_by, r.reviewed_by_name, 'sm'), h('span', null, h('b', null, r.reviewed_by_name), h('small', null, timeEl(r.reviewed_at))))));
+}
+function skeletonRows(n) {
+  return Array.from({ length: n }, (_, i) => h('div', { class: 'row skel', 'aria-hidden': 'true' },
+    h('span', null, h('span', { class: 'sk', style: 'width:86px;height:20px;border-radius:999px' })),
+    h('span', { class: 'c-subj' }, h('span', { class: 'sk block', style: `width:${60 + (i * 17) % 35}%;height:13px;margin-bottom:7px` }), h('span', { class: 'sk block', style: 'width:38%;height:11px' })),
+    h('span', { class: 'c-date' }, h('span', { class: 'sk', style: 'width:90px' })),
+    h('span', { class: 'c-cat' }, h('span', { class: 'sk block', style: 'width:80%;height:12px;margin-bottom:6px' }), h('span', { class: 'sk block', style: 'width:40%;height:8px' })),
+    h('span', null, h('span', { class: 'sk', style: 'width:110px' }))));
+}
+function emptyState() {
+  const filtered = activeFilters() > 0 || !!F.q || F.preset !== 'all';
+  return h('div', { class: 'empty' }, h('span', { class: 'stat-ic' }, icon(F.status === 'classified' ? 'check' : 'inbox', 'lg')),
+    h('b', null, F.status === 'classified' && !filtered ? 'Δεν υπάρχει τίποτα προς έλεγχο' : 'Κανένα email με αυτά τα κριτήρια'),
+    h('span', null, filtered ? 'Δοκιμάστε άλλες ημερομηνίες ή καθαρίστε τα φίλτρα.' : 'Τα νέα email εμφανίζονται εδώ μόλις ταξινομηθούν.'),
+    filtered && h('button', { class: 'btn', onclick: resetFilters }, 'Καθαρισμός φίλτρων'));
+}
+function renderRows(rows, animate) {
+  const out = []; let day = null;
+  const grouped = (F.sort === 'new' || F.sort === 'old');
+  rows.forEach((r, i) => {
+    if (grouped) { const d = (r.received || '').slice(0, 10); if (d !== day) { day = d; out.push(h('div', { class: 'day', role: 'presentation' }, dayLabel(d))) } }
+    out.push(rowEl(r, animate ? i : -1));
+  });
+  $('rows').replaceChildren(...(out.length ? out : [emptyState()]));
+  $('rows').setAttribute('aria-busy', 'false');
+  paintPresence();
+}
+function renderStats(c) {
+  const mine = F.reviewer === 'me' && F.preset === 'today' && F.status === 'reviewed' && F.datefield === 'reviewed';
+  for (const b of $('stats').children) {
+    const k = b.dataset.k;
+    b.querySelector('.stat-v').textContent = (c[k] ?? 0).toLocaleString('el-GR');
+    b.setAttribute('aria-pressed', String(k === 'mine_today' ? mine : !mine && (F.status === k || (k === 'everything' && F.status === 'all'))));
+  }
+  const n = c.classified; $('navCount').hidden = !n; $('navCount').textContent = n > 999 ? '999+' : n;
+}
+function renderPager(d) {
+  const pages = Math.max(1, Math.ceil(d.total / PAGE)), p = S.page;
+  const go = n => { S.page = n; loadList({ anim: true }); $('table').scrollIntoView({ block: 'start', behavior: 'smooth' }) };
+  const num = n => h('button', { 'aria-label': `Σελίδα ${n + 1}`, 'aria-current': n === p ? 'page' : null, disabled: n === p, onclick: () => go(n) }, String(n + 1));
+  const arrow = (n, ic, label) => h('button', { 'aria-label': label, disabled: n < 0 || n >= pages, onclick: () => go(n) }, icon(ic, 'sm'));
+  const nums = [];
+  for (let i = 0; i < pages; i++) if (i === 0 || i === pages - 1 || Math.abs(i - p) <= 1) nums.push(i); else if (nums[nums.length - 1] !== '…') nums.push('…');
+  $('pager').replaceChildren(...[
+    h('span', null, d.total ? `${(d.offset + 1).toLocaleString('el-GR')}–${Math.min(d.offset + d.rows.length, d.total).toLocaleString('el-GR')} από ${d.total.toLocaleString('el-GR')}` : ''),
+    pages > 1 && h('div', { class: 'pages' }, arrow(p - 1, 'left', 'Προηγούμενη σελίδα'), nums.map(n => n === '…' ? h('span', { class: 'hint' }, '…') : num(n)), arrow(p + 1, 'right', 'Επόμενη σελίδα'))].filter(Boolean));
+}
+async function loadList(opts = {}) {
+  const seq = ++S.seq;
+  if (!S.list) { $('rows').replaceChildren(...skeletonRows(8)); $('rows').setAttribute('aria-busy', 'true') }
+  else if (!opts.quiet) $('table').classList.add('busy');
+  try {
+    const d = await api('/api/emails?' + qs({ offset: S.page * PAGE, limit: PAGE }));
+    if (seq !== S.seq) return;
+    if (!d.rows.length && S.page > 0 && d.total) { S.page = Math.floor((d.total - 1) / PAGE); return loadList(opts) }
+    const first = !S.list;
+    S.list = d; S.ids = d.rows.map(r => r.id); S.listStale = false;
+    renderStats(d.counts); renderRows(d.rows, first || !!opts.anim); renderPager(d);
+  } catch (e) {
+    if (seq !== S.seq || e.status === 401) return;
+    if (!S.list) $('rows').replaceChildren(errorBox('Η λίστα δεν φορτώθηκε. ' + e.message, () => loadList()));
+    else toast('Η λίστα δεν ανανεώθηκε. ' + e.message, 'err');
+  } finally { if (seq === S.seq) $('table').classList.remove('busy') }
+}
+const MORE = ['level', 'action', 'dataset', 'reviewer', 'agree'];
+const fid = k => 'f' + k[0].toUpperCase() + k.slice(1);
+const activeFilters = () => ['cat', ...MORE].filter(k => F[k]).length;
+function syncControls() {
+  $('fQ').value = F.q; $('fCat').value = F.cat; $('fSort').value = F.sort;
+  for (const k of MORE) $(fid(k)).value = F[k];
+  const m = MORE.filter(k => F[k]).length; $('moreN').hidden = !m; $('moreN').textContent = m;
+  $('clearF').hidden = !(activeFilters() || F.q || F.preset !== 'all');
+  $('presetLabel').textContent = F.preset === 'custom' && (F.from || F.to) ? `${dmy(F.from)} – ${dmy(F.to)}` : PRESETS[F.preset];
+  $('customDates').hidden = F.preset !== 'custom'; $('fFrom').value = F.from; $('fTo').value = F.to;
+  for (const b of $('dateField').children) b.setAttribute('aria-pressed', String(b.dataset.v === F.datefield));
+  const [from, to] = dates();
+  $('rangeNote').textContent = from || to ? `${DATEFIELD[F.datefield]} ${from === to ? 'στις ' + dmy(from) : 'από ' + dmy(from) + ' έως ' + dmy(to)}` : '';
+}
+function setFilter(change) { Object.assign(F, change); S.page = 0; store('rv-filters', F); syncControls(); loadList({ anim: true }) }
+function resetFilters() { setFilter({ q: '', cat: '', level: '', action: '', dataset: '', reviewer: '', agree: '', preset: 'all', from: '', to: '' }) }
+function fillSelects() {
+  const M = S.meta, opt = (v, t) => h('option', { value: v }, t), others = M.reviewers.filter(r => r.id !== S.me.id);
+  const keep = ['fCat', 'fReviewer', 'aUser'].map(id => $(id).value);
+  $('fCat').replaceChildren(opt('', 'Όλες οι κατηγορίες'), [...M.categories].sort(COLL.compare).map(c => opt(c, c)));
+  $('fLevel').replaceChildren(opt('', 'Κάθε βεβαιότητα'), opt('high', `Βέβαιη εκτίμηση (${M.high}% και πάνω)`), opt('low', `Αβέβαιη (κάτω από ${M.high}%)`), opt('second', 'Με δεύτερη πιθανή κατηγορία'));
+  $('fAction').replaceChildren(opt('', 'Κάθε προτεινόμενη ενέργεια'), Object.entries(M.actions).map(([k, [n]]) => opt(k, n)));
+  $('fDataset').replaceChildren(opt('', 'Κάθε παρτίδα'), M.datasets.filter(Boolean).map(d => opt(d, 'Παρτίδα ' + d)));
+  $('fReviewer').replaceChildren(opt('', 'Όλοι οι ελεγκτές'), opt('me', 'Εγώ'), others.map(r => opt(r.id, r.name)));
+  $('aUser').replaceChildren(opt('', 'Όλοι'), opt(S.me.id, 'Εγώ'), others.map(r => opt(r.id, r.name)), opt('system', 'Σύστημα'));
+  ['fCat', 'fReviewer', 'aUser'].forEach((id, i) => { $(id).value = keep[i] });
+  if (F.reviewer && F.reviewer !== 'me' && !M.reviewers.some(r => r.id === F.reviewer)) F.reviewer = '';
+}
+function bindQueue() {
+  let t = null;
+  $('fQ').oninput = () => { clearTimeout(t); t = setTimeout(() => setFilter({ q: $('fQ').value.trim() }), 260) };
+  for (const k of ['cat', 'sort', ...MORE]) { const id = fid(k); $(id).onchange = () => setFilter({ [k]: $(id).value }) }
+  $('clearF').onclick = resetFilters;
+  $('moreF').onclick = () => { const closed = $('moreBox').classList.toggle('closed'); $('moreF').setAttribute('aria-expanded', String(!closed)) };
+  for (const b of $('stats').children) b.onclick = () => {
+    const k = b.dataset.k, wasMine = F.reviewer === 'me' && F.preset === 'today' && F.datefield === 'reviewed';
+    if (k === 'mine_today') setFilter({ status: 'reviewed', reviewer: 'me', preset: 'today', datefield: 'reviewed' });
+    else setFilter({ status: k === 'everything' ? 'all' : k, ...(wasMine ? { reviewer: '', preset: 'all', datefield: 'received' } : {}) });
+  };
+  for (const b of $('dateField').children) b.onclick = () => setFilter({ datefield: b.dataset.v });
+  const menu = $('presetMenu');
+  const close = () => { menu.hidden = true; $('presetBtn').setAttribute('aria-expanded', 'false') };
+  $('presetBtn').onclick = ev => {
+    ev.stopPropagation();
+    if (!menu.hidden) return close();
+    menu.replaceChildren(...Object.entries(PRESETS).map(([k, label]) => {
+      const r = range(k), a = r && ymd(r[0]), z = r && ymd(r[1]);
+      return h('button', { role: 'menuitemradio', 'aria-checked': String(F.preset === k), onclick: () => { close(); setFilter({ preset: k }); if (k === 'custom') setTimeout(() => $('fFrom').focus(), 30) } },
+        h('span', null, label), r && h('small', { class: 'hint' }, a === z ? dmy(a).slice(0, 5) : `${dmy(a).slice(0, 5)}–${dmy(z).slice(0, 5)}`));
+    }));
+    menu.hidden = false; $('presetBtn').setAttribute('aria-expanded', 'true');
+    const on = menu.querySelector('[aria-checked="true"]'); if (on) on.focus();
+  };
+  menu.addEventListener('keydown', ev => {
+    const items = [...menu.children], i = items.indexOf(document.activeElement);
+    if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') { ev.preventDefault(); items[(i + (ev.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length].focus() }
+    if (ev.key === 'Escape') { close(); $('presetBtn').focus() }
+  });
+  document.addEventListener('click', ev => { if (!menu.hidden && !menu.contains(ev.target)) close() });
+  $('fFrom').onchange = () => setFilter({ from: $('fFrom').value });
+  $('fTo').onchange = () => setFilter({ to: $('fTo').value });
+  $('startNext').onclick = () => goNext($('startNext'));
+}
+
+// ---------------------------------------------------------------- email
+const proposed = e => e.action ? [...new Set(e.action.items.map(x => x.do))] : [];
+function draft() {
+  const id = S.cur.email.id;
+  if (!S.drafts.has(id)) { const r = S.cur.review; S.drafts.set(id, { cats: r ? [...r.cats] : [], actions: null, comment: r ? r.comment : '' }) }
+  return S.drafts.get(id);
+}
+function effActions() { const d = draft(), r = S.cur.review; return d.actions ?? (r ? r.actions : proposed(S.cur.email)) }
+function dirty() {
+  if (!S.cur) return false;
+  const d = draft(), r = S.cur.review;
+  if (!r) return d.cats.length > 0 || !!d.comment.trim() || d.actions !== null;
+  return !sameList(d.cats, r.cats) || !sameSet(effActions(), r.actions) || d.comment.trim() !== r.comment;
+}
+function change(fn) { fn(draft()); renderAssess(); renderDock() }
+function toggleCat(c) { change(d => { if (d.cats.includes(c)) d.cats = d.cats.filter(x => x !== c); else if (d.cats.length < 3) d.cats = [...d.cats, c] }) }
+
+function emailSkeleton() {
+  const block = (w, hgt) => h('span', { class: 'sk block', style: `width:${w};height:${hgt}px;margin-bottom:10px` });
+  return [h('div', { class: 'email-head skel' }, block('140px', 12), block('min(560px,80%)', 24), block('300px', 12)),
+    h('div', { class: 'layout' },
+      h('div', { class: 'reading' }, h('div', { class: 'sheet', style: 'padding:20px' }, block('30%', 14), [92, 98, 85, 96, 70, 88, 60].map(w => block(w + '%', 12)))),
+      h('div'),
+      h('div', { class: 'assess' }, h('div', { class: 'card hero' }, h('div', { class: 'hero-row' }, h('span', { class: 'sk', style: 'width:64px;height:64px;border-radius:50%' }), h('div', { style: 'flex:1' }, block('40%', 10), block('80%', 18))), block('100%', 40)),
+        h('div', { class: 'card', style: 'padding:18px' }, block('30%', 14), block('100%', 40), block('100%', 40), block('100%', 64))))];
+}
+async function openEmail(id) {
+  show('email');
+  if (S.curId !== id) { S.stale = null; S.bannerSig = '' }
+  S.curId = id;
+  const seq = ++S.eseq;
+  if (!S.cur || S.cur.email.id !== id) { $('vEmail').replaceChildren(...emailSkeleton()); window.scrollTo(0, 0) }
+  sync();
+  try {
+    const d = await api('/api/emails/' + encodeURIComponent(id));
+    if (seq !== S.eseq) return;
+    S.cur = d; renderEmail(true);
+  } catch (e) {
+    if (seq !== S.eseq || e.status === 401) return;
+    S.cur = null;
+    $('vEmail').replaceChildren(h('a', { href: '#/' }, '← Ουρά ελέγχου'), errorBox(e.status === 404 ? 'Το email δεν βρέθηκε.' : 'Το email δεν φορτώθηκε. ' + e.message, e.status === 404 ? null : () => openEmail(id)));
+  }
+}
+function mark(text, quotes, cls) {
+  const box = h('div', { class: cls }), found = (quotes || []).filter(q => q && q.length > 2 && text.includes(q));
+  if (!found.length) { box.textContent = text; return box }
+  const re = new RegExp(found.map(q => q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'), 'g');
+  let last = 0;
+  text.replace(re, (m, i) => { box.append(text.slice(last, i), h('mark', null, m)); last = i + m.length });
+  box.append(text.slice(last)); return box;
+}
+const FOLDED = new Set();
+function fold(e, key, head, content) {
+  const id = `${e.id}:${key}`, closed = FOLDED.has(id);
+  const box = h('div', { class: 'fold' + (closed ? ' closed' : '') }, h('div', { class: 'fold-in' }, h('div', { class: 'fold-pad' }, content)));
+  const btn = h('button', { class: 'fold-head', 'aria-expanded': String(!closed), title: closed ? 'Εμφάνιση' : 'Απόκρυψη', onclick: () => {
+    const shut = box.classList.toggle('closed');
+    if (shut) FOLDED.add(id); else FOLDED.delete(id);
+    btn.setAttribute('aria-expanded', String(!shut)); btn.title = shut ? 'Εμφάνιση' : 'Απόκρυψη';
+  } }, h('span', { class: 'fold-title' }, head), icon('down', 'chev'));
+  return [btn, box];
+}
+function renderReading(e) {
+  const out = [], older = e.chain.length - 1;
+  e.chain.forEach((m, i) => {
+    if (i) out.push(h('div', { class: 'seam', role: 'separator' }, h('span', null, `Προηγούμενο μήνυμα ${i} από ${older}`)));
+    const from = [WHO[m.who] || m.who, fmt(m.when)].filter(Boolean).join(', ');
+    const head = i ? [from || 'Αποστολέας άγνωστος', m.subject && h('small', null, m.subject)] : [older ? 'Τελευταίο μήνυμα' : 'Μήνυμα', from && h('small', null, from)];
+    out.push(h('article', { class: 'sheet' + (i ? ' old' : ''), style: i ? `--depth:${Math.min(i, 3)}` : null }, fold(e, 'm' + i, head, mark(m.body || '(κενό μήνυμα)', e.quotes, 'body'))));
+  });
+  if (e.attachments.length) out.push(h('section', { class: 'sheet' },
+    fold(e, 'att', [`Συνημμένα (${e.attachments.length})`, h('small', null, 'Όπως τα διάβασε το μοντέλο')],
+      e.attachments.map((x, i) => h('div', { class: 'att' },
+        fold(e, 'att' + i, [x.file, h('small', null, [x.type, REL[x.relevance] || x.relevance].filter(Boolean).join(', '))], [
+          mark(x.summary || '', e.quotes, 'why'),
+          x.asks.length ? mark('Ζητά: ' + x.asks.join('; '), e.quotes, 'att-sub') : null,
+          (x.evidence || []).length ? mark('Αποσπάσματα: ' + x.evidence.join('; '), e.quotes, 'att-sub') : null]))))));
+  return out;
+}
+function card(cls, title, iconName, kids) {
+  return h('section', { class: 'card ' + cls },
+    h('div', { class: 'card-head' }, h('span', { class: 'card-ic' }, icon(iconName, 'sm')), h('h3', null, title)),
+    h('div', { class: 'card-body' }, kids));
+}
+function ring(p, ok) {
+  const s = document.createElementNS(NS, 'svg'), C = 2 * Math.PI * 24, to = C * (1 - Math.max(0, Math.min(100, p)) / 100);
+  s.setAttribute('viewBox', '0 0 56 56'); s.setAttribute('class', 'ring' + (ok ? '' : ' low')); s.setAttribute('role', 'img'); s.setAttribute('aria-label', `Πιθανότητα ${p}%`);
+  s.innerHTML = `<circle cx="28" cy="28" r="24" class="track"/><circle cx="28" cy="28" r="24" class="val" stroke-dasharray="${C.toFixed(2)}" style="stroke-dashoffset:${to.toFixed(2)};--c:${C.toFixed(2)}"/><text x="28" y="33" text-anchor="middle">${Number(p) | 0}%</text>`;
+  return s;
+}
+function doneNote(r, e) {
+  return h('div', { class: 'hero-done' }, icon('check', 'sm'), h('span', null, h('b', null, !e.cat ? 'Ταξινομήθηκε' : r.cats[0] === e.cat ? 'Επιβεβαιώθηκε' : 'Διορθώθηκε'), ` από ${r.by_name}, `, timeEl(r.at)));
+}
+function heroCard(e) {
+  const r = S.cur.review, top = e.top3 && e.top3[0];
+  if (!e.cat || !top) return h('section', { class: 'card hero' }, h('div', { class: 'hero-row' }, h('span', { class: 'stat-ic t-slate' }, icon('clock', 'lg')),
+    h('div', { class: 'hero-txt' }, h('div', { class: 'eyebrow' }, 'Πρόταση μοντέλου'), h('div', { class: 'hero-cat muted' }, 'Δεν έχει ταξινομηθεί ακόμη'), h('p', { class: 'hint' }, 'Επιλέξτε εσείς την κατηγορία παρακάτω.'))),
+    r && doneNote(r, e));
+  const certain = top.p >= S.meta.high;
+  return h('section', { class: 'card hero' },
+    h('div', { class: 'hero-row' }, ring(top.p, certain), h('div', { class: 'hero-txt' }, h('div', { class: 'eyebrow' }, 'Πρόταση μοντέλου'), h('div', { class: 'hero-cat' }, e.cat),
+      h('span', { class: 'pill ' + (certain ? 'p-blue' : 'p-slate') }, certain ? 'Βέβαιη εκτίμηση' : 'Αβέβαιη εκτίμηση · ελέγξτε προσεκτικά'))),
+    r && doneNote(r, e),
+    h('div', { class: 'hero-actions' },
+      h('button', { class: 'btn primary' + (S.saving ? ' busy' : ''), key: 'acceptNext', id: 'acceptNext', disabled: S.saving, onclick: () => accept(true) }, icon('check'), h('span', null, 'Αποδοχή και επόμενο')),
+      h('button', { class: 'btn', key: 'accept', id: 'accept', disabled: S.saving, onclick: () => accept(false) }, h('span', null, 'Αποδοχή'))));
+}
+function accept(next) { const d = draft(); d.cats = [S.cur.email.cat]; d.actions = proposed(S.cur.email); S.fix.delete(S.cur.email.id); save(next) }
+function categoryCard(e) {
+  const picks = draft().cats;
+  const slots = h('ol', { class: 'slots' }, [0, 1, 2].map(i => {
+    const c = picks[i];
+    return h('li', { class: `slot r${i + 1}` + (c ? '' : ' empty') }, h('span', { class: 'rank' }, ORD[i]), h('span', { class: 'slot-name' }, c || SLOT_HINT[i]),
+      c && i > 0 && h('button', { class: 'icon-btn', key: 'up' + i, title: 'Μία θέση πιο πάνω', 'aria-label': `Μεταφορά της ${ORD[i]} πιο πάνω`, onclick: () => change(d => { const x = [...d.cats]; [x[i - 1], x[i]] = [x[i], x[i - 1]]; d.cats = x }) }, '↑'),
+      c && h('button', { class: 'icon-btn', key: 'rm' + i, title: 'Αφαίρεση', 'aria-label': `Αφαίρεση της ${ORD[i]}`, onclick: () => toggleCat(c) }, icon('x', 'sm')));
+  }));
+  const cands = (e.top3 || []).map((t, n) => {
+    const at = picks.indexOf(t.cat), likely = n === 0 || t.p >= S.meta.also;
+    return h('button', { class: 'cand' + (at >= 0 ? ' on' : '') + (likely ? '' : ' low'), key: 'cand' + n, 'aria-pressed': String(at >= 0), disabled: at < 0 && picks.length >= 3, onclick: () => toggleCat(t.cat) },
+      h('span', { class: 'cand-top' }, h('span', { class: 'cand-name' }, at >= 0 && h('span', { class: 'mini-rank' }, ORD[at]), t.cat), h('span', { class: 'cand-pct' }, t.p + '%')),
+      h('span', { class: 'meter', 'aria-hidden': 'true' }, h('i', { style: `--w:${t.p}%` })),
+      t.why && h('span', { class: 'why' }, t.why),
+      h('span', { class: 'cand-tag' }, n === 0 ? 'Πρόταση μοντέλου' : likely ? 'Επίσης πιθανή' : 'Χαμηλότερη πιθανότητα'));
+  });
+  return card('cats', 'Κατηγορία', 'tag', [
+    h('p', { class: 'hint' }, 'Έως τρεις, με σειρά σημασίας. Η 1η είναι η κύρια· 2η και 3η μόνο αν το email ζητά κι άλλα.'),
+    slots, cands.length && h('div', { class: 'lead' }, 'Οι πιθανότερες κατά το μοντέλο'), cands,
+    h('button', { class: 'btn ghost', key: 'pick', id: 'pickOpen', style: 'align-self:flex-start', onclick: openPicker }, icon('search', 'sm'), e.cat ? 'Άλλη κατηγορία…' : 'Επιλογή κατηγορίας…')]);
+}
+function actionItem(x, kept) {
+  const [name, what] = S.meta.actions[x.do] || [x.do, ''];
+  const code = (c, when) => h('div', { class: 'code' }, h('span', { class: 'code-n' }, (c.match(/^\d+/) || [''])[0]), h('span', null, c.replace(/^\d+\s*/, ''), when && h('small', null, ' · ' + when)));
+  return h('div', { class: 'act' + (kept ? '' : ' off') },
+    h('div', { class: 'act-head' }, h('span', { class: 'act-ic' }, icon(ACT_ICON[x.do] || 'bolt', 'sm')), h('div', { class: 'act-title' }, h('b', null, name), h('small', null, x.cat))),
+    x.caveat && h('span', { class: 'pill p-slate', style: 'align-self:flex-start;white-space:normal' }, CAVEATS[x.caveat] || x.caveat),
+    h('p', { class: 'act-what' }, what),
+    (x.open || x.closed || x.codes.length) ? h('div', { class: 'codes' }, x.open && code(x.open, 'αν η υπόθεση είναι ανοιχτή'), x.closed && code(x.closed, 'αν η υπόθεση είναι κλειστή'), x.codes.map(c => code(c))) : null,
+    x.to.length ? h('p', { class: 'act-what' }, 'Παραλήπτες: ', x.to.join(', ')) : null,
+    x.why.length ? h('details', null, h('summary', null, icon('right', 'sm'), 'Γιατί αυτή η ενέργεια'), h('div', null, h('ul', null, x.why.map(w => h('li', null, w))))) : null,
+    S.meta.spec[x.cat] ? h('details', null, h('summary', null, icon('right', 'sm'), 'Τι ορίζει η προδιαγραφή'), h('div', null, S.meta.spec[x.cat])) : null);
+}
+function actionsCard(e) {
+  const A = e.action, eff = effActions(), prop = proposed(e), fixing = !A || S.fix.has(e.id) || !sameSet(eff, prop);
+  return card('acts', 'Ενέργειες', 'bolt', [
+    h('p', { class: 'hint' }, A ? 'Πρόταση από τους κανόνες της προδιαγραφής, για την πρόταση του μοντέλου και ό,τι άλλο ζητά το email.' : 'Δεν υπάρχει πρόταση ενέργειας. Επιλέξτε τι πρέπει να γίνει.'),
+    A && A.items.map(x => actionItem(x, eff.includes(x.do))),
+    A && h('div', { class: 'seg', role: 'group', 'aria-label': 'Είναι σωστές οι ενέργειες;', style: 'align-self:flex-start' },
+      h('button', { key: 'actYes', id: 'actYes', 'aria-pressed': String(!fixing), onclick: () => { S.fix.delete(e.id); change(d => { d.actions = [...prop] }) } }, icon('check', 'sm'), 'Σωστές'),
+      h('button', { key: 'actFix', id: 'actFix', 'aria-pressed': String(fixing), onclick: () => { S.fix.add(e.id); renderAssess() } }, 'Διόρθωση')),
+    fixing && h('div', { class: 'chips', role: 'group', 'aria-label': 'Ενέργειες' }, Object.entries(S.meta.actions).map(([k, [name, what]]) =>
+      h('button', { class: 'chip', key: 'chip' + k, 'aria-pressed': String(eff.includes(k)), title: what, onclick: () => change(d => { const now = effActions(); d.actions = now.includes(k) ? now.filter(x => x !== k) : [...now, k] }) },
+        eff.includes(k) && icon('check', 'sm'), name))),
+    A && !sameSet(eff, prop) && h('p', { class: 'fix-note' }, h('b', null, 'Η διόρθωσή σας: '), eff.map(k => S.meta.actions[k][0]).join(', ') || 'καμία ενέργεια')]);
+}
+async function copy(text, btn) {
+  try { await navigator.clipboard.writeText(text); btn.replaceChildren(icon('check', 'sm')); toast('Αντιγράφηκε.', 'ok'); setTimeout(() => btn.replaceChildren(icon('copy', 'sm')), 1500) }
+  catch (e) { toast('Η αντιγραφή δεν επιτρέπεται εδώ.', 'err') }
+}
+function customerCard(e) {
+  const A = e.action; if (!A || !A.customer) return null;
+  const C = A.customer;
+  const steps = [['Ταυτοποίηση', !!C.identified, C.identified ? (VIA[C.via] || 'Ναι') : 'Δεν ταυτοποιήθηκε'],
+    ['Μητρώο', C.identified ? !!C.known : null, C.identified ? (C.known ? 'Βρέθηκε' : 'Δεν βρέθηκε') : 'Χρειάζεται ταυτοποίηση'],
+    ['Portal', C.known ? !!C.portal : null, C.known ? (C.portal ? 'Έχει πρόσβαση' : 'Χωρίς πρόσβαση') : '—']];
+  return card('cust', 'Πελάτης και στοιχεία', 'user', [
+    h('ol', { class: 'steps' }, steps.map(([t, v, s]) => h('li', { class: 'step ' + (v === true ? 'yes' : v === false ? 'no' : 'na') },
+      h('span', { class: 'step-dot', 'aria-hidden': 'true' }, v === true ? icon('check', 'sm') : v === false ? icon('x', 'sm') : '–'), h('b', null, t), h('small', null, s)))),
+    (C.is_3869 || C.erb) && h('div', { class: 'hero-actions' }, C.is_3869 && h('span', { class: 'pill p-slate' }, 'Ν.3869'), C.erb && h('span', { class: 'pill p-slate' }, 'ERB')),
+    A.fields && h('dl', { class: 'kv' }, A.fields.map(f => [h('dt', null, f.label), h('dd', null,
+      f.values ? f.values.map(v => h('div', { class: 'kv-v' }, h('span', { class: 'mono' }, v.value),
+        (v.who || v.case) && h('small', null, [v.who, v.case && 'ταυτοποιεί την υπόθεση'].filter(Boolean).join(' · ')),
+        h('button', { class: 'icon-btn', title: 'Αντιγραφή', 'aria-label': 'Αντιγραφή: ' + f.label, onclick: ev => copy(v.value, ev.currentTarget) }, icon('copy', 'sm'))))
+        : h('span', { class: 'none' }, 'Δεν βρέθηκε'))]))]);
+}
+function noteCard() {
+  return card('note', 'Σχόλιο', 'note', [h('textarea', { id: 'comment', key: 'comment', placeholder: 'Προαιρετικό: ό,τι πρέπει να ξέρει η ομάδα για αυτό το email', 'aria-label': 'Σχόλιο', maxlength: 2000,
+    oninput: ev => { draft().comment = ev.target.value; renderDock() } }, draft().comment)]);
+}
+function catDiff(b, a) {
+  const out = [], j = x => x && x.length ? x.join(' › ') : '—', names = x => (x || []).map(k => (S.meta.actions[k] || [k])[0]).join(', ') || 'καμία';
+  if (!a) return [h('li', null, 'Ο έλεγχος αφαιρέθηκε.')];
+  if (!b || !sameList(b.cats, a.cats)) out.push(h('li', null, 'Κατηγορία: ', b ? [h('s', null, j(b.cats)), ' → '] : '', h('b', null, j(a.cats))));
+  if (!b || !sameSet(b.actions, a.actions)) out.push(h('li', null, 'Ενέργειες: ', b ? [h('s', null, names(b.actions)), ' → '] : '', names(a.actions)));
+  if ((b ? b.comment : '') !== a.comment) out.push(h('li', null, 'Σχόλιο: ', a.comment ? `«${a.comment}»` : 'αφαιρέθηκε'));
+  return out;
+}
+function verb(ev) {
+  if (ev.kind === 'imported') return `πρόσθεσε ${ev.detail.new} νέα και ενημέρωσε ${ev.detail.updated} email από την ταξινόμηση ${ev.detail.source}`;
+  if (ev.kind === 'review_cleared') return 'καθάρισε τον έλεγχο';
+  return ev.detail.before ? 'άλλαξε τον έλεγχο' : 'έλεγξε το email';
+}
+function historyCard() {
+  const hist = S.cur.history.filter(ev => ev.kind !== 'imported');
+  return card('hist', 'Ιστορικό', 'history', hist.length
+    ? h('ol', { class: 'timeline' }, hist.map(ev => h('li', { class: 'tl' + (S.histSeen && ev.id > S.histSeen ? ' in' : '') }, avatar(ev.user, ev.user_name, 'xs'),
+      h('div', { class: 'tl-main' }, h('b', null, ev.user_name), ' ', verb(ev), timeEl(ev.at), h('ul', { class: 'diff' }, catDiff(ev.detail.before, ev.detail.after))))))
+    : h('p', { class: 'hint' }, S.cur.classified_at ? `Ταξινομήθηκε ${ago(S.cur.classified_at)}. Δεν έχει ελεγχθεί ακόμη.` : 'Δεν έχει ελεγχθεί ακόμη.'));
+}
+function renderAssess() {
+  const box = $('assess'); if (!box || !S.cur) return;
+  const e = S.cur.email, key = focusedKey(), typing = document.activeElement && document.activeElement.id === 'comment', caret = typing ? document.activeElement.selectionStart : null;
+  box.replaceChildren(...[heroCard(e), categoryCard(e), actionsCard(e), customerCard(e), noteCard(), historyCard()].filter(Boolean));
+  refocus(box, key);
+  if (typing && $('comment')) { $('comment').focus({ preventScroll: true }); $('comment').setSelectionRange(caret, caret) }
+  S.histSeen = Math.max(0, ...S.cur.history.map(x => x.id));
+}
+function renderBanners() {
+  const b = $('banners'); if (!b || !S.cur) return;
+  const id = S.cur.email.id, others = S.presence.filter(p => p.email === id && p.user !== S.me.id);
+  const sig = others.map(o => o.user).join() + '|' + (S.stale ? S.stale.id : '');
+  if (sig === S.bannerSig) return; S.bannerSig = sig;
+  b.replaceChildren(...[
+    others.length ? h('div', { class: 'banner b-violet', role: 'status', id: 'presenceBanner' }, h('span', { class: 'av-stack' }, others.slice(0, 3).map(o => avatar(o.user, o.name, 'sm'))),
+      h('span', null, h('b', null, others.map(o => o.name).join(', ')), others.length > 1 ? ' έχουν ανοιχτό αυτό το email τώρα.' : ' έχει ανοιχτό αυτό το email τώρα.', ' Συνεννοηθείτε πριν αλλάξετε κάτι, ή πατήστε «Επόμενο προς έλεγχο».'),
+      h('i', { class: 'dot' })) : null,
+    S.stale ? h('div', { class: 'banner b-blue', role: 'alert', id: 'staleBanner' }, icon('refresh'), h('span', null, h('b', null, S.stale.user_name), ' αποθήκευσε αλλαγές σε αυτό το email. Οι δικές σας δεν έχουν αποθηκευτεί ακόμη.'),
+      h('button', { class: 'btn sm', onclick: () => { S.drafts.delete(id); S.fix.delete(id); refreshCurrent(null) } }, 'Φόρτωση της νέας έκδοσης')) : null].filter(Boolean));
+}
+function renderDock() {
+  const k = $('dock'); if (!k || !S.cur) return;
+  const e = S.cur.email, r = S.cur.review, dt = dirty(), d = draft(), i = S.ids.indexOf(e.id);
+  k.replaceChildren(...[
+    h('div', { class: 'dock-nav' },
+      h('button', { class: 'icon-btn', title: 'Προηγούμενο στη λίστα (k)', 'aria-label': 'Προηγούμενο στη λίστα', disabled: i <= 0, onclick: () => step(-1) }, icon('left')),
+      h('span', null, i < 0 ? '–' : `${(i + 1 + S.page * PAGE).toLocaleString('el-GR')} / ${(S.list ? S.list.total : 0).toLocaleString('el-GR')}`),
+      h('button', { class: 'icon-btn', title: 'Επόμενο στη λίστα (j)', 'aria-label': 'Επόμενο στη λίστα', disabled: i < 0 || i >= S.ids.length - 1, onclick: () => step(1) }, icon('right'))),
+    h('span', { class: 'dock-state' + (dt ? ' dirty' : r ? ' saved' : ''), role: 'status', id: 'dockState' },
+      dt ? [h('i', { class: 'dot' }), 'Μη αποθηκευμένες αλλαγές'] : r ? [icon('check', 'sm'), h('span', null, `Αποθηκεύτηκε · ${r.by_name} · `, timeEl(r.at))] : 'Δεν έχει ελεγχθεί'),
+    h('span', { class: 'grow' }),
+    dt && h('button', { class: 'btn ghost', id: 'undo', onclick: () => { S.drafts.delete(e.id); S.fix.delete(e.id); renderAssess(); renderDock() } }, 'Αναίρεση αλλαγών'),
+    r && !dt && h('button', { class: 'btn ghost', id: 'clearReview', disabled: S.saving, onclick: () => save(false, { clear: true }) }, 'Καθαρισμός ελέγχου'),
+    h('button', { class: 'btn' + (S.saving ? ' busy' : ''), id: 'save', title: 'Ctrl+S', disabled: S.saving || !dt || !d.cats.length, onclick: () => save(false) }, h('span', null, 'Αποθήκευση')),
+    h('button', { class: 'btn primary' + (S.saving ? ' busy' : ''), id: 'saveNext', title: 'Ctrl+Enter', disabled: S.saving || (dt && !d.cats.length), onclick: () => dt ? save(true) : goNext() },
+      h('span', null, dt ? 'Αποθήκευση και επόμενο' : 'Επόμενο προς έλεγχο'), icon('right', 'sm'))].filter(Boolean));
+}
+function columnBar(lay) {
+  const b = h('div', { class: 'vbar', tabindex: 0, role: 'separator', 'aria-orientation': 'vertical', 'aria-label': 'Πλάτος της στήλης ελέγχου', title: 'Σύρετε για αλλαγή πλάτους, διπλό κλικ για επαναφορά' });
+  const set = px => { UI.assess = Math.max(360, Math.min(lay.getBoundingClientRect().width - 394, Math.round(px))); lay.style.setProperty('--assess', UI.assess + 'px'); store('rv-ui', UI) };
+  if (UI.assess) lay.style.setProperty('--assess', UI.assess + 'px');
+  b.addEventListener('mousedown', ev => {
+    ev.preventDefault(); b.classList.add('drag');
+    const right = lay.getBoundingClientRect().right, move = m => set(right - m.clientX);
+    const up = () => { b.classList.remove('drag'); document.removeEventListener('mousemove', move); document.removeEventListener('mouseup', up) };
+    document.addEventListener('mousemove', move); document.addEventListener('mouseup', up);
+  });
+  b.addEventListener('dblclick', () => { delete UI.assess; lay.style.removeProperty('--assess'); store('rv-ui', UI) });
+  b.addEventListener('keydown', ev => { const dd = { ArrowLeft: 24, ArrowRight: -24 }[ev.key]; if (dd) { ev.preventDefault(); set($('assess').getBoundingClientRect().width + dd) } });
+  return b;
+}
+function renderEmail(fresh, popBadge) {
+  const e = S.cur.email, st = S.cur.review ? 'reviewed' : e.cat ? 'classified' : 'unclassified';
+  if (fresh || !$('assess')) {
+    S.histSeen = 0;
+    const lay = h('div', { class: 'layout', id: 'layout' }, h('div', { class: 'reading', id: 'reading' }, renderReading(e)));
+    lay.append(columnBar(lay), h('div', { class: 'assess stagger', id: 'assess' }));
+    $('vEmail').replaceChildren(
+      h('div', { class: 'email-head' },
+        h('div', { class: 'crumbs' }, h('a', { href: '#/' }, icon('left', 'sm'), 'Ουρά ελέγχου'), h('span', { id: 'headBadge' })),
+        h('h1', { class: 'subject' }, e.subject || '(χωρίς θέμα)'),
+        h('div', { class: 'meta' }, h('span', null, icon('mail', 'sm'), e.sender), h('span', null, icon('clock', 'sm'), fmt(e.received)), e.dataset && h('span', null, 'Παρτίδα ' + e.dataset),
+          e.attachments.length ? h('span', null, icon('clip', 'sm'), `${e.attachments.length} συνημμένα`) : null)),
+      h('div', { id: 'banners' }), lay, h('div', { class: 'dock', id: 'dock' }));
+    S.bannerSig = null;
+    setTimeout(() => { const a = $('assess'); if (a) a.classList.remove('stagger') }, 700);
+  }
+  $('headBadge').replaceChildren(badge(st)); if (popBadge) $('headBadge').firstChild.classList.add('pop');
+  renderBanners(); renderAssess(); renderDock();
+}
+function step(dir) { const i = S.ids.indexOf(S.curId), id = S.ids[i + dir]; if (i >= 0 && id) location.hash = '#/email/' + encodeURIComponent(id) }
+async function goNext(btn) {
+  if (btn) btn.classList.add('busy');
+  try {
+    const r = await api('/api/next?' + qs({ after: S.curId || '' }));
+    if (r.id) location.hash = '#/email/' + encodeURIComponent(r.id);
+    else { toast('Δεν υπάρχει άλλο email προς έλεγχο με αυτά τα φίλτρα.', 'info'); if (S.view === 'email') location.hash = '#/' }
+  } catch (e) { if (e.status !== 401) toast('Δεν βρέθηκε το επόμενο. ' + e.message, 'err') }
+  finally { if (btn) btn.classList.remove('busy') }
+}
+async function save(next, extra = {}) {
+  if (S.saving || !S.cur) return;
+  const e = S.cur.email, d = draft();
+  if (!extra.clear && !d.cats.length) { toast('Επιλέξτε τουλάχιστον μία κατηγορία.', 'err'); return }
+  S.saving = true; renderAssess(); renderDock();
+  try {
+    const res = await api(`/api/emails/${encodeURIComponent(e.id)}/review`, { method: 'PUT',
+      body: { cats: d.cats, actions: effActions(), comment: d.comment, clear: !!extra.clear, base_version: extra.base ?? S.cur.version } });
+    S.saving = false;
+    S.drafts.delete(e.id); S.fix.delete(e.id); S.listStale = true;
+    if (S.curId !== e.id) return;
+    S.cur = res; S.stale = null;
+    toast(extra.clear ? 'Ο έλεγχος καθαρίστηκε.' : 'Αποθηκεύτηκε.', 'ok');
+    renderEmail(false, true);
+    if (next) goNext();
+  } catch (err) {
+    S.saving = false;
+    if (err.status === 409) conflict(err.data, next);
+    else if (err.status !== 401) toast('Η αποθήκευση απέτυχε. ' + err.message, 'err');
+    renderAssess(); renderDock();
+  }
+}
+function conflict(data, next) {
+  const r = data.review;
+  $('cfBody').replaceChildren(
+    r ? h('p', null, h('b', null, r.by_name), ' αποθήκευσε έλεγχο ', timeEl(r.at), ' με:') : h('p', null, 'Κάποιος άλλος καθάρισε τον έλεγχο αυτού του email.'),
+    r ? h('ul', { class: 'diff' }, catDiff(null, r)) : '',
+    h('p', { class: 'hint' }, 'Ποια εκδοχή κρατάμε; Και οι δύο καταγράφονται στο ιστορικό.'));
+  $('cfMine').onclick = () => { $('cfDlg').close(); save(next, { base: data.version }) };
+  $('cfTheirs').onclick = () => { $('cfDlg').close(); S.drafts.delete(S.cur.email.id); S.fix.delete(S.cur.email.id); refreshCurrent(null) };
+  $('cfDlg').showModal();
+}
+async function refreshCurrent(ev) {
+  if (!S.cur) return;
+  const id = S.cur.email.id;
+  try {
+    const d = await api('/api/emails/' + encodeURIComponent(id));
+    if (S.curId !== id) return;
+    S.cur = d; S.stale = null; renderEmail(false, true);
+    const a = $('assess'); if (a) { a.classList.remove('flash'); void a.offsetWidth; a.classList.add('flash') }
+    if (ev) toast(`${ev.user_name} ${verb(ev)} σε αυτό το email.`, 'info');
+  } catch (e) { if (e.status !== 401) toast('Δεν ανανεώθηκε. ' + e.message, 'err') }
+}
+
+// ---------------------------------------------------------------- category picker
+function renderPicker() {
+  const e = S.cur.email, picks = draft().cats, q = norm($('pickQ').value), key = focusedKey();
+  const idx = new Map(S.meta.categories.map((c, i) => [c, i]));
+  $('pickHint').textContent = `Η πρώτη που επιλέγετε γίνεται 1η. Επιλέχθηκαν ${picks.length} από 3.` + (e.scores.length ? ' Το ποσοστό είναι η εκτίμηση του μοντέλου.' : '');
+  const list = [...S.meta.categories].sort(COLL.compare).filter(c => !q || norm(c).includes(q));
+  $('pickList').replaceChildren(...(list.length ? list.map(c => {
+    const at = picks.indexOf(c);
+    return h('button', { class: 'option', role: 'option', key: 'opt' + c, 'aria-selected': String(at >= 0), disabled: at < 0 && picks.length >= 3, onclick: () => { toggleCat(c); renderPicker() } },
+      h('span', { class: 'mini-rank', style: at >= 0 ? null : 'visibility:hidden' }, at >= 0 ? ORD[at] : '0η'),
+      h('span', { class: 'nm' }, c), e.scores.length ? h('small', null, (e.scores[idx.get(c)] || 0) + '%') : null);
+  }) : [h('p', { class: 'hint', style: 'padding:12px' }, 'Καμία κατηγορία με αυτό το όνομα.')]));
+  refocus($('pickList'), key);
+}
+function openPicker() { $('pickQ').value = ''; renderPicker(); $('pickDlg').showModal(); $('pickQ').focus() }
+$('pickQ').oninput = renderPicker;
+$('pickQ').onkeydown = ev => {
+  if (ev.key === 'Enter') { const b = $('pickList').querySelector('.option:not(:disabled)'); if (b) b.click() }
+  if (ev.key === 'ArrowDown') { ev.preventDefault(); const b = $('pickList').querySelector('.option'); if (b) b.focus() }
+};
+$('pickList').onkeydown = ev => {
+  const o = [...$('pickList').querySelectorAll('.option')], i = o.indexOf(document.activeElement);
+  if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') { ev.preventDefault(); const n = i + (ev.key === 'ArrowDown' ? 1 : -1); if (n < 0) $('pickQ').focus(); else if (o[Math.min(n, o.length - 1)]) o[Math.min(n, o.length - 1)].focus() }
+};
+$('pickDone').onclick = () => $('pickDlg').close();
+
+// ---------------------------------------------------------------- activity
+function eventRow(ev, animate) {
+  return h('li', { class: 'ev' + (animate ? ' in' : ''), 'data-id': ev.id }, avatar(ev.user, ev.user_name),
+    h('div', { class: 'ev-main' }, h('b', null, ev.user_name), ' ', verb(ev),
+      ev.email_id && [h('br'), h('a', { href: '#/email/' + encodeURIComponent(ev.email_id) }, ev.subject || '(χωρίς θέμα)')],
+      ev.kind !== 'imported' && h('ul', { class: 'diff' }, catDiff(ev.detail.before, ev.detail.after))),
+    timeEl(ev.at));
+}
+async function loadActivity(reset) {
+  const feed = $('feed');
+  if (reset) {
+    S.actBefore = null;
+    feed.replaceChildren(...Array.from({ length: 6 }, () => h('li', { class: 'ev skel' }, h('span', { class: 'av sk-av' }),
+      h('div', null, h('span', { class: 'sk block', style: 'width:60%;height:12px;margin-bottom:8px' }), h('span', { class: 'sk block', style: 'width:35%;height:10px' })), h('span', { class: 'sk', style: 'width:70px' }))));
+  }
+  try {
+    const p = new URLSearchParams(Object.entries({ limit: 50, user: $('aUser').value, before: S.actBefore || '' }).filter(([, v]) => v !== ''));
+    const d = await api('/api/activity?' + p);
+    if (reset) feed.replaceChildren();
+    feed.append(...d.events.map((ev, i) => eventRow(ev, reset && i < 12)));
+    if (reset && !d.events.length) feed.replaceChildren(h('li', { class: 'empty' }, h('b', null, 'Καμία δραστηριότητα ακόμη')));
+    if (d.events.length) S.actBefore = d.events[d.events.length - 1].id;
+    $('feedMore').replaceChildren(...(d.events.length === 50 ? [h('button', { class: 'btn', onclick: ev => { ev.currentTarget.classList.add('busy'); loadActivity(false) } }, h('span', null, 'Περισσότερα'))] : []));
+  } catch (e) { if (e.status !== 401) feed.replaceChildren(errorBox('Η δραστηριότητα δεν φορτώθηκε.', () => loadActivity(true))) }
+}
+$('aUser').onchange = () => loadActivity(true);
+
+// ---------------------------------------------------------------- live updates
+function handleEvents(events) {
+  if (!events.length) return;
+  for (const ev of events) {
+    if (S.view === 'activity' && (!$('aUser').value || $('aUser').value === ev.user) && !$('feed').querySelector(`[data-id="${ev.id}"]`)) {
+      const empty = $('feed').querySelector('.empty'); if (empty) empty.remove();
+      $('feed').prepend(eventRow(ev, true));
+    }
+    if (ev.user === S.me.id) continue;
+    if (ev.kind === 'imported') toast(`Νέα email από την ταξινόμηση: ${ev.detail.new}.`, 'info');
+    if (S.view === 'email' && S.cur && ev.email_id === S.cur.email.id) {
+      if (dirty()) { S.stale = ev; renderBanners() } else refreshCurrent(ev);
+    }
+    if (ev.kind !== 'imported' && !S.meta.reviewers.some(r => r.id === ev.user)) { S.meta.reviewers.push({ id: ev.user, name: ev.user_name, n: 1 }); fillSelects(); syncControls() }
+  }
+  if (S.view === 'queue') loadList({ quiet: true }); else S.listStale = true;
+}
+async function sync() {
+  clearTimeout(S.syncT);
+  try {
+    const r = await api('/api/sync', { method: 'POST', body: { since: S.last, viewing: S.view === 'email' ? S.curId : null } });
+    setOnline(true);
+    const first = S.last == null; S.last = r.last; S.presence = r.presence;
+    paintOnline(); if (S.view === 'queue') paintPresence(); if (S.view === 'email') renderBanners();
+    if (!first) handleEvents(r.events);
+  } catch (e) { if (e.status !== 401) setOnline(false) }
+  clearTimeout(S.syncT);
+  S.syncT = setTimeout(sync, document.hidden ? 15000 : 3000);
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden && S.me) sync() });
+// Relative times ("2 minutes ago") stay true without re-rendering.
+setInterval(() => document.querySelectorAll('time[data-ago]').forEach(t => { t.textContent = ago(t.dataset.ago) }), 30000);
+
+// ---------------------------------------------------------------- keys, chrome, start
+document.addEventListener('keydown', ev => {
+  if (document.querySelector('dialog[open]')) return;
+  const typing = /INPUT|TEXTAREA|SELECT/.test(ev.target.tagName);
+  if (S.view === 'email' && S.cur) {
+    if ((ev.ctrlKey || ev.metaKey) && ev.key === 's') { ev.preventDefault(); if (dirty()) save(false); return }
+    if ((ev.ctrlKey || ev.metaKey) && ev.key === 'Enter') { ev.preventDefault(); if (dirty()) save(true); else goNext(); return }
+    if (typing) return;
+    if (ev.key === 'j') step(1); else if (ev.key === 'k') step(-1); else if (ev.key === 'Escape') location.hash = '#/';
+  } else if (S.view === 'queue' && !typing && ev.key === '/') { ev.preventDefault(); $('fQ').focus() }
+});
+window.addEventListener('beforeunload', ev => { if (dirty()) { ev.preventDefault(); ev.returnValue = '' } });
+window.addEventListener('hashchange', route);
+document.querySelectorAll('dialog').forEach(d => d.addEventListener('click', ev => { if (ev.target === d && d.id !== 'loginDlg') d.close() }));
+$('helpBtn').onclick = () => $('helpDlg').showModal(); $('helpClose').onclick = () => $('helpDlg').close();
+$('sideToggle').onclick = () => { document.body.classList.toggle('collapsed'); UI.collapsed = document.body.classList.contains('collapsed'); store('rv-ui', UI) };
+$('sideOpen').onclick = ev => { ev.stopPropagation(); document.body.classList.toggle('side-open') };
+document.addEventListener('click', ev => { if (document.body.classList.contains('side-open') && !$('side').contains(ev.target)) document.body.classList.remove('side-open') });
+$('logout').onclick = async () => {
+  if (S.meta && S.meta.auth === 'easyauth') { location.href = '/.auth/logout?post_logout_redirect_uri=/'; return }
+  try { await api('/api/logout', { method: 'POST' }) } catch (e) {}
+  location.hash = '#/'; location.reload();
+};
+document.querySelectorAll('i[data-ic]').forEach(i => i.replaceWith(icon(i.dataset.ic, i.className)));
+if (UI.collapsed) document.body.classList.add('collapsed');
+
+async function boot() {
+  $('rows').replaceChildren(...skeletonRows(8));
+  syncControls();
+  try { S.meta = await api('/api/meta') }
+  catch (e) { if (e.status !== 401) $('rows').replaceChildren(errorBox('Δεν υπάρχει σύνδεση με τον server. ' + e.message, () => boot())); return }
+  S.me = S.meta.me;
+  $('me').replaceChildren(avatar(S.me.id, S.me.name), h('span', { class: 'side-label' }, h('b', null, S.me.name), h('small', null, S.meta.auth === 'easyauth' ? 'Entra ID' : 'Τοπική σύνδεση')));
+  fillSelects(); syncControls(); bindQueue();
+  route();
+}
+boot();
+</script>
+</body></html>
