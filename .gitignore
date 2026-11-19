@@ -14,3 +14,8 @@ runs/
 **/DWH_Output_Storage/
 **/debug_attachment_extractions/
 __pycache__/
+# Settings files hold secrets; browser test output shows real data
+.env
+*.env
+ui_test_output/
+node_modules/

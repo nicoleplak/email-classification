@@ -1,0 +1,652 @@
+"use strict";
+/* Review app page. Plain JS, no build. Data from /api/*; text is always set with textContent. */
+
+// ------------------------------------------------------------------ words
+const T = {
+  el: {
+    appName: "Έλεγχος email", signIn: "Είσοδος", signOut: "Έξοδος", yourName: "Ονοματεπώνυμο",
+    yourEmail: "Email εργασίας (doValue)", accessCode: "Κωδικός πρόσβασης",
+    signinIntro: "Συνδεθείτε για να ελέγξετε τα email που ταξινόμησε το σύστημα.",
+    signinNote: "Προσωρινή σύνδεση έως ότου ενεργοποιηθεί η σύνδεση Microsoft. Το πρόγραμμα περιήγησης θα σας θυμάται.",
+    errName: "Συμπληρώστε όνομα και έγκυρο email.", errCode: "Λάθος κωδικός πρόσβασης.",
+    errMany: "Πολλές προσπάθειες. Δοκιμάστε ξανά σε λίγα λεπτά.",
+    qReview: "Προς έλεγχο", qAuto: "Αυτόματα", qReviewed: "Ελεγμένα", qAll: "Όλα",
+    search: "Αναζήτηση: θέμα, αποστολέας, κατηγορία…", day: "Ημέρα", by: "Βάσει", order: "Σειρά",
+    allDays: "Όλες οι μέρες", byArrival: "Άφιξης", byReview: "Ελέγχου", newest: "Νεότερα πρώτα", oldest: "Παλαιότερα πρώτα",
+    wholeDay: "Όλη η μέρα", stillArriving: "συνεχίζεται", noItems: "Δεν υπάρχουν email εδώ.",
+    noReviewTime: "Μόνο τα ελεγμένα email έχουν ώρα ελέγχου.",
+    pickOne: "Επιλέξτε ένα email από τη λίστα.",
+    stReceived: "Δεν έχει ταξινομηθεί", stReview: "Χρειάζεται έλεγχο", stAuto: "Αυτόματη ταξινόμηση",
+    stException: "Σφάλμα — έλεγχος", stReviewed: "Ελέγχθηκε",
+    openBy: "Ανοιχτό: {n}", attachments: "{n} συνημμένα",
+    lockedBy: "Το email το έχει ανοιχτό ο/η {n}. Μπορείτε να το δείτε· αποφύγετε να το ελέγξετε ταυτόχρονα.",
+    leftMailbox: "Το email δεν βρίσκεται πια στο γραμματοκιβώτιο.",
+    decision: "Ταξινόμηση", suggestion: "Πρόταση συστήματος", noSuggestion: "Δεν υπάρχει ακόμη πρόταση συστήματος.",
+    certainty: "Βεβαιότητα", whyReview: "Γιατί χρειάζεται έλεγχο", alsoConsidered: "Εξετάστηκαν επίσης",
+    accept: "Η πρόταση είναι σωστή", other: "Άλλη κατηγορία", noneFits: "Καμία κατηγορία δεν ταιριάζει",
+    chooseCat: "Γράψτε ή επιλέξτε κατηγορία", extra: "Επιπλέον αίτημα στο ίδιο email (προαιρετικό)",
+    comment: "Σχόλιο (προαιρετικό)", save: "Αποθήκευση", saved: "Αποθηκεύτηκε", next: "Επόμενο μετά την αποθήκευση",
+    reviewedBy: "Ελέγχθηκε από {n}, {d}", change: "Αλλαγή", final: "Τελική κατηγορία",
+    badCat: "Επιλέξτε κατηγορία από τη λίστα.", changed: "Κάποιος άλλος αποθήκευσε αυτό το email στο μεταξύ. Φορτώθηκε η νέα εκδοχή· ελέγξτε την και αποθηκεύστε ξανά.",
+    actions: "Τι πρέπει να γίνει", noActions: "Δεν προέκυψαν ενέργειες.",
+    customer: "Πελάτης", customerFrom: "από το μητρώο {f}",
+    aboutPerson: "Το email αφορά", people: "Πρόσωπα στο email",
+    confirmed: "Επιβεβαιωμένος", possible: "Πιθανός", matchedOn: "Ταίριαξε με",
+    sameName: "{n} πελάτες έχουν το ίδιο όνομα — κανένας δεν επιλέχθηκε αυτόματα.",
+    nameMismatch: "Το όνομα στο email δεν ταιριάζει με τον κάτοχο στο μητρώο.",
+    noCustomer: "Δεν βρέθηκε πελάτης στο μητρώο.", unmatched: "Δεν υπάρχουν στο μητρώο",
+    tooMany: "Το όνομα «{v}» ταιριάζει σε {n} πελάτες· χρειάζεται ΑΦΜ ή λογαριασμός.",
+    taxId: "ΑΦΜ", custCode: "Κωδ. πελάτη", portfolio: "Χαρτοφυλάκιο", status: "Κατάσταση", source: "Πηγή",
+    portal: "Portal", yes: "Ναι", no: "Όχι", accounts: "Λογαριασμοί ({n})", recent: "Πρόσφατα αιτήματα Qualco",
+    account: "Λογαριασμός", type: "Τύπος", settlement: "Ρύθμιση", created: "Δημιουργία",
+    found: "Στοιχεία που βρέθηκαν", foundNone: "Δεν βρέθηκαν αναγνωριστικά.", value: "Τιμή", belongs: "Ανήκει σε",
+    where: "Πού βρέθηκε", checked: "έλεγχος ψηφίου", history: "Ιστορικό", readError: "Τα στοιχεία πελάτη δεν διαβάστηκαν: {e}",
+    email: "Email", showImages: "Εμφάνιση εικόνων", hideImages: "Απόκρυψη εικόνων", download: "Λήψη",
+    downloadEmail: "Λήψη email ({x})", downloadAll: "Λήψη όλων (.zip)", openTab: "Άνοιγμα σε νέα καρτέλα",
+    noPreview: "Αυτός ο τύπος αρχείου δεν προβάλλεται στον browser.", page: "σελ. {n}",
+    evRegistered: "Παραλήφθηκε", evClassified: "Ταξινομήθηκε από το σύστημα", evReviewed: "Ελέγχθηκε",
+    evLeft: "Έφυγε από το γραμματοκιβώτιο", system: "σύστημα",
+    analysis: "Σημείωση μοντέλου",
+  },
+  en: {
+    appName: "Email review", signIn: "Sign in", signOut: "Sign out", yourName: "Full name",
+    yourEmail: "Work email (doValue)", accessCode: "Access code",
+    signinIntro: "Sign in to review the emails the system classified.",
+    signinNote: "Temporary sign-in until Microsoft sign-in is switched on. This browser will remember you.",
+    errName: "Enter your name and a valid email.", errCode: "Wrong access code.",
+    errMany: "Too many attempts. Try again in a few minutes.",
+    qReview: "To review", qAuto: "Automatic", qReviewed: "Reviewed", qAll: "All",
+    search: "Search: subject, sender, category…", day: "Day", by: "By", order: "Order",
+    allDays: "All days", byArrival: "Arrival", byReview: "Review", newest: "Newest first", oldest: "Oldest first",
+    wholeDay: "Whole day", stillArriving: "ongoing", noItems: "No emails here.",
+    noReviewTime: "Only reviewed emails have a review time.",
+    pickOne: "Pick an email from the list.",
+    stReceived: "Not classified yet", stReview: "Needs review", stAuto: "Classified automatically",
+    stException: "Error — review", stReviewed: "Reviewed",
+    openBy: "Open: {n}", attachments: "{n} attachments",
+    lockedBy: "{n} has this email open. You can look; avoid reviewing it at the same time.",
+    leftMailbox: "This email is no longer in the mailbox.",
+    decision: "Classification", suggestion: "System suggestion", noSuggestion: "No system suggestion yet.",
+    certainty: "Certainty", whyReview: "Why it needs review", alsoConsidered: "Also considered",
+    accept: "The suggestion is right", other: "Another category", noneFits: "No category fits",
+    chooseCat: "Type or pick a category", extra: "Further request in the same email (optional)",
+    comment: "Comment (optional)", save: "Save", saved: "Saved", next: "Open the next one after saving",
+    reviewedBy: "Reviewed by {n}, {d}", change: "Change", final: "Final category",
+    badCat: "Pick a category from the list.", changed: "Someone else saved this email meanwhile. The new version is loaded; check it and save again.",
+    actions: "What needs to happen", noActions: "No actions.",
+    customer: "Customer", customerFrom: "from registry {f}",
+    aboutPerson: "The email is about", people: "People in the email",
+    confirmed: "Confirmed", possible: "Possible", matchedOn: "Matched on",
+    sameName: "{n} customers share this name — none was picked automatically.",
+    nameMismatch: "The name in the email does not match the registry owner.",
+    noCustomer: "No customer found in the registry.", unmatched: "Not in the registry",
+    tooMany: "The name “{v}” matches {n} customers; a tax ID or account is needed.",
+    taxId: "Tax ID", custCode: "Customer code", portfolio: "Portfolio", status: "Status", source: "Source",
+    portal: "Portal", yes: "Yes", no: "No", accounts: "Accounts ({n})", recent: "Recent Qualco requests",
+    account: "Account", type: "Type", settlement: "Settlement", created: "Created",
+    found: "Details found", foundNone: "No identifiers found.", value: "Value", belongs: "Belongs to",
+    where: "Found in", checked: "check digit", history: "History", readError: "Customer details could not be read: {e}",
+    email: "Email", showImages: "Show images", hideImages: "Hide images", download: "Download",
+    downloadEmail: "Download email ({x})", downloadAll: "Download all (.zip)", openTab: "Open in new tab",
+    noPreview: "This file type cannot be shown in the browser.", page: "p. {n}",
+    evRegistered: "Received", evClassified: "Classified by the system", evReviewed: "Reviewed",
+    evLeft: "Left the mailbox", system: "system",
+    analysis: "Model note",
+  },
+};
+const FIELD = {
+  el: { afm: "ΑΦΜ", case_ref: "Αρ. υπόθεσης/φακέλου", account: "Δανειακός λογαριασμός", contract: "Αρ. σύμβασης",
+        iban: "IBAN", payment_code: "Κωδικός πληρωμής", phone: "Τηλέφωνο", adt: "Αρ. ταυτότητας", email: "Email" },
+  en: { afm: "Tax ID", case_ref: "Case/file ref.", account: "Loan account", contract: "Contract no.",
+        iban: "IBAN", payment_code: "Payment code", phone: "Phone", adt: "ID card", email: "Email" },
+};
+const ROLE = {
+  el: { debtor: "Οφειλέτης", co_debtor: "Συνοφειλέτης / εγγυητής", deceased_debtor: "Αποβιώσας οφειλέτης",
+        heir: "Κληρονόμος", representative: "Εκπρόσωπος", authority: "Αρχή", dovalue_or_bank: "doValue / τράπεζα",
+        other_party: "Άλλος", none: "—" },
+  en: { debtor: "Debtor", co_debtor: "Co-debtor / guarantor", deceased_debtor: "Deceased debtor", heir: "Heir",
+        representative: "Representative", authority: "Authority", dovalue_or_bank: "doValue / bank",
+        other_party: "Other party", none: "—" },
+};
+const ACTION = {
+  el: { request: "Καταχώρηση αιτήματος στο Qualco", portal_referral: "Παραπομπή στο Portal",
+        ask_identification: "Ζητάμε στοιχεία ταυτοποίησης", manual: "Χειρισμός από το προσωπικό",
+        forward: "Προώθηση", reply: "Απάντηση με πρότυπο", bank_referral: "Παραπομπή στην τράπεζα",
+        activity: "Καταγραφή δραστηριότητας", no_action: "Καμία ενέργεια" },
+  en: { request: "File a Qualco request", portal_referral: "Refer to the Portal", ask_identification: "Ask for identification",
+        manual: "Handled by staff", forward: "Forward", reply: "Reply with template", bank_referral: "Refer to the bank",
+        activity: "Log an activity", no_action: "No action" },
+};
+const REASONS_EL = [
+  [/^no tax ID \(AFM\) found/, "Δεν βρέθηκε ΑΦΜ στο email ή στα συνημμένα"],
+  [/^tax ID not found in the customer registry/, "Ο ΑΦΜ δεν υπάρχει στο μητρώο πελατών"],
+  [/^confidence (\d+)% is below (\d+)%/, "Βεβαιότητα $1% (κάτω από το όριο $2%)"],
+  [/^its tax IDs lead to different categories: (.*)/, "Οι ΑΦΜ του email οδηγούν σε διαφορετικές κατηγορίες: $1"],
+  [/^no category fits/, "Καμία κατηγορία δεν ταιριάζει"],
+  [/^an attachment could not be read/, "Ένα συνημμένο δεν διαβάστηκε"],
+  [/^classification failed/, "Η αυτόματη ταξινόμηση απέτυχε"],
+  [/^the classifier returned no result/, "Η αυτόματη ταξινόμηση δεν έδωσε αποτέλεσμα"],
+  [/^the name in the email differs/, "Το όνομα στο email διαφέρει από τον κάτοχο του ΑΦΜ/λογαριασμού στο μητρώο"],
+  [/^the customer is only a possible match/, "Ο πελάτης είναι μόνο πιθανή αντιστοίχιση (από όνομα ή email)"],
+  [/^the customer details could not be read/, "Δεν διαβάστηκαν τα στοιχεία πελάτη"],
+  [/^email not found in/, "Το email δεν βρέθηκε στα αρχεία παραλαβής"],
+];
+
+// ------------------------------------------------------------------ state
+let lang = store("lang") || "el";
+const S = { user: null, mode: "dev", categories: [], items: [], queue: store("queue") || "review", day: "all",
+            win: "all", basis: "received", sort: "newest", q: "", openId: null, detail: null, presence: {},
+            viewer: { tab: "email", page: null, images: false }, choice: null };
+
+function store(key, value) {
+  try {
+    if (value === undefined) return localStorage.getItem("rv." + key);
+    localStorage.setItem("rv." + key, value);
+  } catch (e) { /* private window: fine without */ }
+  return null;
+}
+const t = (key, vars = {}) => (T[lang][key] || T.el[key] || key).replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? "");
+const $ = (sel, root = document) => root.querySelector(sel);
+
+function h(tag, attrs = {}, ...kids) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (v === null || v === undefined || v === false) continue;
+    if (k === "text") el.textContent = v;
+    else if (k === "class") el.className = v;
+    else if (k.startsWith("on")) el.addEventListener(k.slice(2), v);
+    else el.setAttribute(k, v === true ? "" : v);
+  }
+  for (const kid of kids.flat()) if (kid !== null && kid !== undefined && kid !== false) el.append(kid);
+  return el;
+}
+
+async function api(path, options = {}) {
+  const init = { credentials: "same-origin", headers: {}, ...options };
+  if (options.json !== undefined) {
+    init.method = init.method || "POST";
+    init.headers["Content-Type"] = "application/json";
+    init.body = JSON.stringify(options.json);
+  }
+  const res = await fetch(path, init);
+  if (res.status === 401) { showSignin(); throw new Error("signin"); }
+  const data = await res.json().catch(() => ({}));
+  return { ok: res.ok, status: res.status, data };
+}
+
+// ------------------------------------------------------------------ time (Athens)
+const PARTS = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Athens", year: "numeric", month: "2-digit",
+  day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+function ath(iso) {
+  if (!iso) return null;
+  const p = Object.fromEntries(PARTS.formatToParts(new Date(iso)).map((x) => [x.type, x.value]));
+  return { day: `${p.year}-${p.month}-${p.day}`, hour: +p.hour, time: `${p.hour}:${p.minute}` };
+}
+const pad = (n) => String(n).padStart(2, "0");
+const winLabel = (w) => `${pad(w * 4)}:00–${pad(w * 4 + 4 === 24 ? 24 : w * 4 + 4)}:00`;
+function dayLabel(day) {
+  const [y, m, d] = day.split("-").map(Number);
+  return new Intl.DateTimeFormat(lang === "el" ? "el-GR" : "en-GB", { weekday: "short", day: "numeric", month: "short",
+    year: y === new Date().getFullYear() ? undefined : "numeric", timeZone: "UTC" }).format(Date.UTC(y, m - 1, d));
+}
+function when(iso) {
+  const a = ath(iso);
+  if (!a) return "";
+  return a.day === ath(new Date().toISOString()).day ? a.time : `${dayLabel(a.day)} ${a.time}`;
+}
+
+// ------------------------------------------------------------------ list
+const queueOf = (it) => it.status === "REVIEWED" ? "reviewed"
+  : it.status === "CLASSIFIED" && it.route === "AUTO" ? "auto" : "review";
+const basisTime = (it) => S.basis === "reviewed" ? it.reviewedAt : it.receivedAt;
+const norm = (s) => (s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+const fromOf = (it) => it.from || "";
+
+function statusPill(it) {
+  if (it.status === "REVIEWED") return h("span", { class: "pill done", text: t("stReviewed") });
+  if (it.status === "RECEIVED") return h("span", { class: "pill plain", text: t("stReceived") });
+  if (it.route === "AUTO") return h("span", { class: "pill auto", text: t("stAuto") });
+  if (it.route === "EXCEPTION") return h("span", { class: "pill bad", text: t("stException") });
+  return h("span", { class: "pill review", text: t("stReview") });
+}
+
+function filtered() {
+  const q = norm(S.q.trim());
+  return S.items.filter((it) => {
+    if (q && !norm([it.subject, it.from, it.finalCategory, it.modelCategory, it.id].join(" ")).includes(q)) return false;
+    const a = ath(basisTime(it));
+    if (S.basis === "reviewed" && !a) return false;
+    if (S.day !== "all" && (!a || a.day !== S.day)) return false;
+    if (S.day !== "all" && S.win !== "all" && Math.floor(a.hour / 4) !== +S.win) return false;
+    return true;
+  });
+}
+
+function renderQueues(base) {
+  const counts = { review: 0, auto: 0, reviewed: 0, all: base.length };
+  base.forEach((it) => counts[queueOf(it)]++);
+  const nav = $("#queues");
+  nav.replaceChildren(...[["review", "qReview"], ["auto", "qAuto"], ["reviewed", "qReviewed"], ["all", "qAll"]].map(
+    ([key, label]) => h("button", { role: "tab", type: "button", "aria-selected": String(S.queue === key),
+      onclick: () => { S.queue = key; store("queue", key); renderList(); } },
+    h("span", { class: "count", text: String(counts[key]) }), t(label))));
+}
+
+function renderDays() {
+  const sel = $("#day");
+  const days = new Map();
+  S.items.forEach((it) => { const a = ath(basisTime(it)); if (a) days.set(a.day, (days.get(a.day) || 0) + 1); });
+  const sorted = [...days.keys()].sort().reverse();
+  if (S.day !== "all" && !days.has(S.day)) S.day = "all";
+  sel.replaceChildren(h("option", { value: "all", text: `${t("allDays")}` }),
+    ...sorted.map((d) => h("option", { value: d, text: `${dayLabel(d)} (${days.get(d)})` })));
+  sel.value = S.day;
+}
+
+function renderWindows(base) {
+  const box = $("#windows");
+  if (S.day === "all") { box.hidden = true; return; }
+  box.hidden = false;
+  const counts = [0, 0, 0, 0, 0, 0];
+  const toReview = [0, 0, 0, 0, 0, 0];
+  base.forEach((it) => {
+    const a = ath(basisTime(it));
+    if (a && a.day === S.day) { const w = Math.floor(a.hour / 4); counts[w]++; if (queueOf(it) === "review") toReview[w]++; }
+  });
+  const nowA = ath(new Date().toISOString());
+  const current = nowA.day === S.day ? Math.floor(nowA.hour / 4) : -1;
+  box.replaceChildren(
+    h("button", { type: "button", class: "whole", "aria-pressed": String(S.win === "all"),
+      onclick: () => { S.win = "all"; renderList(); } }, `${t("wholeDay")} · `, h("span", { class: "n", text: String(counts.reduce((a, b) => a + b, 0)) })),
+    ...counts.map((n, w) => h("button", { type: "button", class: n ? "" : "empty", "aria-pressed": String(String(S.win) === String(w)),
+      title: toReview[w] ? `${toReview[w]} ${t("qReview").toLowerCase()}` : null,
+      onclick: () => { S.win = String(w); renderList(); } },
+    `${winLabel(w)} · `, h("span", { class: "n", text: String(n) }), w === current ? ` (${t("stillArriving")})` : "")));
+}
+
+function renderList() {
+  const base = filtered();
+  renderQueues(base);
+  renderWindows(S.items.filter((it) => !S.q || base.includes(it)));
+  const items = base.filter((it) => S.queue === "all" || queueOf(it) === S.queue)
+    .sort((a, b) => (basisTime(a) || "").localeCompare(basisTime(b) || "") * (S.sort === "oldest" ? 1 : -1));
+  const list = $("#list");
+  if (!items.length) {
+    list.replaceChildren(h("div", { class: "none", text: S.basis === "reviewed" ? `${t("noItems")} ${t("noReviewTime")}` : t("noItems") }));
+    return;
+  }
+  const out = [];
+  let group = null;
+  for (const it of items) {
+    const a = ath(basisTime(it));
+    const key = a ? `${a.day}|${Math.floor(a.hour / 4)}` : "none";
+    if (key !== group) {
+      group = key;
+      const count = items.filter((x) => { const b = ath(basisTime(x)); return b && `${b.day}|${Math.floor(b.hour / 4)}` === key; }).length;
+      out.push(h("div", { class: "group" }, h("span", { text: a ? `${dayLabel(a.day)} · ${winLabel(Math.floor(a.hour / 4))}` : "—" }),
+        h("span", { text: String(count) })));
+    }
+    const viewers = Object.entries(S.presence).filter(([id]) => id !== S.user.id).filter(([, p]) => p.caseId === it.id).map(([, p]) => p.name);
+    const atts = (it.sourceRefs && it.sourceRefs.attachments || []).length;
+    out.push(h("button", { class: "item", type: "button", "aria-current": String(S.openId === it.id), "data-id": it.id,
+      onclick: () => openCase(it.id) },
+    h("div", { class: "top" }, h("span", { class: "from", text: fromOf(it) || "—" }), h("span", { text: when(basisTime(it)) })),
+    h("div", { class: "subject", text: it.subject || "—" }),
+    h("div", { class: "tags" }, statusPill(it),
+      h("span", { class: "cat", text: it.finalCategory || it.modelCategory || "" }),
+      atts ? h("span", { class: "muted small", text: t("attachments", { n: atts }) }) : null,
+      viewers.length ? h("span", { class: "presence", text: t("openBy", { n: viewers.join(", ") }) }) : null)));
+  }
+  list.replaceChildren(...out);
+}
+
+async function loadCases() {
+  const res = await api("/api/cases");
+  if (!res.ok) return;
+  S.items = res.data.items || [];
+  renderDays();
+  renderList();
+}
+
+// ------------------------------------------------------------------ case
+async function openCase(id, keepViewer) {
+  if (S.openId && S.openId !== id) api(`/api/cases/${encodeURIComponent(S.openId)}/release`, { json: {} });
+  S.openId = id;
+  history.replaceState(null, "", `#${id}`);
+  renderList();
+  const res = await api(`/api/cases/${encodeURIComponent(id)}`);
+  if (!res.ok) return;
+  S.detail = res.data;
+  S.choice = null;
+  if (!keepViewer) S.viewer = { tab: "email", page: null, images: false };
+  api(`/api/cases/${encodeURIComponent(id)}/open`, { json: {} });
+  renderCase();
+  renderViewer();
+}
+
+function card(title, sub, ...body) {
+  return h("section", { class: "card" }, h("h3", {}, h("span", { text: title }), sub ? h("span", { class: "sub", text: sub }) : null),
+    h("div", { class: "body" }, ...body));
+}
+
+function reasonText(r) {
+  if (lang !== "el") return r;
+  for (const [re, out] of REASONS_EL) if (re.test(r)) return r.replace(re, out);
+  return r;
+}
+function certaintyWord(c) {
+  if (c === null || c === undefined) return "";
+  const pct = Math.round(c * 100);
+  const word = lang === "el" ? (c >= .95 ? "πολύ υψηλή" : c >= .8 ? "υψηλή" : c >= .6 ? "μέτρια" : "χαμηλή")
+    : (c >= .95 ? "very high" : c >= .8 ? "high" : c >= .6 ? "medium" : "low");
+  return `${t("certainty")}: ${word} (${pct}%)`;
+}
+function whereText(w) {
+  if (!w) return "";
+  if (w.kind === "attachment") return `${w.file}, ${t("page", { n: w.page })}`;
+  const names = { el: { subject: "Θέμα", body: "Κείμενο email", thread: "Προηγούμενο μήνυμα", sender: "Αποστολέας" },
+                  en: { subject: "Subject", body: "Email text", thread: "Earlier message", sender: "Sender" } };
+  return names[lang][w.kind] || w.kind;
+}
+function sourceChip(w) {
+  return h("button", { class: "src", type: "button", title: w.snippet || null, onclick: () => showSource(w), text: whereText(w) });
+}
+function showSource(w) {
+  if (w.kind === "attachment") {
+    const n = S.detail.attachments.find((a) => a.name === w.file);
+    S.viewer = { tab: n ? `a${n.n}` : "email", page: w.page, images: S.viewer.images };
+  } else S.viewer = { tab: "email", page: null, images: S.viewer.images };
+  renderViewer();
+}
+function snippet(text, value) {
+  if (!text) return null;
+  const el = h("div", { class: "snippet" });
+  const i = value ? text.indexOf(value) : -1;
+  if (i < 0) el.textContent = text;
+  else el.append(text.slice(0, i), h("mark", { text: value }), text.slice(i + value.length));
+  return el;
+}
+
+function decisionCard(c) {
+  const parts = [];
+  if (c.modelCategory) {
+    parts.push(h("div", { class: "suggest" }, h("span", { class: "muted", text: t("suggestion") }),
+      h("span", { class: "big", text: c.modelCategory }), h("span", { class: "muted", text: certaintyWord(c.confidence) })));
+  } else parts.push(h("p", { class: "muted", text: t("noSuggestion") }));
+  if (c.status !== "REVIEWED" && (c.routeReasons || []).length) {
+    parts.push(h("div", { class: "small muted", text: t("whyReview") }),
+      h("ul", { class: "reasons" }, ...c.routeReasons.map((r) => h("li", { text: reasonText(r) }))));
+  }
+  const votes = Object.entries(c.votes || {}).filter(([k]) => k !== c.modelCategory);
+  if (votes.length) parts.push(h("div", { class: "votes" }, h("span", { class: "muted small", text: t("alsoConsidered") }),
+    ...votes.map(([k, v]) => h("span", { text: `${k} · ${v}` }))));
+  if (c.status === "REVIEWED" && S.choice === null) {
+    parts.push(h("div", { class: "choice" },
+      h("div", {}, h("span", { class: "muted", text: `${t("final")}: ` }), h("strong", { text: c.noMatch ? t("noneFits") : c.finalCategory || "—" })),
+      (c.otherCategories || []).length ? h("div", { class: "muted", text: `+ ${c.otherCategories.join(", ")}` }) : null,
+      c.reviewComment ? h("div", { class: "snippet", text: c.reviewComment }) : null,
+      h("div", { class: "reviewed" }, h("span", { class: "muted", text: t("reviewedBy", { n: c.reviewedBy?.name || "—", d: when(c.reviewedAt) }) }),
+        h("button", { class: "secondary", type: "button", text: t("change"), onclick: () => { S.choice = "other"; renderCase(); } }))));
+  } else parts.push(reviewForm(c));
+  return card(t("decision"), null, ...parts);
+}
+
+function reviewForm(c) {
+  if (S.choice === null) S.choice = c.modelCategory && c.route !== "EXCEPTION" ? "accept" : "other";
+  const list = h("datalist", { id: "cats" }, ...S.categories.map((x) => h("option", { value: x })));
+  const cat = h("input", { id: "rv-cat", list: "cats", placeholder: t("chooseCat"), autocomplete: "off",
+    value: c.finalCategory || (S.choice === "other" ? "" : c.modelCategory || "") });
+  const extra = h("input", { id: "rv-extra", list: "cats", placeholder: t("chooseCat"), autocomplete: "off",
+    value: (c.otherCategories || [])[0] || "" });
+  const comment = h("textarea", { id: "rv-comment", placeholder: t("comment") });
+  comment.value = c.reviewComment || "";
+  const err = h("p", { class: "error", role: "alert" });
+  const next = h("input", { type: "checkbox", id: "rv-next", checked: store("next") !== "0" });
+  const opt = (value, label, extraEl) => h("label", { class: "opt" },
+    h("input", { type: "radio", name: "rv-choice", value, checked: S.choice === value,
+      onchange: () => { S.choice = value; renderCase(); } }), h("div", {}, h("div", { text: label }), extraEl || null));
+  const save = h("button", { class: "primary", type: "button", text: t("save"), onclick: async () => {
+    const body = { _etag: c._etag, comment: comment.value, otherCategories: extra.value ? [extra.value] : [] };
+    if (S.choice === "none") body.noMatch = true;
+    else body.finalCategory = S.choice === "accept" ? c.modelCategory : cat.value.trim();
+    if (!body.noMatch && !S.categories.includes(body.finalCategory)) { err.textContent = t("badCat"); return; }
+    save.disabled = true;
+    const res = await api(`/api/cases/${encodeURIComponent(c.id)}/review`, { json: body });
+    save.disabled = false;
+    if (res.status === 409) { S.detail = res.data.case || S.detail; S.choice = null; renderCase(); notice(t("changed")); return; }
+    if (!res.ok) { err.textContent = res.data.error === "category" ? t("badCat") : "Error"; return; }
+    store("next", next.checked ? "1" : "0");
+    toast(t("saved"));
+    await loadCases();
+    if (next.checked) {
+      const ids = [...document.querySelectorAll("#list .item")].map((b) => b.dataset.id).filter((id) => id !== c.id);
+      if (ids.length) return openCase(ids[0]);
+    }
+    openCase(c.id, true);
+  } });
+  return h("div", { class: "choice" }, list,
+    c.modelCategory ? opt("accept", `${t("accept")}: ${c.modelCategory}`) : null,
+    opt("other", t("other"), S.choice === "other" ? cat : null),
+    opt("none", t("noneFits")),
+    h("label", { class: "small muted", for: "rv-extra", text: t("extra") }), extra,
+    comment, err,
+    h("div", { class: "row" }, save, h("label", { class: "small muted" }, next, " ", t("next"))));
+}
+
+function actionsCard(u) {
+  const actions = u.actions || [];
+  if (!actions.length) return card(t("actions"), null, h("p", { class: "muted", text: t("noActions") }));
+  return card(t("actions"), null, ...actions.map((a) => h("div", { class: "action" },
+    h("div", { class: "what", text: `${ACTION[lang][a.do] || a.do}${a.to ? " → " + [].concat(a.to).join(", ") : ""}` }),
+    h("div", { class: "muted small", text: a.category }),
+    (a.codes || []).length || a.open || a.closed ? h("div", { class: "codes" },
+      ...[a.open, a.closed, ...(a.codes || [])].filter(Boolean).filter((x, i, arr) => arr.indexOf(x) === i).map((x) => h("code", { text: String(x) }))) : null,
+    a.missing ? h("div", { class: "caveat", text: `${lang === "el" ? "Λείπει" : "Missing"}: ${a.missing}` }) : null,
+    (a.reasons || []).length ? h("ul", {}, ...a.reasons.map((r) => h("li", { text: r }))) : null)));
+}
+
+function customerCard(u) {
+  const body = [];
+  const principal = (u.people || []).find((p) => p.principal);
+  if (principal) body.push(h("p", {}, h("span", { class: "muted", text: `${t("aboutPerson")}: ` }), h("strong", { text: principal.name }),
+    ` · ${ROLE[lang][principal.role] || principal.role} `, sourceChip({ ...principal.where, snippet: principal.evidence })));
+  const customers = u.customers || [];
+  if (!customers.length) body.push(h("p", { class: "muted", text: t("noCustomer") }));
+  for (const c of customers) {
+    const status = h("span", { class: `pill ${c.status === "confirmed" ? "done" : "review"}`, text: t(c.status) });
+    const kv = h("dl", { class: "kv" },
+      h("dt", { text: t("taxId") }), h("dd", { text: c.taxId }),
+      c.customerCodes?.length ? [h("dt", { text: t("custCode") }), h("dd", { text: c.customerCodes.join(", ") })] : null,
+      c.portfolios?.length ? [h("dt", { text: t("portfolio") }), h("dd", { text: c.portfolios.join(", ") })] : null,
+      c.statuses?.length ? [h("dt", { text: t("status") }), h("dd", { text: c.statuses.join(", ") })] : null,
+      c.sources?.length ? [h("dt", { text: t("source") }), h("dd", { text: c.sources.join(", ") })] : null,
+      h("dt", { text: t("portal") }), h("dd", { text: c.portal ? t("yes") : t("no") }));
+    const matched = h("div", { class: "matched" }, h("span", { class: "muted small", text: `${t("matchedOn")}:` }),
+      ...c.matchedOn.map((m) => h("span", { class: "src", title: whereText(m.where) || null,
+        text: `${FIELD[lang][m.kind] || (m.kind === "name" ? (lang === "el" ? "Όνομα" : "Name") : m.kind)} ${m.value}` })));
+    const accounts = c.accounts?.length ? h("details", { class: "more" }, h("summary", { text: t("accounts", { n: c.accountsTotal }) }),
+      h("table", { class: "mini" }, h("tr", {}, ...[t("account"), t("type"), t("settlement"), t("portfolio")].map((x) => h("th", { text: x }))),
+        ...c.accounts.map((a) => h("tr", {}, ...[a.account || a.serviceAccount, a.type, a.settlement, a.portfolio].map((x) => h("td", { text: x || "—" })))))) : null;
+    const recent = c.recentRequests?.length ? h("details", { class: "more" }, h("summary", { text: t("recent") }),
+      h("table", { class: "mini" }, h("tr", {}, ...[t("type"), t("status"), t("created")].map((x) => h("th", { text: x }))),
+        ...c.recentRequests.map((r) => h("tr", {}, ...[r.type, r.status, r.created].map((x) => h("td", { text: x || "—" })))))) : null;
+    body.push(h("div", { class: "person" },
+      h("div", { class: "row" }, h("span", { class: "name", text: c.name || c.taxId }), " ", status),
+      c.nameMismatch ? h("div", { class: "caveat", text: t("nameMismatch") }) : null,
+      c.sameNameCount > 1 ? h("div", { class: "caveat", text: t("sameName", { n: c.sameNameCount }) }) : null,
+      kv, matched, accounts, recent));
+  }
+  for (const note of u.lookupNotes || []) {
+    const [kind, value, n] = note.split(":");
+    if (kind === "too_many_name_matches") body.push(h("p", { class: "caveat", text: t("tooMany", { v: value, n }) }));
+  }
+  if ((u.unmatched || []).length) body.push(h("p", { class: "muted small", text: `${t("unmatched")}: ${u.unmatched.map((x) => `${FIELD[lang][x.kind] || x.kind} ${x.value}`).join(", ")}` }));
+  const others = (u.people || []).filter((p) => !p.principal);
+  if (others.length) body.push(h("details", { class: "more" }, h("summary", { text: `${t("people")} (${others.length})` }),
+    ...others.map((p) => h("div", { class: "small" }, h("strong", { text: p.name }), ` · ${ROLE[lang][p.role] || p.role} `, sourceChip({ ...p.where, snippet: p.evidence })))));
+  const file = (u.registrySource || "").split("/").pop();
+  return card(t("customer"), file ? t("customerFrom", { f: file }) : null, ...body);
+}
+
+function foundCard(u) {
+  const rows = (u.extracted || []);
+  if (!rows.length) return card(t("found"), null, h("p", { class: "muted", text: t("foundNone") }));
+  return card(t("found"), null, h("table", { class: "mini" },
+    h("tr", {}, ...[lang === "el" ? "Στοιχείο" : "Item", t("value"), t("belongs"), t("where")].map((x) => h("th", { text: x }))),
+    ...rows.map((e) => h("tr", {},
+      h("td", { text: FIELD[lang][e.type] || e.type }),
+      h("td", {}, h("strong", { text: e.value }), e.checked ? h("div", { class: "ok", text: `✓ ${t("checked")}` }) : null),
+      h("td", { text: e.role ? ROLE[lang][e.role] || e.role : "—" }),
+      h("td", {}, ...(e.sources || []).map((s) => h("div", {}, sourceChip(s), snippet(s.snippet, e.value))))))));
+}
+
+function historyCard(events) {
+  const label = { registered: "evRegistered", classified: "evClassified", reviewed: "evReviewed", "left mailbox": "evLeft" };
+  return card(t("history"), null, ...events.map((e) => h("div", { class: "event" },
+    `${when(e.at)} · ${t(label[e.action] || e.action)} · ${e.byName || (e.by === "classifier" ? t("system") : e.by || "")}`,
+    e.after && e.action === "reviewed" ? ` → ${e.after.finalCategory || "—"}` : "")));
+}
+
+function notice(text) {
+  const n = h("div", { class: "notice warn", role: "alert", text });
+  $("#case").prepend(n);
+}
+
+function renderCase() {
+  const d = S.detail;
+  if (!d) return;
+  const c = d.case;
+  const m = d.message || {};
+  const from = m.from?.emailAddress || {};
+  const u = c.understanding || {};
+  const lockedByOther = d.lock && d.lock.holder !== S.user.id;
+  $("#case").replaceChildren(
+    h("div", { class: "case-head" },
+      h("h2", { text: c.subject || "—" }),
+      h("div", { class: "meta" },
+        h("span", { text: from.name ? `${from.name} <${from.address}>` : from.address || c.from || "" }),
+        h("span", { text: when(c.receivedAt) }), statusPill(c))),
+    lockedByOther ? h("div", { class: "notice warn", text: t("lockedBy", { n: d.lock.holderName }) }) : "",
+    c.mailboxState === "removed" ? h("div", { class: "notice info", text: t("leftMailbox") }) : "",
+    u.error ? h("div", { class: "notice warn", text: t("readError", { e: u.error }) }) : "",
+    decisionCard(c),
+    ...(c.understanding && !u.error ? [actionsCard(u), customerCard(u), foundCard(u)] : []),
+    u.analysis ? h("p", { class: "muted small", text: `${t("analysis")}: ${u.analysis}` }) : "",
+    historyCard(d.events || []));
+}
+
+// ------------------------------------------------------------------ viewer
+function renderViewer() {
+  const pane = $("#viewer");
+  const d = S.detail;
+  $(".layout").classList.toggle("no-viewer", !d);
+  if (!d) { pane.hidden = true; return; }
+  pane.hidden = false;
+  const id = encodeURIComponent(d.case.id);
+  const tabs = [{ key: "email", label: t("email") }, ...d.attachments.map((a) => ({ key: `a${a.n}`, label: a.name, a }))];
+  $("#viewer-tabs").replaceChildren(...tabs.map((tab) => h("button", { role: "tab", type: "button", title: tab.label,
+    "aria-selected": String(S.viewer.tab === tab.key), text: tab.label,
+    onclick: () => { S.viewer = { tab: tab.key, page: null, images: S.viewer.images }; renderViewer(); } })));
+  const body = $("#viewer-body");
+  const tools = $("#viewer-tools");
+  if (S.viewer.tab === "email") {
+    const original = d.message.original;
+    tools.replaceChildren(
+      h("button", { class: "link", type: "button", text: S.viewer.images ? t("hideImages") : t("showImages"),
+        onclick: () => { S.viewer.images = !S.viewer.images; renderViewer(); } }),
+      h("span", { class: "spacer" }),
+      original ? h("a", { href: `/api/cases/${id}/export/original`, text: t("downloadEmail", { x: "." + original }) }) : null,
+      h("a", { href: `/api/cases/${id}/export/zip`, text: t("downloadAll") }));
+    body.replaceChildren(h("iframe", { title: t("email"), sandbox: "allow-popups allow-popups-to-escape-sandbox",
+      src: `/api/cases/${id}/message${S.viewer.images ? "?images=1" : ""}` }));
+    return;
+  }
+  const att = d.attachments.find((a) => `a${a.n}` === S.viewer.tab);
+  if (!att) { S.viewer.tab = "email"; return renderViewer(); }
+  const url = `/api/cases/${id}/files/${att.n}`;
+  tools.replaceChildren(h("span", { class: "muted small", text: att.name }), h("span", { class: "spacer" }),
+    att.viewable ? h("a", { href: url, target: "_blank", rel: "noopener", text: t("openTab") }) : null,
+    h("a", { href: `${url}?download=1`, text: t("download") }));
+  const kind = (att.contentType || "").toLowerCase();
+  if (!att.viewable) body.replaceChildren(h("div", { class: "nopreview" }, h("p", { text: t("noPreview") }), h("a", { class: "secondary", href: `${url}?download=1`, text: t("download") })));
+  else if (kind.startsWith("image/")) body.replaceChildren(h("div", { class: "img" }, h("img", { src: url, alt: att.name })));
+  else body.replaceChildren(h("iframe", { title: att.name, src: S.viewer.page ? `${url}#page=${S.viewer.page}` : url }));
+}
+
+// ------------------------------------------------------------------ chrome
+function toast(text) {
+  const el = h("div", { role: "status", text, style: "position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#1d2733;color:#fff;padding:8px 16px;border-radius:6px;z-index:9" });
+  document.body.append(el);
+  setTimeout(() => el.remove(), 2200);
+}
+
+function applyWords() {
+  document.documentElement.lang = lang;
+  document.querySelectorAll("[data-t]").forEach((el) => { el.textContent = t(el.dataset.t); });
+  $("#search").placeholder = t("search");
+  $("#lang").textContent = lang === "el" ? "English" : "Ελληνικά";
+  const opts = (sel, pairs, value) => { $(sel).replaceChildren(...pairs.map(([v, k]) => h("option", { value: v, text: t(k) }))); $(sel).value = value; };
+  opts("#basis", [["received", "byArrival"], ["reviewed", "byReview"]], S.basis);
+  opts("#sort", [["newest", "newest"], ["oldest", "oldest"]], S.sort);
+}
+
+function showSignin() {
+  $("#app").hidden = true;
+  $("#signin").hidden = false;
+  $("#si-code-row").hidden = S.mode !== "demo";
+  $("#si-name").value = store("name") || "";
+  $("#si-email").value = store("email") || "";
+  applyWords();
+}
+
+async function start() {
+  $("#signin").hidden = true;
+  $("#app").hidden = false;
+  const meta = await api("/api/meta");
+  S.categories = meta.data.categories || [];
+  $("#me").textContent = S.user.name;
+  applyWords();
+  await loadCases();
+  const fromHash = decodeURIComponent(location.hash.slice(1));
+  if (fromHash) openCase(fromHash);
+  setInterval(loadCases, 20000);
+  setInterval(sync, 15000);
+  sync();
+}
+
+async function sync() {
+  const res = await api("/api/sync", { json: { open: S.openId } }).catch(() => null);
+  if (!res || !res.ok) return;
+  S.presence = Object.fromEntries((res.data.presence || []).map((p) => [p.userId, p]));
+  renderList();
+}
+
+function wire() {
+  $("#signin-form").addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    const body = { name: $("#si-name").value, email: $("#si-email").value, code: $("#si-code").value };
+    const res = await fetch("/api/login", { method: "POST", credentials: "same-origin",
+      headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { $("#si-error").textContent = t({ code: "errCode", too_many: "errMany" }[data.error] || "errName"); return; }
+    store("name", body.name); store("email", body.email);
+    S.user = data.user;
+    start();
+  });
+  $("#signout").addEventListener("click", async () => { await api("/api/logout", { json: {} }); location.hash = ""; location.reload(); });
+  $("#lang").addEventListener("click", () => { lang = lang === "el" ? "en" : "el"; store("lang", lang); applyWords(); renderDays(); renderList(); renderCase(); renderViewer(); });
+  $("#search").addEventListener("input", (e) => { S.q = e.target.value; renderList(); });
+  $("#day").addEventListener("change", (e) => { S.day = e.target.value; S.win = "all"; renderList(); });
+  $("#basis").addEventListener("change", (e) => { S.basis = e.target.value; S.day = "all"; S.win = "all"; renderDays(); renderList(); });
+  $("#sort").addEventListener("change", (e) => { S.sort = e.target.value; renderList(); });
+  window.addEventListener("pagehide", () => { if (S.openId) navigator.sendBeacon(`/api/cases/${encodeURIComponent(S.openId)}/release`); });
+}
+
+(async function boot() {
+  wire();
+  const res = await fetch("/api/session", { credentials: "same-origin" }).then((r) => r.json()).catch(() => ({}));
+  S.mode = res.mode || "dev";
+  if (!res.user) return showSignin();
+  S.user = res.user;
+  start();
+})();
