@@ -36,9 +36,9 @@ from common import (
     run_cached,
 )
 
-from action_rules import FLAGS, decide
+from core.action_rules import FLAGS, decide
 from evaluate import split
-from identifiers import find_candidates, merge_candidates
+from core.identifiers import find_candidates, merge_candidates
 from utils.afm_utils import afm_checksum_valid, extract_afms
 
 OCR_DIR = OUT_DIR / "ocr"
