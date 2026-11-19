@@ -1,0 +1,15 @@
+#ignore venv
+.venv/
+
+#ignore emails
+Sample_Emails/
+
+exports/
+
+.pytest_cache/
+
+.env
+
+
+#ignore pycahce
+__pycache__/

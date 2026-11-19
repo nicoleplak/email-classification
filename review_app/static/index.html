@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="el">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Έλεγχος email</title>
+<link rel="stylesheet" href="/app.css">
+<script src="/app.js" defer></script>
+</head>
+<body>
+<div id="splash" class="splash" role="status" aria-label="Φόρτωση"><span class="spinner big" aria-hidden="true"></span></div>
+<div id="signin" class="signin" hidden>
+  <form id="signin-form" class="signin-card" novalidate>
+    <h1 data-t="appName">Έλεγχος email</h1>
+    <p class="muted" data-t="signinIntro"></p>
+    <label for="si-name" data-t="yourName"></label>
+    <input id="si-name" autocomplete="name" required>
+    <label for="si-email" data-t="yourEmail"></label>
+    <input id="si-email" type="email" autocomplete="email" required>
+    <div id="si-code-row">
+      <label for="si-code" data-t="accessCode"></label>
+      <input id="si-code" type="password" autocomplete="off">
+    </div>
+    <p id="si-error" class="error" role="alert"></p>
+    <button class="primary" type="submit" data-t="signIn"></button>
+    <p class="muted small" data-t="signinNote"></p>
+  </form>
+</div>
+
+<div id="app" class="app" hidden>
+  <header class="topbar">
+    <div class="brand"><span class="logo" aria-hidden="true"></span><span data-t="appName"></span></div>
+    <div class="topbar-right">
+      <div class="clock">
+        <button id="clock-btn" class="clock-btn" type="button" aria-describedby="clock-pop" aria-label="Παραλαβή email">
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+        </button>
+        <div id="clock-pop" class="clock-pop" role="tooltip"></div>
+      </div>
+      <button id="activity-open" class="link" type="button" data-t="activity"></button>
+      <button id="lang" class="link" type="button"></button>
+      <span id="me" class="me"></span>
+      <button id="signout" class="link" type="button" data-t="signOut"></button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="listpane" aria-label="Λίστα">
+      <nav class="queues" role="tablist" id="queues"></nav>
+      <div class="filters">
+        <input id="search" type="search" autocomplete="off">
+        <div class="filter-row">
+          <label class="field">
+            <span data-t="day"></span>
+            <select id="day"></select>
+          </label>
+          <label class="field">
+            <span data-t="by"></span>
+            <select id="basis"></select>
+          </label>
+          <label class="field">
+            <span data-t="order"></span>
+            <select id="sort"></select>
+          </label>
+        </div>
+        <div id="windows" class="windows" hidden></div>
+      </div>
+      <div id="list" class="list" aria-live="polite"></div>
+    </aside>
+
+    <main id="case" class="casepane">
+      <div class="empty" id="case-empty"><p data-t="pickOne"></p></div>
+    </main>
+
+    <section id="viewer" class="viewerpane" hidden aria-label="Email">
+      <div class="viewer-tabs" id="viewer-tabs" role="tablist"></div>
+      <div class="viewer-tools" id="viewer-tools"></div>
+      <div id="viewer-body" class="viewer-body"></div>
+    </section>
+  </div>
+
+  <aside id="activity" class="drawer" hidden aria-labelledby="activity-title">
+    <div class="drawer-head">
+      <h2 id="activity-title" data-t="activity"></h2>
+      <label class="small muted"><input type="checkbox" id="activity-reviews"> <span data-t="onlyReviews"></span></label>
+      <button id="activity-close" class="link" type="button" data-t="close"></button>
+    </div>
+    <div id="activity-body" class="drawer-body"></div>
+  </aside>
+</div>
+</body>
+</html>

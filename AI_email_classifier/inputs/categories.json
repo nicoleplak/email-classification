@@ -1,0 +1,415 @@
+[
+  {
+    "Categories": "Επικαιροποίηση στοιχείων με επισύναψη υπεύθυνης δήλωσης",
+    "Rules/Λέξεις κλειδιά": "Αλλαγή στοιχείων\nΑλλαγή ταυτότητας\nΥπεύθυνη Δήλωση \nΕπικαιροποίηση στοιχείων",
+    "Priority": 2.0,
+    "Outgoing Emails": null,
+    "Actions": "Όταν στέλνουν Υ/Δ με προσωπικά στοιχεία που έχουν αλλάξει, καταχωρούμε:\n•\t131 Αίτημα_για_επικαιροποίηση_στοιχείων_πελάτη (KYC)_Cust( closed case Qs)\n•\t64 Αίτημα για επικαιροποίηση στοιχείων πελάτη (KYC) ( open case Qs)",
+    "comments": "Για ERB / ERB DAC go to bank branch",
+    "Customer_Relevant": "YES",
+    "Παραπομπές wizard/portal": "WIZARD"
+  },
+  {
+    "Categories": "Νομιμοποίηση κληρονόμων με επισύναψη εγγράφων",
+    "Rules/Λέξεις κλειδιά": "Κληρονόμος \nΔιαθήκη \nΛηξιαρχική πράξη",
+    "Priority": 2.0,
+    "Outgoing Emails": null,
+    "Actions": "Όταν λαμβάνουμε με  πιστοποιητικά εγγυτέρων , ληξιαρχική πράξη (activity 5005) κπλ, καταχωρούμε : any other (5007 ) - for all both\n•\t123 Προσκόμιση_Δικαιολογητικών­_Νομιμοποίησης_Κληρονόμου_Cust + activity \n•\t44 Προσκόμιση Δικαιολογητικών Νομιμοποίησης Κληρονόμου  + activity",
+    "comments": "εάν είναι ηδη κληρονομος στο QC (activity 5006) k memos QC τοτε open any request asks for \nΓια ERB / ERB DAC go to bank branch",
+    "Customer_Relevant": "YES",
+    "Παραπομπές wizard/portal": "WIZARD"
+  },
+  {
+    "Categories": "Εξουσιοδοτήσεις",
+    "Rules/Λέξεις κλειδιά": "ΕΞΟΥΣΙΟΔΟΤΗΣΕΙΣ\nΕΞΟΥΣΙΟΔΟΤΗΣΗ",
+    "Priority": 2.0,
+    "Outgoing Emails": null,
+    "Actions": "Καταχωρούμε request : \n•\t45 Προσκόμιση Εξουσιοδότησης Πληρεξουσίου Δικηγόρου ( open case Qualco)\n•\t124 Προσκόμιση_Εξουσιοδότησης_Πληρεξουσίου_Δικηγόρου_Cust ( closed case Qualco)",
+    "comments": "εάν εχει εξουσιοδότηση ηδη στο qualco χωρις αλλαγη στοιχείων τοτε request στο αίτημα Like Ρυθμιση, Βεβαίωση  etc… (check with lawyers info in QC) \nneed to identify SPV - Mapping  για template",
+    "Customer_Relevant": "YES",
+    "Παραπομπές wizard/portal": "WIZARD"
+  },
+  {
+    "Categories": "Αποδείξεις πληρωμών",
+    "Rules/Λέξεις κλειδιά": null,
+    "Priority": 3.0,
+    "Outgoing Emails": null,
+    "Actions": "go to Portal if eligible \nOutlook - ???",
+    "comments": null,
+    "Customer_Relevant": "YES",
+    "Παραπομπές wizard/portal": null
+  },
+  {
+    "Categories": "Αντιλογισμοί",
+    "Rules/Λέξεις κλειδιά": "Αντιλογισμός \nΛάθος χρέωση \nΔιόρθωση",
+    "Priority": 2.0,
+    "Outgoing Emails": null,
+    "Actions": "•\t152 Αντιλογισμός\n•\t153 Αντιλογισμός_cust",
+    "comments": "Εάν δεν έχει επισυνάψει την φόρμα αντιλογισμού αποστέλλεται απαντητικό email επισυνάπτοντας υπόδειγμα της φόρμας και ζητείται η συμπλήρωση από τον εκάστοτε πελάτη",
+    "Customer_Relevant": "YES",
+    "Παραπομπές wizard/portal": null
+  },
+  {
+    "Categories": "Ασφαλιστήρια",
+    "Rules/Λέξεις κλειδιά": "Νέου Ασφαλιστηρίου\nΑνανέωση Ασφαλιστηρίου ΣΥΜΒΟΛΑΙΑ ΠΥΡΟΣ",
+    "Priority": 2.0,
+    "Outgoing Emails": null,
+    "Actions": "2.Αν στο mail δηλώνει αδυναμία καταχώρησης στο wiz ή είναι πάνω από 2ΜΒ το αρχείο, τότε καταχωρείται από τον χώρο μας:\n136 Προσκόμιση_Νέου_Ασφαλιστηρίου/Ανανέωση_Cust\n137 Προσκόμιση_Νέου_Ασφαλιστηρίου/Αντικατάσταση_Cust - \n162 Πληροφορίες Ασφαλιστηρίου Πυρός/Σεισμού\n163 Πληροφορίες Ασφαλιστηρίου Πυρός/Σεισμού_Cust\n164 Ασφαλιστικές αποζημιώσεις\n60 Προσκόμιση Νέου Ασφαλιστηρίου/Ανανέωση\n61 Προσκόμιση Νέου Ασφαλιστηρίου/Αντικατάσταση",
+    "comments": "αντικατασταση ασφαλιστηριου - θελει attachment ακυρωσης",
+    "Customer_Relevant": "YES",
+    "Παραπομπές wizard/portal": "WIZARD"
+  },
+  {
+    "Categories": "Ηχογραφημένες κλήσεις",
+    "Rules/Λέξεις κλειδιά": "Ηχογραφημένης κλήσης\nΗχογραφημένες συνομιλίες\nΕπικοινωνίες \nδιατήρηση κλήσεων άνω του ενός έτους",
+    "Priority": 1.0,
+    "Outgoing Emails": null,
+    "Actions": "1. Αν ζητούν να χορηγήσουμε τις καταγεγραμμένες επικοινωνίες ή επικοινωνία τους καταχωρούμε req:\n•85 Αίτημα Παραλαβής Ηχογραφημένης Συνομιλίας\n•\t148 Αίτημα_Παραλαβής_Ηχογραφημένης_Συνομιλίας_Cust\n\nΜε αντιπροσωπευτικά σχόλια, αν αφορά συγκεκριμένες Ημερομηνίες ή έτος \n2. Αν ζητούν την διατήρηση κλήσεων άνω του ενός έτους , καταχωρούμε :\n•\tREQ  ΔΙΑΤΗΡΗΣΗ ΚΛΗΣΕΩΝ\"",
+    "comments": null,
+    "Customer_Relevant": "NO",
+    "Παραπομπές wizard/portal": null
+  },
+  {
+    "Categories": "Διαφημιστικά- σεμινάρια",
+    "Rules/Λέξεις κλειδιά": "MARKETING",
+    "Priority": 3.0,
+    "Outgoing Emails": null,
+    "Actions": "Προώθηση σε marketing : Marketing <marketing_dvg@dovaluegreece.gr>",
+    "comments": null,
+    "Customer_Relevant": "NO",
+    "Παραπομπές wizard/portal": null
+  },
+  {
+    "Categories": "Πλειστηριασμοί",
+    "Rules/Λέξεις κλειδιά": "Πλειστηριασμοί\nΠλειστηριασμός \nΑναγκαστικής Κατάσχεσης",
+    "Priority": 1.0,
+    "Outgoing Emails": null,
+    "Actions": "1.  Αν ζητούν να προβούμε σε επικοινωνία μαζί τους για διαπραγμάτευση καταχωρούμε req:\n•\t40 Νέα Ρύθμιση ( open case Qualco)\n•\t142 Νέα_Ρύθμιση_Cust ( closed case Qualco\n2. Αν στέλνει μαζί και εξουσιοδότηση  ανοίγουμε req :\n•\t45 Προσκόμιση Εξουσιοδότησης Πληρεξουσίου Δικηγόρου ( open case Qualco)\n•\t124 Προσκόμιση_Εξουσιοδότησης_Πληρεξουσίου_Δικηγόρου_Cust ( closed case Qualco)\n3. Request +  Αν είναι επικείμενο πλειστηριασμός πχ. Σήμερα, αύριο, σε 1 βδομάδα , τότε στείλουμε αλληλογραφία σε:  \n•\tAUCTIONS PROCEEDS COLLECTIONS & ACQUISITIONS (CC) for 40 auctions_proceeds_collections_acquisition@dovaluegreece.gr  - αποφαση δικαστ , θανατος\n•\tlegalretail legalretail@dovaluegreece.gr -\n•\tSupport Special Cases support_special_cases@dovaluegreece.gr - for 40\n•\tClient Branch Request client_branch_reques@dovaluegreece.gr (CC) for 40\n4.  Αν αφορά υπόθεση ακύρωση πλειστηριασμού λόγω 4738 ανοίγουμε req:\n•\t81 N4738  \nκαι  στέλνουμε αλληλογραφία  σε :\n•\tL4738_Support <L4738_Support@dovaluegreece.gr>\n•\tAUCTIONS PROCEEDS COLLECTIONS & ACQUISITIONS <auctions_proceeds_collections_acquisition@dovaluegreece.gr>\n•\tlegalretail <legalretail@dovaluegreece.gr> - αποφαση δικαστ, θανατος\n•\tClient Branch Request client_branch_reques@dovaluegreece.gr",
+    "comments": "Μπορεί και ανορθόγραφα",
+    "Παραπομπές wizard/portal": null
+  },
+  {
+    "Categories": "Βεβαιώσεις οφειλής",
+    "Rules/Λέξεις κλειδιά": "αδυναμία  έκδοσης Βεβαίωση οφειλής \nαδυνατώ να συνδεθώ \nΒεβαίωση οφειλής και ανάλυση οφειλής ς",
+    "Priority": 2.0,
+    "Outgoing Emails": null,
+    "Actions": "1. Αν δεν υπάρχει Portal Flag , καταχωρούμε req : \n• 89 Βεβαίωση_Οφειλής ( open case Qs)\n• 117 Βεβαίωση_Οφειλής_Cust ( closed case Qs)\n2.Αν την βεβαίωση την ζητούν κληρονόμο,  καταχωρούμε req: \n• 111 Ειδική βεβαίωση_int , με σχόλια \n3. Αν ζητούν βεβαίωση οφειλής και ανάλυση αυτής, καταχωρούμε req:\n• 91 Βεβαίωση_Οφειλής_με_Ανάλυση ( open case Qs)\n• 118 Βεβαίωση_Οφειλής_με_Ανάλυση_Cust ( closed case Qs)",
+    "comments": "Εφόσον υπάρχει Flag  στο Qualco στελνουμε mail που τους παραπέμπει στο Portal και καταχωρείτε activity “Παραπομπή Portal” .\nΑν όμως στο mail δηλώνει/αναφέρει αδυναμία να μπει /συνδεθεί , τοτε καταχωρείται από τον χώρος μας",
+    "Παραπομπές wizard/portal": "PORTAL"
+  },
+  {
+    "Categories": "Βεβαίωση_Καταβολών_Βεβαίωση_Τόκων",
+    "Rules/Λέξεις κλειδιά": "Τόκοι \nΤόκους \nΤόκων",
+    "Priority": null,
+    "Outgoing Emails": null,
+    "Actions": "Καταχωρούμε τα req:\n•\t98 Βεβαίωση_Τόκων\n•\t120 Βεβαίωση_Τόκων_Cust",
+    "comments": null,
+    "Παραπομπές wizard/portal": null
+  },
+  {
+    "Categories": "Βεβαιώσεις εξόφλησης",
+    "Rules/Λέξεις κλειδιά": "Βεβαίωση Εξόφλησης\nεξοφλητική",
+    "Priority": 2.0,
+    "Outgoing Emails": null,
+    "Actions": "Αν ζητούν Βεβαίωση Εξόφλησης, καταχωρούμε req :\n•\t87 Βεβαίωση_Εξόφλησης ( open case Qs)\n•\t99 Βεβαίωση_Εξόφλησης_cust",
+    "comments": "contract number mandatory",
+    "Παραπομπές wizard/portal": "WIZARD"
+  },
+  {
+    "Categories": "Κίνηση λογαριασμού",
+    "Rules/Λέξεις κλειδιά": "Κίνηση λογαριασμού\nΑναλυτική κίνηση λογαριασμού",
+    "Priority": 2.0,
+    "Outgoing Emails": null,
+    "Actions": "1.Αν ζητούν Βεβαίωση κινησης λογαριασμού, καταχωρούμε req :\n•\t119 Εκτύπωση_Αναλυτικής_Κίνησης_Cust ( closed case Qs)\n•\t95 Εκτύπωση_Αναλυτικής_Κίνησης ( open case Qs)\n•\t96 Εκτύπωση_Αναλυτικής_Κίνησης_Int (εσωτερική χρήση)",
+    "comments": "Εφόσον υπάρχει Flag  στο Qualco στελνουμε mail που τους παραπέμπει στο Portal και καταχωρείτε activity “Παραπομπή Portal” .\nΑν όμως στο mail δηλώνει/αναφέρει αδυναμία να μπει /συνδεθεί , τοτε καταχωρείται από τον χώρος μας",
+    "Παραπομπές wizard/portal": "PORTAL"
+  },
+  {
+    "Categories": "Δοσολόγιο",
+    "Rules/Λέξεις κλειδιά": "Δασολόγιο \nΔόση λογαριασμού",
+    "Priority": 2.0,
+    "Outgoing Emails": null,
+    "Actions": "1.Αν ζητούν τις δόσεις λογαριασμού , καταχωρούμε req :\n•\t144 Πληροφορίες δόσης_λογαριασμού ( open case Qs)\n•\t145 Πληροφορίες δόσης_λογαριασμού_Cust ( closed case Qs)",
+    "comments": "Εφόσον υπάρχει Flag  στο Qualco στελνουμε mail που τους παραπέμπει στο Portal και καταχωρείτε activity “Παραπομπή Portal” .\nΑν όμως στο mail δηλώνει/αναφέρει αδυναμία να μπει /συνδεθεί , τοτε καταχωρείται από τον χώρος μας",
+    "Παραπομπές wizard/portal": "PORTAL"
+  },
+  {
+    "Categories": "Αιτήματα Ν.3869",
+    "Rules/Λέξεις κλειδιά": "Portal flag   yes/no \nαδυνατώ να συνδεθώ  \nΝ3869\nΔικαστικής απόφασης Ν3869\nκαταβολές ή τήρηση δικαστικής ρύθμισης Ν3869\nΑμφισβητούν οφειλή Ν3869",
+    "Priority": 2.0,
+    "Outgoing Emails": null,
+    "Actions": "** 1. Αν στέλνουν την απόφαση του Ν3869 ,ανεξάρτητος  από τι άλλο ζητούν στο αίτημα, είτε έχει Portal falg , είτε όχι , καταχωρείται από το χώρο μας το req\n• 161 Προσκόμιση απόφασης Ν.3869\n\n\n2. Αν ζητούν την δόση που πρέπει να καταβάλουν στο Ν3869, καταχωρούμε:\n• 113 N.3869/2010_Πληροφορίες δόσης_λογαριασμού ( open case Qs)\n• 114 N.3869/2010_Πληροφορίες δόσης_λογαριασμού_cust ( closed case Qs)\n3. Αν ζητούν καταβολές ή τήρηση δικαστικής ρύθμισης, καταχωρούμε:\n• 103 N.3869/2010_Βεβαίωση_Καταβολών ( open case Qs)\n• 104 N.3869/2010_Βεβαίωση Καταβολών_cust ( closed case Qs)\n4. Αν η βεβαίωση οφειλής αφορά υπόθεση του Ν3869, καταχωρούμε:\n• 105 N.3869/2010_Βεβαίωση_Οφειλής\n5. Αν ζητούν αντιλογισμό σε υπόθεση Ν.3869, καταχωρούμε :\n• 108 N.3869/2010_Αντιλογισμός\n6. Αν Αμφισβητούν την οφειλή Ν3869, καταχωρούμε : \n• 112 N.3869/2010_Αμφισβήτηση_οφειλής\n7. Απόφασγ Αρείου Πάγου\n• 184\n8. Αν είναι υπόθεση νομού 3869, καταχωρούμε :\n•\t109 N.3869/2010_Βεβαίωση Πόθεν έσχες",
+    "comments": "*Εφόσον υπάρχει Flag  στο Qualco στέλνουμε mail που τους παραπέμπει στο Portal και καταχωρείτε activity “Παραπομπή Portal” .\n*Αν όμως στο mail δηλώνει/αναφέρει αδυναμία να μπει /συνδεθεί , τότε καταχωρείται από τον χώρος μας\n* Αν στέλνουν την απόφαση του Ν3869 ,ανεξάρτητος  από τι άλλο ζητούν στο αίτημα, είτε έχει Portal falg , είτε όχι , καταχωρείται από το χώρο μας το req\n• 161 Προσκόμιση απόφασης Ν.3869\n*Αν δεν υπάρχει Portal Flag , καταχωρούνται από το χώρο μας",
+    "Παραπομπές wizard/portal": "WIZARD"
+  },
+  {
+    "Categories": "Αγωγές",
+    "Rules/Λέξεις κλειδιά": "Δικόγραφα \nΔΙΑΒΙΒΑΣΤΙΚΟ\nΠΡΟΚΑΤΑΡΚΤΙΚΗΣ ΕΞΕΤΑΣΗΣ\nΠροανάκριση \nΠΑΡΟΧΗ ΣΤΟΙΧΕΙΩΝ\nεξώδικο\n@astinomia.gr\nPanayiotis <pd@pdavos.gr",
+    "Priority": 1.0,
+    "Outgoing Emails": null,
+    "Actions": "Όταν στο mail γίνεται αναφορά σε αγωγές, παραγγελία Εισαγγελίας για προκαταρτική εξέταση  , στέλνουμε αλληλογραφία σε : \nDallas Spiridon spdallas@dovaluegreece.gr\nAgoges agoges@dovaluegreece.gr\nOpRISK OpRISK@dovaluegreece.gr\nComplaints <Complaints@dovaluegreece.gr>",
+    "comments": "AUTOMATED / TO REVIEW",
+    "Παραπομπές wizard/portal": null
+  },
+  {
+    "Categories": "Εξώδικα",
+    "Rules/Λέξεις κλειδιά": "εξωδικο",
+    "Priority": 1.0,
+    "Outgoing Emails": null,
+    "Actions": "exeption",
+    "comments": "MANUAL - Outlook",
+    "Παραπομπές wizard/portal": null
+  },
+  {
+    "Categories": "Κώδικας δεοντολογίας",
+    "Rules/Λέξεις κλειδιά": "Κώδικας δεοντολογίας \nΈνσταση",
+    "Priority": 2.0,
+    "Outgoing Emails": null,
+    "Actions": "exeption",
+    "comments": "MANUAL - Outlook ΠΑΡΑΠΟΝΑ",
+    "Παραπομπές wizard/portal": null
+  },
+  {
+    "Categories": "Φορείς",
+    "Rules/Λέξεις κλειδιά": "Αρχή Προστασίας Δεδομένων\nΑικατερίνη Βογιατζή vogiatzi@mindev.gov.gr\nAikaterini Vogiatzi vogiatzi@efpolis.gr\nΘεοδώρα Ρούμπου  t_roumpou@synigoroskatanaloti.gr\nParaskevi Tsami ptsami@efpolis.gr\nΑθανάσιος Απαλοδήμας apalodimas@efpolis.gr\nInfo Ekpizo info@ekpizo.gr\nkaterinatsakou@yahoo.gr\nΖέτα Θεοχαροπούλου\nΕυδοκία Παπαδοπούλου\nΜυρσίνη Δημοπούλου\nΠαπαγεωργίου Ουρανία\nΚαρακάση Κυριακή\nΠαπαδημητράτου Ελπίδα\nΟικονόμου Καλλιόπη\nΜαρκίδη Νικολέτα\nΤσομάκου Χριστίνα\nΑθανασίου Ελένη\nΠαπαδημητρίου Έφη\nΕυδοκία Μητακέζου\nGibson\nAtzermiadianos\nΕΓΔΙΧ\nΠταισματοδικείο\nΔΙΜΕΑ \nΑρχή διαφάνειας\nsec.complaints@bankofgreece.gr\nΕΓΚΡΙΣΗ ΠΑΡΑΤΑΣΗΣ FinancialComplaints@bankofgreece.gr",
+    "Priority": 1.0,
+    "Outgoing Emails": null,
+    "Actions": "1.Όταν λαμβάνουμε αλληλογραφία από τους αναφερόμενους , καταχωρείται αίτημα στην εφαρμογή “Service Now”  άπο το μενου παραπόνων. \n2.Στο Qualco καταχωρείται activity: 6691: ΚΑΤΑΧΩΡΗΣΗ ΠΑΡΑΠΟΝΟΥ\n2090-ΠΑΡΑΛΑΒΗ ΕΓΓΡΑΦΟΥ ΑΙΤΗΜΑΤΟΣ, \nμε comments πχ : 14/12/2025 μέσω mailbox ΔΙΑΜΑΡΤΥΡΙΑ -- ΚΑΤΑΧ/ΚΕ ΣΤΟ SNOW ΜΕ Α/Α CS******\n3.Επίσης,  προωθούνται σε complaints η αλληλογραφία και ο αρ αιτήματος.ΔΕΝ ΣΤΕΛΝΟΥΜΕ ΑΛΛΗΛΟΓΡΑΦΙΑ\n4.Εάν υφίστανται ενεργή διαμαρτυρία ήδη, προωθείται μόνο η αλληλογραφία στα complaints πχ: 16/12/2025 μέσω mailbox ΔΙΑΜΑΡΤΥΡΙΑ -- ΕΣΤΑΛΗ ΣΤΑ ΠΑΡΑΠΟΝΑ ΣΕ ΣΥΝΕΧΕΙΑ ΕΝΕΡΓΗΣ ΔΙΑΜΑΡΤΥΡΙΑΣ\n5 .Σε περίπτωση που λαμβάνουμε από φορέα mail με  Subject: ΕΓΚΡΙΣΗ ΠΑΡΑΤΑΣΗΣ, τότε προωθούμε την αλληλογραφία : Complaints <Complaints@dovaluegreece.gr>",
+    "comments": "MANUAL - Outlook ΦΟΡΕΙΣ",
+    "Παραπομπές wizard/portal": null
+  },
+  {
+    "Categories": "Γνωστοποίησης κωδικού πληρωμής / δόσης",
+    "Rules/Λέξεις κλειδιά": "ζηταει RF, ζηταει αριθμο καταθεσης",
+    "Priority": 2.0,
+    "Outgoing Emails": null,
+    "Actions": "portal flag \n- MANUAL  το  send RF",
+    "comments": null,
+    "Παραπομπές wizard/portal": "PORTAL"
+  },
+  {
+    "Categories": "Ρύθμιση",
+    "Rules/Λέξεις κλειδιά": "Ρύθμιση \nΔικαιολογητικά / εφάπαξ εξόφλησης",
+    "Priority": 2.0,
+    "Outgoing Emails": null,
+    "Actions": "1.  Αν ζητούν να προβούμε σε επικοινωνία μαζί τους για διαπραγμάτευση καταχωρούμε req:\n•\t40 Νέα Ρύθμιση ( open case Qualco)\n•\t142 Νέα_Ρύθμιση_Cust ( closed case Qualco\n2. Στέλνουμε αλληλογραφία στο :\n•\tSupport Special Cases <support_special_cases@dovaluegreece.gr>",
+    "comments": "Health data - without ΥΔ - No attach -> No request\nHealth data - with YD - Attached -> Req 40, 142, no attachements in Qualco - FRW to email address _ activity προωθησης , comment on request",
+    "Παραπομπές wizard/portal": "WIZARD"
+  },
+  {
+    "Categories": "Αντίγραφα συμβάσεων",
+    "Rules/Λέξεις κλειδιά": "Σύμβαση ,\nΑρχική σύμβαση\nΣυμβατικά",
+    "Priority": 2.0,
+    "Outgoing Emails": null,
+    "Actions": "Αν ζητούν να λάβουν την σύμβαση τους, καταχωρούμε :\n•\t154 Χορήγηση_Συμβατικών Εγγράφων\n•\t155 Χορήγηση_Συμβατικών Εγγράφων_cust",
+    "comments": null,
+    "Παραπομπές wizard/portal": null
+  },
+  {
+    "Categories": "Εθελοντική εκποίηση",
+    "Rules/Λέξεις κλειδιά": "Πώληση Ακινητού-εκποίηση \nΒεβαίωση με πρόθεση αρσης προσημείωσης",
+    "Priority": 2.0,
+    "Outgoing Emails": null,
+    "Actions": "Εθελοντική εκποίση ακινητου\n42 - Εθελοντικη Εκποίηση ακινήτου\n143 - Εθελοντικη Εκποίηση ακινήτου_Cust",
+    "comments": "contract number to find SPV when >1 MRG",
+    "Παραπομπές wizard/portal": "WIZARD"
+  },
+  {
+    "Categories": "Αιτήματα που αφορούν στον εξωδικαστικό 4738",
+    "Rules/Λέξεις κλειδιά": "Ν4738\nεξωδικαστικός Ν4738\nΕξωδικαστικό Μηχανισμό\nΔόσεις δανείου /Ν4738 /OCW",
+    "Priority": 2.0,
+    "Outgoing Emails": null,
+    "Actions": "1.Αν ζητούν την δόση που πρέπει να καταβάλουν N4738, καταχωρούμε req:\n•\t81 N4738 ( open case Qs)\n•\t129 Ν4738_Cust ( closed case Qs)\n2.Αν Αμφισβητούν την οφειλή, N4738, καταχωρούμε req:\n•\t157 N.4738_Αμφισβήτηση Οφειλής ( open case Qs)\n•\t159 N.4738_Αμφισβήτηση Οφειλής_cust ( closed case Qs)\n2. Αν αφορά δόσεις Ν4738 , καταχωρούμε req :\n•\tΔΟΣΟΛΟΓΙΟ OCW\n• 168 - Δοσολόγιο OCW\n• 170 - Δοσολόγιο OCW_cust",
+    "comments": null,
+    "Παραπομπές wizard/portal": "WIZARD"
+  },
+  {
+    "Categories": "Αιτήματα που αφορούν στον εξωδικαστικό 4605",
+    "Rules/Λέξεις κλειδιά": "Ν4605\nΕξωδικαστικό Μηχανισμό\nεξωδικαστικός Ν4605",
+    "Priority": 2.0,
+    "Outgoing Emails": null,
+    "Actions": "1.Αν ζητούν την δόση που πρέπει να καταβάλουν N4605, καταχωρούμε req:\n•\t78 N4605 ( open case Qs)\n•\t127 Ν4605_Cust ( closed case Qs)\n2.Αν Αμφισβητούν την οφειλή, N4605, καταχωρούμε req:\n•\t158 Ν.4605_Αμφισβήτηση Οφειλής",
+    "comments": null,
+    "Παραπομπές wizard/portal": null
+  },
+  {
+    "Categories": "Βεβαίωση άρσης προσημείωσης",
+    "Rules/Λέξεις κλειδιά": "Πλήρους Άρσης Προσημείωσης\nΜερικής Άρσης Προσημείωσης",
+    "Priority": 2.0,
+    "Outgoing Emails": null,
+    "Actions": "1.Αν ζητούν Πλήρους Άρσης Προσημείωσης ,καταχωρούμε : \n•\t50 Αίτημα Πλήρους Άρσης Προσημείωσης\n•\t100 Αίτημα Πλήρους Άρσης Προσημείωσης_cust\n2.Αν ζητούν Μερική Άρσης Προσημείωσης ,καταχωρούμε : \n•\t139 Αίτημα_Μερικής_Άρσης_Προσημείωσης_Cust\n•\t52 Αίτημα Μερικής Άρσης Προσημείωσης",
+    "comments": null,
+    "Παραπομπές wizard/portal": "WIZARD"
+  },
+  {
+    "Categories": "GDPR",
+    "Rules/Λέξεις κλειδιά": "Πρόσβαση προσωπικών δεδομένων\nΠαραβίαση δεδομένων\nΕπεξεργασία δεδομένων\nΔιαβίβαση  προσωπικών δεδομένων\nΚανονισμό (ΕΕ) 2016/679 (GDPR)",
+    "Priority": 1.0,
+    "Outgoing Emails": null,
+    "Actions": "Όταν πελάτης κάνει αναφορά σε προσωπικά δεδομένα , καταχωρούμε :\n•\t132 Αίτημα_προσωπικών_δεδομένων_Cust ( closed case Qs)\n•\t62 Αίτημα προσωπικών δεδομένων ( open case Qs)",
+    "comments": null,
+    "Παραπομπές wizard/portal": null
+  },
+  {
+    "Categories": "Εξασφαλίσεις",
+    "Rules/Λέξεις κλειδιά": "Αλλαγής Οφειλέτη\nΑπαλλαγής Οφειλέτη\nΠροσθήκη εγγυητή",
+    "Priority": 2.0,
+    "Outgoing Emails": null,
+    "Actions": "Όταν ζητούν να απαλλαγεί οφειλέτης από δάνεια ή να προσθεσουν νέο, καταχωρούμε :\n•\t51 Αίτημα Αλλαγής Εξασφάλισης ( open case Qs)\n•\t140 Αίτημα_Αλλαγής_Εξασφάλισης_Cust ( closed case Qs)",
+    "comments": null,
+    "Παραπομπές wizard/portal": null
+  },
+  {
+    "Categories": "Αμφισβήτηση οφειλής",
+    "Rules/Λέξεις κλειδιά": "Αμφισβήτηση οφειλής \nΛάθος χρεώσεις",
+    "Priority": 2.0,
+    "Outgoing Emails": null,
+    "Actions": "Όταν αμφισβητούν χρεώσεις και οι οφειλές δεν είναι κάποια κατηγορία νομού , καταχωρούμε:\n•\t146 Αμφισβήτηση_Οφειλής\n•\t147 Αμφισβήτηση_Οφειλής_Cust",
+    "comments": null,
+    "Παραπομπές wizard/portal": null
+  },
+  {
+    "Categories": "Συμβάσεις αναδιαρθωσης από pqh",
+    "Rules/Λέξεις κλειδιά": null,
+    "Priority": 2.0,
+    "Outgoing Emails": null,
+    "Actions": "out off scop",
+    "comments": null,
+    "Παραπομπές wizard/portal": null
+  },
+  {
+    "Categories": "Αιτήματα πελατών για λογαριασμούς που δεν είναι στην διαχείριση μας",
+    "Rules/Λέξεις κλειδιά": "Αναζήτηση με όλα τα στοιχεία ταυτοποιήσεις,  χωρίς αποτελέσματα υπόθεσης στο Qualco",
+    "Priority": 3.0,
+    "Outgoing Emails": null,
+    "Actions": "Εφόσον γίνεται αναζήτηση στο Qs με τα στοιχεία ταυτοποιήσεις και δεν εμφανίζει υπόθεση να βγαίνουν exeption",
+    "comments": null,
+    "Παραπομπές wizard/portal": null
+  },
+  {
+    "Categories": "Βιογραφικά με επισυναπτόμενα",
+    "Rules/Λέξεις κλειδιά": "Βιογραφικό Σημείωμα\nαποστέλλω το βιογραφικό μου\nβιογραφικό",
+    "Priority": 3.0,
+    "Outgoing Emails": null,
+    "Actions": "Όταν λαμβάνουμε Βιογραφικά , στλενουμε mail στο HR :\nPeople Services <peopleservices@dovaluegreece.gr>",
+    "comments": null,
+    "Παραπομπές wizard/portal": null
+  },
+  {
+    "Categories": "Τα απεσταλμένα από dovaluegreece και όσα είναι κοινοποιημένο από εσωτερικά κανάλια",
+    "Rules/Λέξεις κλειδιά": "Rules:Απαντητικά \n•\tdoValue Greece <dovaluegreece@dovaluegreece.gr> \n•\tdoValue Greece Customer - No Reply <nonreply_customer@dovaluegreece.gr",
+    "Priority": 3.0,
+    "Outgoing Emails": null,
+    "Actions": "Θα συγκεντρώνονται όλα τα mails που sent είναι τα mail \n•\tdoValue Greece <dovaluegreece@dovaluegreece.gr> \n•\tdoValue Greece Customer - No Reply <nonreply_customer@dovaluegreece.gr>",
+    "comments": "AUTOMATED - Outlook",
+    "Παραπομπές wizard/portal": null
+  },
+  {
+    "Categories": "ΥΑΣ- Διαμεσολάβηση",
+    "Rules/Λέξεις κλειδιά": "Συνεδρία διαμεσολάβησης \nΑρχική διαμεσολάβηση \nΥΑΣ\nΔιαμεσολάβηση",
+    "Priority": 1.0,
+    "Outgoing Emails": null,
+    "Actions": "Αν αφορά σε συνεδρία προωθείται το email στο:  <mediation@dovaluegreece.gr>.",
+    "comments": null,
+    "Παραπομπές wizard/portal": null
+  },
+  {
+    "Categories": "Αναβολές δικασίμων",
+    "Rules/Λέξεις κλειδιά": "Νομική υπηρεσία -δικαστήριο \nΔικάσιμος \nΑναβολή δικασίμου",
+    "Priority": 1.0,
+    "Outgoing Emails": null,
+    "Actions": "Όταν αναφέρονται  σε δικαστήριο , στέλνουμε αλληλογραφία :\n•\tDikografa <Dikografa@dovaluegreece.gr>\n\nΑν αφορά υπόθεση Ν3869 , κοινοποιείται και στο mail :\n•\tlaw3869_finalcourtdecisions@dovaluegreece.gr",
+    "comments": "Αναφορα σε νομο? Πως?",
+    "Παραπομπές wizard/portal": null
+  },
+  {
+    "Categories": "Πόθεν έσχες",
+    "Rules/Λέξεις κλειδιά": "Πόθεν έσχες",
+    "Priority": 2.0,
+    "Outgoing Emails": null,
+    "Actions": "1.Όταν ζητούν να λάβουν βεβαίωση πόθεν έσχες , καταχρουμε:\n•\t111 Ειδική βεβαίωση_int\n•\t122 Ειδική βεβαίωση_Cust\n3.Αν αφορά υπόθεση spv ERB , τότε παραπέμπουμε την τράπεζα να το αιτηθούν",
+    "comments": "3. Autoreply - go to bank branch",
+    "Παραπομπές wizard/portal": null
+  },
+  {
+    "Categories": "Διοίκηση",
+    "Rules/Λέξεις κλειδιά": "Υποψιν κο Πανούση / κ. Καλαντώνη / κ. Καραβία / ceo / διοίκηση",
+    "Priority": 1.0,
+    "Outgoing Emails": null,
+    "Actions": "Outlook - Φορείς (MANUAL)",
+    "comments": null,
+    "Παραπομπές wizard/portal": null
+  },
+  {
+    "Categories": "Διαμεσολάβηση - ρύθμιση",
+    "Rules/Λέξεις κλειδιά": "Διαμεσολάβηση -ρύθμιση",
+    "Priority": 2.0,
+    "Outgoing Emails": null,
+    "Actions": "Εάν αφορα σε ρυθμιση ανοίγεται request :\n•\t41 Ρύθμιση με διαμεσολάβηση\n•\t141Ρύθμιση με διαμεσολάβηση_Cust",
+    "comments": null,
+    "Παραπομπές wizard/portal": "WIZARD"
+  },
+  {
+    "Categories": "Follow -up",
+    "Rules/Λέξεις κλειδιά": null,
+    "Priority": 2.0,
+    "Outgoing Emails": null,
+    "Actions": "Activity",
+    "comments": "Όταν επανέρχεται πελάτη και υπάρχει ήδη ανοιχτό request τότε καταχωρούμε activity και επισυνάπτουμε την αλληλογραφίας στο ήδη ανοικτό req - ETL",
+    "Παραπομπές wizard/portal": null
+  },
+  {
+    "Categories": "φόρμες ενδιαφέροντος ρύθμισης",
+    "Rules/Λέξεις κλειδιά": "rules: Eurobank@eurobank-communication.gr",
+    "Priority": 2.0,
+    "Outgoing Emails": null,
+    "Actions": "θα συγκεντώνει τις ΦΟΡΜΑ ΕΚΔΗΛΩΣΗΣ ΕΝΔΙΑΦΕΡΟΝΤΟΣ ΓΙΑ ΡΥΘΜΙΣΗ",
+    "comments": "AUTOMATED - Outlook",
+    "Παραπομπές wizard/portal": null
+  },
+  {
+    "Categories": "φόρμες παραπόνων",
+    "Rules/Λέξεις κλειδιά": "Webform submission from: Υποβολή παραπόνου (email)",
+    "Priority": 1.0,
+    "Outgoing Emails": null,
+    "Actions": "**Γίνεται έλεγχος στο κείμενο που γράφουν, πολλές φορές δεν αφορά κατά κύριο λογω παράπονο.\nΠχ , μπορεί να ζητούν από την φόρμα παράπονου , κίνηση λογαριασμού, θα καταχωρησουμε το ανάλογο req , μπορεί να ζητούν βεβαίωση,κλπ\n**Αν όμως είναι ξεκάθαρή διαμαρτία , παράπονο , τότε ακολουθούμε την διαδικασία που περιγράφουμε στην κατηγορία  : Παράπονα -φορείς",
+    "comments": "MANUAL - OutlookΠΑΡΑΠΟΝΑ",
+    "Παραπομπές wizard/portal": null
+  },
+  {
+    "Categories": "Τιμολόγια",
+    "Rules/Λέξεις κλειδιά": "τιμολόγιο",
+    "Priority": 3.0,
+    "Outgoing Emails": null,
+    "Actions": "Γίνετε προώθηση της αλληλογραφίας με τις αποδείξεις σε:\naccounting accounting@dovaluegreece.gr\nfincon_legal_payments fincon_legal_payments@dovaluegreece.gr\nFINCON-LEGAL FINCON-LEGAL@dovaluegreece.gr",
+    "comments": null,
+    "Παραπομπές wizard/portal": null
+  },
+  {
+    "Categories": "Marketing-SPAM",
+    "Rules/Λέξεις κλειδιά": "MARKETING\nmarketing\nΜάρκετιννγκ\nΜαρκετινγκ ",
+    "Priority": 3.0,
+    "Outgoing Emails": null,
+    "Actions": "",
+    "comments": null,
+    "Παραπομπές wizard/portal": null
+  },
+  {
+    "Categories": "φόρμες επικοινωνίας επενδυτή",
+    "Priority": null,
+    "Rules/Λέξεις κλειδιά": "NEW :  Webform submission from: Επικοινωνία για επενδυτές",
+    "Outgoing Emails": null,
+    "Actions": "Γίνεται έλεγχος στο κείμενο και αναλόγως τι ζητούν γίνεται παραπομπή σε @RES_Staff",
+    "comments": null,
+    "Παραπομπές wizard/portal": null
+  },
+  {
+    "Categories": "Παράπονα",
+    "Priority": null,
+    "Rules/Λέξεις κλειδιά": null,
+    "Outgoing Emails": null,
+    "Actions": null,
+    "comments": null,
+    "Παραπομπές wizard/portal": null
+  }
+]

@@ -25,6 +25,10 @@ azure-core==1.41.0 \
     #   azure-ai-documentintelligence
     #   azure-identity
     #   azure-storage-blob
+azure-cosmos==4.17.1 \
+    --hash=sha256:a33b796d055d1923b6dc7b6195aa1cfb5ae786dbc38771bb4ad702b0e5ec18db \
+    --hash=sha256:d692928a54d88163e96d41d8f899229ca2f6a6bf21973ece2bfc1f72d4b4edd8
+    # via -r requirements-container.txt (added by hand 2026-11-19; regenerate with the lock pipeline)
 azure-identity==1.25.1 \
     --hash=sha256:87ca8328883de6036443e1c37b40e8dc8fb74898240f61071e09d2e369361456 \
     --hash=sha256:e9edd720af03dff020223cd269fa3a61e8f345ea75443858273bcb44844ab651
