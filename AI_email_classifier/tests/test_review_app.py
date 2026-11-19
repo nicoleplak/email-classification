@@ -216,3 +216,22 @@ def test_attachment_text_view_has_one_section_per_page():
     page = hl.text_page("one<!-- PageBreak --><table><tr><td>ΑΦΜ</td><td>094014298</td></tr></table>",
                         [("094014298", "id", "ΑΦΜ")], "a.pdf", "Σελίδα {n}")
     assert 'id="p1"' in page and 'id="p2"' in page and "hl-id" in page and "<td>" not in page
+
+
+def test_chosen_actions_are_saved_cleaned_and_audited(app):
+    server, base, case_id = app
+    cookie = sign_in(base)
+    meta = json.loads(call(f"{base}/api/meta", cookie=cookie)[2])
+    assert meta["actions"]["general"] and meta["actions"]["byCategory"]  # catalogue comes from the rule table
+    etag = json.loads(call(f"{base}/api/cases/{case_id}", cookie=cookie)[2])["case"]["_etag"]
+    bad = {"_etag": etag, "finalCategory": "Βεβαίωση άρσης προσημείωσης", "finalActions": [{"do": "rm -rf"}]}
+    assert call(f"{base}/api/cases/{case_id}/review", bad, cookie)[0] == 400
+    good = {"_etag": etag, "finalCategory": "Βεβαίωση άρσης προσημείωσης",
+            "finalActions": [{"do": "request", "codes": ["R12"], "category": "Βεβαίωση άρσης προσημείωσης", "source": "suggested"},
+                             {"do": "forward", "to": "legal@example.test", "source": "added", "extra": "<x>"}]}
+    assert call(f"{base}/api/cases/{case_id}/review", good, cookie)[0] == 200
+    saved = server.STORE.get("cases", case_id)["finalActions"]
+    assert [a["do"] for a in saved] == ["request", "forward"] and saved[1]["to"] == ["legal@example.test"]
+    assert "extra" not in saved[1] and saved[0]["codes"] == ["R12"]
+    reviewed = [e for e in server.STORE.find("audit", "caseId", case_id) if e["action"] == "reviewed"][0]
+    assert len(reviewed["after"]["finalActions"]) == 2

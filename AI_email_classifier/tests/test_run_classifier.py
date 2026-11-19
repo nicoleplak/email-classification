@@ -88,7 +88,7 @@ def test_register_both_run_shapes_once_and_dedupe_resends(store):
     # A later delta run resends email 2 under a new Graph id (it moved folder).
     blob.put_run("20261117T120000Z", {"messages": [msg(2, graph_id="graph-2-moved")], "removed": []})
     totals = rc.register_runs(store, blob, T0)
-    assert totals == {"runs": 1, "new_cases": 0, "resent": 1, "removed": 0, "older_skipped": 0}
+    assert totals == {"runs": 1, "new_cases": 0, "resent": 1, "removed": 0}
     case = store.get("cases", rc.email_id(msg(2)))
     assert case["graphId"] == "graph-2-moved" and case["status"] == "RECEIVED"
     assert case["sourceRefs"]["eml"] == "messages/aa/graph-2/message.eml"

@@ -287,7 +287,8 @@ def reset_review(user: dict, case_id: str, body: dict) -> tuple[int, dict]:
         return 400, {"error": "not_reviewed"}
     if body.get("_etag") != case.get("_etag"):
         return 409, {"error": "changed", "case": case_detail(case_id)}
-    fields = ("status", "route", "finalCategory", "noMatch", "otherCategories", "reviewComment", "reviewedBy", "reviewedAt")
+    fields = ("status", "route", "finalCategory", "noMatch", "otherCategories", "finalActions", "reviewComment",
+              "reviewedBy", "reviewedAt")
     before = {k: case.get(k) for k in fields}
     classified = bool(case.get("classifiedAt"))
     reason = f"review reset by {user.get('name')}"
@@ -301,6 +302,7 @@ def reset_review(user: dict, case_id: str, body: dict) -> tuple[int, dict]:
         "finalCategory": None,
         "noMatch": False,
         "otherCategories": [],
+        "finalActions": [],
         "reviewComment": "",
         "reviewedBy": None,
         "reviewedAt": None,
@@ -367,6 +369,52 @@ def ingest_info() -> dict:
     }
 
 
+ACTION_KINDS = {"request", "portal_referral", "ask_identification", "manual", "forward", "reply", "bank_referral",
+                "activity", "no_action"}
+GENERIC_ACTIONS = [{"do": d} for d in ("manual", "ask_identification", "portal_referral", "reply", "no_action")]
+
+
+def action_catalog() -> dict:
+    """Every action the rule table allows, per category (inputs/action_rules.json), plus general ones."""
+    from core.action_rules import RULES
+
+    catalog: dict[str, list[dict]] = {}
+    for category, spec in RULES.items():
+        seen, options = set(), []
+        for rule in (spec or {}).get("rules", []) if isinstance(spec, dict) else []:
+            option = {k: rule[k] for k in ("do", "codes", "open", "closed", "to") if rule.get(k)}
+            key = json.dumps(option, sort_keys=True, ensure_ascii=False)
+            if option.get("do") in ACTION_KINDS and key not in seen:
+                seen.add(key)
+                options.append(option)
+        if options:
+            catalog[category] = options
+    return {"byCategory": catalog, "general": GENERIC_ACTIONS}
+
+
+def clean_actions(raw) -> tuple[list[dict], str | None]:
+    """The reviewer's chosen actions, kept to known kinds and short plain values."""
+    if raw is None:
+        return [], None
+    if not isinstance(raw, list) or len(raw) > 12:
+        return [], "actions"
+    out = []
+    for item in raw:
+        if not isinstance(item, dict) or item.get("do") not in ACTION_KINDS:
+            return [], "actions"
+        text = lambda v: str(v)[:120]  # noqa: E731
+        out.append({
+            "do": item["do"],
+            "category": item.get("category") if item.get("category") in CATEGORIES else None,
+            "codes": [text(c) for c in (item.get("codes") or [])][:10],
+            "open": text(item["open"]) if item.get("open") else None,
+            "closed": text(item["closed"]) if item.get("closed") else None,
+            "to": [text(t) for t in ([item["to"]] if isinstance(item.get("to"), str) else item.get("to") or [])][:5],
+            "source": "suggested" if item.get("source") == "suggested" else "added",
+        })
+    return out, None
+
+
 def save_review(user: dict, case_id: str, body: dict) -> tuple[int, dict]:
     case = store().get("cases", case_id)
     if case is None:
@@ -378,13 +426,18 @@ def save_review(user: dict, case_id: str, body: dict) -> tuple[int, dict]:
     if not no_match and final not in CATEGORIES:
         return 400, {"error": "category"}
     others = [c for c in body.get("otherCategories") or [] if c in CATEGORIES and c != final][:5]
-    before = {k: case.get(k) for k in ("status", "finalCategory", "otherCategories", "reviewComment")}
+    actions, error = clean_actions(body.get("finalActions"))
+    if error:
+        return 400, {"error": error}
+    fields = ("status", "finalCategory", "otherCategories", "finalActions", "reviewComment")
+    before = {k: case.get(k) for k in fields}
     updated = {
         **case,
         "status": "REVIEWED",
         "finalCategory": None if no_match else final,
         "noMatch": no_match,
         "otherCategories": others,
+        "finalActions": actions,
         "reviewComment": str(body.get("comment") or "")[:2000],
         "reviewedBy": public_user(user),
         "reviewedAt": now(),
@@ -394,7 +447,7 @@ def save_review(user: dict, case_id: str, body: dict) -> tuple[int, dict]:
         saved = store().replace("cases", updated)
     except Conflict:
         return 409, {"error": "changed", "case": case_detail(case_id)}
-    after = {k: saved.get(k) for k in ("status", "finalCategory", "otherCategories", "reviewComment")}
+    after = {k: saved.get(k) for k in fields}
     store().create("audit", {"id": uuid.uuid4().hex, "caseId": case_id, "at": now(), "by": user["id"],
                              "byName": user.get("name"), "action": "reviewed", "before": before, "after": after})
     release_lock(user, case_id)
@@ -635,7 +688,8 @@ class Handler(BaseHTTPRequestHandler):
     def api(self, method: str, path: str, query: dict, user: dict) -> None:
         parts = path.strip("/").split("/")  # api, cases, <id>, ...
         if path == "/api/meta" and method == "GET":
-            return self.json(200, {"categories": CATEGORIES, "user": public_user(user), "mode": AUTH})
+            return self.json(200, {"categories": CATEGORIES, "actions": action_catalog(), "user": public_user(user),
+                                   "mode": AUTH})
         if path == "/api/cases" and method == "GET":
             return self.json(200, {"items": CASES.get(), "serverTime": now()})
         if path == "/api/ingest" and method == "GET":
