@@ -155,8 +155,14 @@ class CosmosStore:
 def open_store() -> LocalStore | CosmosStore:
     """``CASE_STORE=cosmos`` in Azure; anything else is a local folder (``LOCAL_STORE_DIR``)."""
     if os.getenv("CASE_STORE", "local").strip().lower() == "cosmos":
+        credential = None
+        if os.getenv("AZURE_CLI_SUBSCRIPTION"):  # local runs: your az login, pinned to the right subscription
+            from azure.identity import AzureCliCredential
+
+            credential = AzureCliCredential(subscription=os.environ["AZURE_CLI_SUBSCRIPTION"])
         return CosmosStore(
             os.environ["COSMOS_ENDPOINT"],
             os.getenv("COSMOS_DATABASE", "EmailClassification"),
+            credential,
         )
     return LocalStore(os.getenv("LOCAL_STORE_DIR", "case_store"))
