@@ -63,9 +63,15 @@ def unwrap_run(raw: Any) -> tuple[list[dict], list[dict]]:
     raise TypeError(f"Unexpected run file shape: {type(raw).__name__}")
 
 
-def is_locked(case: dict[str, Any], now: str) -> bool:
-    lock = case.get("lock") or {}
+def is_locked(store, case_id: str, now: str) -> bool:
+    """A reviewer has the case open (lock documents expire on their own; ``until`` guards the gap)."""
+    lock = store.get("locks", case_id) or {}
     return bool(lock) and str(lock.get("until", "")) > now
+
+
+def wanted_run(run: str, runs_from: str) -> bool:
+    """Imported runs always; ingest runs (named by UTC timestamp) only from ``runs_from`` on."""
+    return run.startswith("import-") or not runs_from or run >= runs_from
 
 
 def audit(store, case_id: str, action: str, now: str, **details: Any) -> None:
@@ -112,11 +118,11 @@ def _removed_reason(item: dict[str, Any]) -> Any:
     return nested.get("reason") if isinstance(nested, dict) else item.get("@removed.reason")
 
 
-def register_runs(store, blob, now: str) -> dict[str, int]:
+def register_runs(store, blob, now: str, runs_from: str = "") -> dict[str, int]:
     totals = {"runs": 0, "new_cases": 0, "resent": 0, "removed": 0}
     for name in blob.list_names("bronze/"):
         match = RUN_FILE.match(name)
-        if not match or store.get("runs", match.group(1)):
+        if not match or not wanted_run(match.group(1), runs_from) or store.get("runs", match.group(1)):
             continue
         run = match.group(1)
         messages, removed = unwrap_run(json.loads(blob.download(name)))
@@ -185,28 +191,48 @@ def _classify_message(processor, message: dict[str, Any], text_dir: Path) -> lis
     return processor.process_batch([message], export=False, use_thread_context=True)
 
 
+def understanding_reasons(understanding: dict[str, Any] | None) -> list[str]:
+    """Extra REVIEW reasons from reading the email: a name that does not fit the tax ID, a failed read."""
+    if not understanding:
+        return []
+    if understanding.get("error"):
+        return ["the customer details could not be read: " + understanding["error"]]
+    reasons = []
+    if any(c.get("nameMismatch") for c in understanding.get("customers", [])):
+        reasons.append("the name in the email differs from the registry owner of its tax ID or account")
+    confirmed = [c for c in understanding.get("customers", []) if c.get("status") == "confirmed"]
+    if not confirmed and any(c.get("status") == "possible" for c in understanding.get("customers", [])):
+        reasons.append("the customer is only a possible match (by name or email), not confirmed")
+    return reasons
+
+
 def classify_waiting(store, blob, processor_factory: Callable[[], Any], now_fn: Callable[[], str],
-                     threshold: float, limit: int = 0) -> dict[str, int]:
+                     threshold: float, limit: int = 0,
+                     understand_factory: Callable[[Any, list[dict]], Callable] | None = None) -> dict[str, int]:
+    """``understand_factory(processor, messages)`` returns ``fn(message, records, text_dir) -> dict``."""
     totals = {"classified": 0, "auto": 0, "review": 0, "exception": 0, "skipped_held": 0}
     waiting = sorted(store.find("cases", "status", "RECEIVED"), key=lambda c: c.get("receivedAt") or "")
-    waiting = [c for c in waiting if not is_locked(c, now_fn())]
+    waiting = [c for c in waiting if not is_locked(store, c["id"], now_fn())]
     if limit > 0:
         waiting = waiting[:limit]
     if not waiting:
         return totals
 
-    processor = processor_factory()  # Loads the registry and LLM clients only when there is work.
-    clf_run = now_fn().replace("-", "").replace(":", "")
     runs: dict[str, dict[str, dict]] = {}
     for case in waiting:
-        refs = case["sourceRefs"]
-        if refs["runFile"] not in runs:
-            messages, _ = unwrap_run(json.loads(blob.download(refs["runFile"])))
-            runs[refs["runFile"]] = {email_id(m): m for m in messages}
-        message = runs[refs["runFile"]].get(case["id"])
+        run_file = case["sourceRefs"]["runFile"]
+        if run_file not in runs:
+            messages, _ = unwrap_run(json.loads(blob.download(run_file)))
+            runs[run_file] = {email_id(m): m for m in messages}
 
+    processor = processor_factory()  # Loads the registry and LLM clients only when there is work.
+    found = [runs[c["sourceRefs"]["runFile"]].get(c["id"]) for c in waiting]
+    understand_fn = understand_factory(processor, [m for m in found if m]) if understand_factory else None
+    clf_run = now_fn().replace("-", "").replace(":", "")
+    for case, message in zip(waiting, found):
+        refs = case["sourceRefs"]
         with tempfile.TemporaryDirectory() as tmp:
-            records, error = [], None
+            records, error, understanding = [], None, None
             if message is None:
                 error = f"email not found in {refs['runFile']}"
             else:
@@ -214,12 +240,22 @@ def classify_waiting(store, blob, processor_factory: Callable[[], Any], now_fn: 
                     records = _classify_message(processor, message, Path(tmp))
                 except Exception as exc:  # One bad email must not stop the rest.
                     error = f"{type(exc).__name__}: {exc}"
+            if understand_fn and not error:
+                try:
+                    understanding = understand_fn(message, records, Path(tmp))
+                except Exception as exc:  # The classification still counts; a person reads the details.
+                    understanding = {"error": f"{type(exc).__name__}: {exc}"}
             route, reasons, confidence = decide_route(records, threshold, error)
+            extra = understanding_reasons(understanding)
+            if extra and route == "AUTO":
+                route = "REVIEW"
+            reasons += extra
 
             silver = f"silver/{refs['ingestRun']}/{case['id']}/"
             blob.upload_bytes(f"{silver}classification_{clf_run}.json", json.dumps(
                 {"caseId": case["id"], "classifierRun": clf_run, "route": route, "routeReasons": reasons,
-                 "error": error, "records": records}, ensure_ascii=False, indent=1, default=str).encode("utf-8"))
+                 "error": error, "records": records, "understanding": understanding},
+                ensure_ascii=False, indent=1, default=str).encode("utf-8"))
             for text in sorted(Path(tmp).glob("*.txt")):
                 blob.upload_bytes(f"{silver}text/{text.name}", text.read_bytes())
 
@@ -239,6 +275,7 @@ def classify_waiting(store, blob, processor_factory: Callable[[], Any], now_fn: 
             "error": error,
             "sourceRefs": {**refs, "silver": silver},
             "payload": {"records": [{k: v for k, v in r.items() if k not in HEAVY_FIELDS} for r in records]},
+            "understanding": understanding,
             "updatedAt": now,
         }
         try:
@@ -254,8 +291,9 @@ def classify_waiting(store, blob, processor_factory: Callable[[], Any], now_fn: 
 
 
 def run(store, blob, processor_factory: Callable[[], Any], *, paused: bool, threshold: float,
-        limit: int = 0, now_fn: Callable[[], str] = utcnow) -> dict[str, Any]:
-    summary: dict[str, Any] = {"registered": register_runs(store, blob, now_fn())}
+        limit: int = 0, now_fn: Callable[[], str] = utcnow, runs_from: str = "",
+        understand_factory: Callable[[Any, list[dict]], Callable] | None = None) -> dict[str, Any]:
+    summary: dict[str, Any] = {"registered": register_runs(store, blob, now_fn(), runs_from)}
     summary["classification"] = "paused" if paused else classify_waiting(
-        store, blob, processor_factory, now_fn, threshold, limit)
+        store, blob, processor_factory, now_fn, threshold, limit, understand_factory)
     return summary
