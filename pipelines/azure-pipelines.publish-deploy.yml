@@ -115,10 +115,16 @@ stages:
               az login --identity
               az account set --subscription 753ed49c-40d0-4289-8730-3db54951ce44
 
-              az containerapp job update \
+              # The agent identity needs a role on the job (e.g. Contributor on caj-job-emclf-llm-gr); without
+              # it Azure answers "does not exist". Until IT grants it, warn and let the app deploy finish;
+              # point the job at the image by hand: az containerapp job update ... --image <same tag>.
+              if ! az containerapp job update \
                 --name caj-job-emclf-llm-gr \
                 --resource-group LLM \
-                --image acrdatallm-b2fabgebc6a7dygd.azurecr.io/email-classification:$(Build.BuildNumber)
+                --image acrdatallm-b2fabgebc6a7dygd.azurecr.io/email-classification:$(Build.BuildNumber); then
+                echo "##vso[task.logissue type=warning]Job image not updated (no permission on caj-job-emclf-llm-gr?). Update it by hand to $(Build.BuildNumber)."
+                echo "##vso[task.complete result=SucceededWithIssues;]"
+              fi
             displayName: 'Update scheduled job image'
 
           - script: |
