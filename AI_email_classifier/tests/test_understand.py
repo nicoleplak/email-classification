@@ -102,6 +102,10 @@ class FakeClient:
                         "is_principal": True, "evidence": "ο οφειλέτης Γιάννης Παπαδόπουλος", "source": "body"}],
             "flags": {k: k == "asks_debt_certificate" for k in FLAGS},
             "other_requests": [],
+            "evidence": [
+                {"quote": "Παρακαλώ βεβαίωση οφειλής", "supports": "action", "flag": "asks_debt_certificate", "source": "body"},
+                {"quote": "the sender clearly wants a certificate", "supports": "category", "flag": "", "source": "body"},
+            ],
         }
         return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=json.dumps(answer)))])
 
@@ -124,6 +128,14 @@ def test_understand_ties_every_value_to_its_source(registry):
     assert out["people"][0]["principal"] and out["flags"] == ["asks_debt_certificate"]
     assert out["actions"] and all(a["reasons"] for a in out["actions"])
     assert out["registrySource"] == "in/qualco_output_20261119.csv"
+    # an exact quote is kept as evidence; a paraphrase the sender never wrote is dropped
+    assert [e["quote"] for e in out["evidence"]] == ["Παρακαλώ βεβαίωση οφειλής"]
+    assert out["evidence"][0]["where"]["kind"] == "body" and out["evidence"][0]["flag"] == "asks_debt_certificate"
+
+
+def test_an_email_with_no_customer_goes_to_review():
+    assert rc.understanding_reasons({"customers": []}) == ["no customer found in the registry"]
+    assert rc.understanding_reasons({"customers": [{"status": "confirmed"}]}) == []
 
 
 def test_old_ingest_runs_are_skipped_but_imports_are_not():

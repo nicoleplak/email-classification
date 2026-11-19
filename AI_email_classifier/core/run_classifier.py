@@ -203,6 +203,8 @@ def understanding_reasons(understanding: dict[str, Any] | None) -> list[str]:
     confirmed = [c for c in understanding.get("customers", []) if c.get("status") == "confirmed"]
     if not confirmed and any(c.get("status") == "possible" for c in understanding.get("customers", [])):
         reasons.append("the customer is only a possible match (by name or email), not confirmed")
+    elif not confirmed:
+        reasons.append("no customer found in the registry")
     return reasons
 
 
@@ -256,7 +258,8 @@ def classify_waiting(store, blob, processor_factory: Callable[[], Any], now_fn: 
                 {"caseId": case["id"], "classifierRun": clf_run, "route": route, "routeReasons": reasons,
                  "error": error, "records": records, "understanding": understanding},
                 ensure_ascii=False, indent=1, default=str).encode("utf-8"))
-            for text in sorted(Path(tmp).glob("*.txt")):
+            # Attachment text plus its sidecar (the real file name): the review app highlights evidence in it.
+            for text in sorted([*Path(tmp).glob("*.txt"), *Path(tmp).glob("*.json")]):
                 blob.upload_bytes(f"{silver}text/{text.name}", text.read_bytes())
 
         category = records[0].get("category") if records else None

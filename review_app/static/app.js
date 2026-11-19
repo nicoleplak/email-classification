@@ -62,6 +62,9 @@ const T = {
     ingestLast: "Τελευταία παραλαβή", ingestCount: "{n} email", ingestImported: "εισαγωγή αρχείων",
     ingestNone: "Δεν έχει γίνει ακόμη παραλαβή.", ingestDelay: "Ένα νέο email εμφανίζεται εδώ μετά την επόμενη παραλαβή.",
     error: "Κάτι πήγε στραβά. Δοκιμάστε ξανά.",
+    highlights: "Επισημάνσεις", lgClass: "Κατηγορία", lgAction: "Ενέργεια", lgId: "Στοιχεία πελάτη",
+    viewOriginal: "Πρωτότυπο", viewText: "Κείμενο με επισημάνσεις", evidence: "Τεκμήρια από το email",
+    noTextView: "Δεν υπάρχει κείμενο για επισημάνσεις σε αυτό το αρχείο.",
   },
   en: {
     appName: "Email review", signIn: "Sign in", signOut: "Sign out", yourName: "Full name",
@@ -122,6 +125,9 @@ const T = {
     ingestLast: "Last fetch", ingestCount: "{n} emails", ingestImported: "file import",
     ingestNone: "No fetch has run yet.", ingestDelay: "A new email shows up here after the next fetch.",
     error: "Something went wrong. Please try again.",
+    highlights: "Highlights", lgClass: "Category", lgAction: "Action", lgId: "Customer details",
+    viewOriginal: "Original", viewText: "Text with highlights", evidence: "Evidence from the email",
+    noTextView: "No text with highlights for this file.",
   },
 };
 const FIELD = {
@@ -424,11 +430,18 @@ function sourceChip(w) {
   return h("button", { class: "src", type: "button", title: w.snippet || null, onclick: () => showSource(w), text: whereText(w) });
 }
 function showSource(w) {
+  const keep = { images: S.viewer.images, hl: true };
   if (w.kind === "attachment") {
-    const n = S.detail.attachments.find((a) => a.name === w.file);
-    S.viewer = { tab: n ? `a${n.n}` : "email", page: w.page, images: S.viewer.images };
-  } else S.viewer = { tab: "email", page: null, images: S.viewer.images };
+    const a = S.detail.attachments.find((x) => x.name === w.file);
+    // Evidence is visible in the text view; the original PDF cannot be marked up by the browser.
+    S.viewer = { ...keep, tab: a ? `a${a.n}` : "email", page: w.page, mode: a && a.hasText ? "text" : "original" };
+  } else S.viewer = { ...keep, tab: "email", page: null, mode: "original" };
   renderViewer();
+}
+/* A quote shown as evidence, coloured like its highlight; click opens it where it was written. */
+function quoteRow(e) {
+  return h("div", { class: `quote q-${e.supports === "category" ? "class" : "action"}` },
+    h("span", { text: `“${e.quote}”` }), " ", sourceChip({ ...e.where, snippet: e.quote }));
 }
 function snippet(text, value) {
   if (!text) return null;
@@ -449,6 +462,9 @@ function decisionCard(c) {
     parts.push(h("div", { class: "small muted", text: t("whyReview") }),
       h("ul", { class: "reasons" }, ...c.routeReasons.map((r) => h("li", { text: reasonText(r) }))));
   }
+  const classQuotes = ((c.understanding || {}).evidence || []).filter((e) => e.supports === "category");
+  if (classQuotes.length) parts.push(h("div", { class: "quotes" }, h("div", { class: "small muted", text: t("evidence") }),
+    ...classQuotes.map(quoteRow)));
   const votes = Object.entries(c.votes || {}).filter(([k]) => k !== c.modelCategory);
   if (votes.length) parts.push(h("div", { class: "votes" }, h("span", { class: "muted small", text: t("alsoConsidered") }),
     ...votes.map(([k, v]) => h("span", { text: `${k} · ${v}` }))));
@@ -594,7 +610,9 @@ function actionsCard(u) {
     (a.codes || []).length || a.open || a.closed ? h("div", { class: "codes" },
       ...[a.open, a.closed, ...(a.codes || [])].filter(Boolean).filter((x, i, arr) => arr.indexOf(x) === i).map((x) => h("code", { text: String(x) }))) : null,
     a.missing ? h("div", { class: "caveat", text: `${lang === "el" ? "Λείπει" : "Missing"}: ${a.missing}` }) : null,
-    (a.reasons || []).length ? h("ul", {}, ...a.reasons.map((r) => h("li", { text: r }))) : null)));
+    (a.reasons || []).length ? h("ul", {}, ...a.reasons.map((r) => h("li", { text: r }))) : null,
+    // quotes for the facts this action rests on ("asks_debt_certificate=true" -> its quotes)
+    ...(u.evidence || []).filter((e) => e.supports === "action" && (a.because || []).includes(`${e.flag}=true`)).map(quoteRow))));
 }
 
 function customerCard(u) {
@@ -750,26 +768,40 @@ function renderViewer() {
     onclick: () => { S.viewer = { tab: tab.key, page: null, images: S.viewer.images }; renderViewer(); } })));
   const body = $("#viewer-body");
   const tools = $("#viewer-tools");
+  if (S.viewer.hl === undefined) S.viewer.hl = true;
+  const hlToggle = h("label", { class: "hl-toggle" }, h("input", { type: "checkbox", checked: S.viewer.hl,
+    onchange: (e) => { S.viewer.hl = e.target.checked; renderViewer(); } }), " ", t("highlights"));
+  const legend = h("span", { class: "legend" }, ...[["class", "lgClass"], ["action", "lgAction"], ["id", "lgId"]].map(
+    ([k, label]) => h("span", { class: `lg lg-${k}`, text: t(label) })));
   if (S.viewer.tab === "email") {
     const original = d.message.original;
-    tools.replaceChildren(
+    const query = [S.viewer.images ? "images=1" : "", S.viewer.hl ? "hl=1" : ""].filter(Boolean).join("&");
+    tools.replaceChildren(hlToggle, S.viewer.hl ? legend : "",
       h("button", { class: "link", type: "button", text: S.viewer.images ? t("hideImages") : t("showImages"),
         onclick: () => { S.viewer.images = !S.viewer.images; renderViewer(); } }),
       h("span", { class: "spacer" }),
       original ? h("a", { href: `/api/cases/${id}/export/original`, text: t("downloadEmail", { x: "." + original }) }) : null,
       h("a", { href: `/api/cases/${id}/export/zip`, text: t("downloadAll") }));
     body.replaceChildren(whenLoaded(h("iframe", { title: t("email"), sandbox: "allow-popups allow-popups-to-escape-sandbox",
-      src: `/api/cases/${id}/message${S.viewer.images ? "?images=1" : ""}` }), t("loadingEmail")));
+      src: `/api/cases/${id}/message${query ? "?" + query : ""}` }), t("loadingEmail")));
     return;
   }
   const att = d.attachments.find((a) => `a${a.n}` === S.viewer.tab);
   if (!att) { S.viewer.tab = "email"; return renderViewer(); }
   const url = `/api/cases/${id}/files/${att.n}`;
-  tools.replaceChildren(h("span", { class: "muted small", text: att.name }), h("span", { class: "spacer" }),
+  const mode = att.hasText && S.viewer.mode === "text" ? "text" : "original";
+  const modes = att.hasText ? h("div", { class: "seg", role: "group" }, ...[["original", "viewOriginal"], ["text", "viewText"]].map(
+    ([m, label]) => h("button", { type: "button", "aria-pressed": String(mode === m), text: t(label),
+      onclick: () => { S.viewer.mode = m; renderViewer(); } }))) : "";
+  tools.replaceChildren(modes, mode === "text" ? hlToggle : "", mode === "text" && S.viewer.hl ? legend : "",
+    h("span", { class: "spacer" }),
     att.viewable ? h("a", { href: url, target: "_blank", rel: "noopener", text: t("openTab") }) : null,
     h("a", { href: `${url}?download=1`, text: t("download") }));
   const kind = (att.contentType || "").toLowerCase();
-  if (!att.viewable) body.replaceChildren(h("div", { class: "nopreview" }, h("p", { text: t("noPreview") }), h("a", { class: "secondary", href: `${url}?download=1`, text: t("download") })));
+  if (mode === "text") {
+    const src = `${url}/text${S.viewer.hl ? "?hl=1" : ""}${S.viewer.page ? `#p${S.viewer.page}` : ""}`;
+    body.replaceChildren(whenLoaded(h("iframe", { title: att.name, sandbox: "", src }), t("loading")));
+  } else if (!att.viewable) body.replaceChildren(h("div", { class: "nopreview" }, h("p", { text: t("noPreview") }), h("a", { class: "secondary", href: `${url}?download=1`, text: t("download") })));
   else if (kind.startsWith("image/")) {
     const img = h("img", { src: url, alt: att.name });
     body.replaceChildren(whenLoaded(h("div", { class: "img" }, img), t("loading"), img));
