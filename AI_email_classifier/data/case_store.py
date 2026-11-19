@@ -132,7 +132,8 @@ class CosmosStore:
         for name in fields or []:
             if not name.isidentifier():
                 raise ValueError(f"Unsafe field name: {name!r}")
-        select = ", ".join(f"c.{name}" for name in fields) if fields else "*"
+        # Bracket access in an object literal: some field names ("from") are reserved words in Cosmos SQL.
+        select = "VALUE {" + ", ".join(f'"{name}": c["{name}"]' for name in fields) + "}" if fields else "*"
         return list(
             self._containers[collection].query_items(
                 f"SELECT {select} FROM c", enable_cross_partition_query=True
