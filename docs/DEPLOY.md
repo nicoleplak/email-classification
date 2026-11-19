@@ -54,7 +54,7 @@ Job (`caj-job-emclf-llm-gr`, set by `configure_azure.sh job`; the ingest's own s
 | `CASE_STORE`, `COSMOS_ENDPOINT`, `COSMOS_DATABASE` | `cosmos`, dev account, `EmailClassification` | where cases live (managed identity, no key) |
 | `REGISTRY_SOURCE` | `csv` | newest `in/qualco_output_*.csv` (Synapse is unreachable; see FR-77/FR-130) |
 | `REQUEST_HISTORY` | `true` | one scan of the newest `in/request_output_*.csv` per run (emails, past requests) |
-| `AUTO_ACCEPT_THRESHOLD` | `0.95` | at or above, with nothing else wrong: AUTO; otherwise REVIEW |
+| `AUTO_ACCEPT_THRESHOLD` | `0.90` | certainty 90% or more, with nothing else wrong: AUTO; below 90%: REVIEW |
 | `CLASSIFY_MAX_PER_RUN` | `50` | cap per run; the rest wait for the next run |
 | `REGISTER_RUNS_FROM` | deploy time (UTC) | older ingest runs are skipped; `import-*` runs always register |
 | `AZURE_OPENAI_*`, `DOC_INTEL_*` | keys as secrets | model and OCR |

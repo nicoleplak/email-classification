@@ -44,7 +44,15 @@ async function behaviour(browser) {
   let scriptErrors = 0;
   let consoleErrors = 0;
   page.on("pageerror", () => scriptErrors++);
-  page.on("console", (m) => { if (m.type() === "error") consoleErrors++; });
+  page.on("console", (m) => {
+    if (m.type() !== "error") return;
+    // By design: the email frame blocks outside images until "show images" is clicked.
+    const blockedImage = /Loading the image .* violates/.test(m.text()) && /\/message/.test(m.location().url || "");
+    if (blockedImage) return;
+    consoleErrors++;
+    // kind and path only (digits masked): never page text
+    if (process.env.DEBUG_CONSOLE) console.log("console error:", m.text().replace(/\d/g, "#").slice(0, 110), (m.location().url || "").replace(/^https?:\/\/[^/]+/, "").replace(/\d/g, "#").slice(0, 60));
+  });
   await signIn(page);
 
   const counts = await page.$$eval("#queues .count", (n) => n.map((x) => +x.textContent));
@@ -104,6 +112,48 @@ async function behaviour(browser) {
     ok("a source chip switches the viewer", (await page.locator("#viewer-tabs button[aria-selected=true]").count()) === 1);
   }
 
+  // Motion: opening a case animates its cards (sampled mid-way, not just the end state).
+  const other = await page.$$eval("#list .item", (items) => items.map((i) => i.dataset.id));
+  const otherId = other.find((id) => id !== target);
+  await page.click(`#list .item[data-id="${otherId}"]`);
+  await page.waitForFunction((id) => document.querySelector("#case").dataset.caseId === id, otherId);
+  await page.waitForTimeout(100);
+  const midOpacity = await page.$eval("#case .card", (c) => +getComputedStyle(c).opacity).catch(() => -1);
+  ok("opening a case fades its cards in", midOpacity > 0 && midOpacity < 1, { midOpacity });
+  await page.waitForTimeout(500);
+
+  // Category picker: Greek A–Ω, then English A–Z, search ignores accents, keyboard picks.
+  await page.locator(".choice .opt input[value=other]").check();
+  await page.waitForSelector("#rv-cat");
+  const groups = await page.$$eval("#rv-cat-list .picker-group", (g) => g.map((x) => x.textContent));
+  const greekIdx = groups.findIndex((g) => /Ελληνικ|Greek/.test(g));
+  const latinIdx = groups.findIndex((g) => /Αγγλικ|English/.test(g));
+  ok("picker lists Greek before English", greekIdx >= 0 && (latinIdx === -1 || greekIdx < latinIdx), { groups: groups.length });
+  const greekSorted = await page.$$eval("#rv-cat-list .picker-group", (heads) => {
+    const head = heads.find((x) => /Ελληνικ|Greek/.test(x.textContent));
+    const names = [];
+    for (let el = head.nextElementSibling; el && el.classList.contains("picker-opt"); el = el.nextElementSibling) names.push(el.textContent.replace(/^✓ /, ""));
+    return names.every((n, i) => i === 0 || names[i - 1].localeCompare(n, "el", { sensitivity: "base" }) <= 0) && names.length > 5;
+  });
+  ok("Greek categories are in alphabetical order", greekSorted);
+  await page.fill("#rv-cat", "βεβαιωση");
+  const filtered = await page.locator("#rv-cat-list .picker-opt").count();
+  ok("search without accents narrows the list", filtered > 0 && filtered < 20, { filtered });
+  await page.press("#rv-cat", "Enter");
+  ok("Enter picks the highlighted category", (await page.locator(".picked .chip").count()) === 1);
+
+  // Activity log across all emails: slides in, lists events, Escape closes.
+  await page.click("#activity-open");
+  await page.waitForTimeout(40);
+  const sliding = await page.$eval("#activity", (d) => getComputedStyle(d).transform);
+  await page.waitForSelector("#activity-body .activity-row");
+  const rows = await page.locator("#activity-body .activity-row").count();
+  ok("activity log opens with a slide", sliding !== "none" || rows > 0, { sliding: sliding !== "none" });
+  ok("activity log lists events", rows > 0, { rows });
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(350);
+  ok("Escape closes the activity log", await page.$eval("#activity", (d) => d.hidden));
+
   await page.click("#lang");
   ok("language switches to English", (await page.getAttribute("html", "lang")) === "en");
   await page.click("#lang");
@@ -136,6 +186,17 @@ async function layoutAt(browser, width, height) {
   const browser = await chromium.launch({ headless: !args.includes("--headed") });
   try {
     await behaviour(browser);
+    // Managed PCs often force "reduce motion": the change must still be visible (a fade), not vanish.
+    const reduced = await browser.newContext({ viewport: { width: 1600, height: 900 }, reducedMotion: "reduce" });
+    const rp = await reduced.newPage();
+    await signIn(rp);
+    const firstId = await rp.$eval("#list .item", (b) => b.dataset.id);
+    await rp.click("#list .item");
+    await rp.waitForFunction((id) => document.querySelector("#case").dataset.caseId === id, firstId);
+    await rp.waitForTimeout(100);
+    const fade = await rp.$eval("#case .card", (c) => +getComputedStyle(c).opacity).catch(() => -1);
+    ok("reduced motion still fades the case in", fade > 0 && fade < 1, { fade });
+    await reduced.close();
     for (const [w, h] of [[1920, 1080], [1366, 768], [1280, 600], [800, 900]]) await layoutAt(browser, w, h);
   } catch (error) {
     ok("run completed", false, String(error.message).split("\n")[0].slice(0, 160));

@@ -164,7 +164,7 @@ def run_from_blob() -> None:
         blob_output,
         lambda: build_processor(save_attachment_text=True),
         paused=env_flag("CLASSIFIER_PAUSED"),
-        threshold=float(os.getenv("AUTO_ACCEPT_THRESHOLD", "0.95")),
+        threshold=float(os.getenv("AUTO_ACCEPT_THRESHOLD", "0.90")),
         limit=int(os.getenv("CLASSIFY_MAX_PER_RUN", "0")),
         runs_from=os.getenv("REGISTER_RUNS_FROM", "").strip(),
         understand_factory=understand_factory if env_flag("UNDERSTAND_ENABLED", True) else None,

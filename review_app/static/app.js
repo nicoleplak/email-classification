@@ -47,6 +47,12 @@ const T = {
     evRegistered: "Παραλήφθηκε", evClassified: "Ταξινομήθηκε από το σύστημα", evReviewed: "Ελέγχθηκε",
     evLeft: "Έφυγε από το γραμματοκιβώτιο", system: "σύστημα",
     analysis: "Σημείωση μοντέλου",
+    suggestedCats: "Προτάσεις συστήματος", greekCats: "Ελληνικά", englishCats: "Αγγλικά",
+    noMatchCats: "Καμία κατηγορία δεν ταιριάζει με την αναζήτηση.", findCat: "Αναζήτηση κατηγορίας…", clear: "Καθαρισμός",
+    activity: "Ιστορικό ενεργειών", close: "Κλείσιμο", onlyReviews: "Μόνο έλεγχοι", noEvents: "Δεν υπάρχουν ενέργειες ακόμη.",
+    evClassifiedAs: "Πρόταση: {c} ({p}) → {r}", evChanged: "{a} → {b}", evFirst: "Ορίστηκε: {b}",
+    routeAUTO: "αυτόματο", routeREVIEW: "προς έλεγχο", routeEXCEPTION: "σφάλμα",
+    evRerouted: "Νέο όριο αυτόματης ταξινόμησης",
   },
   en: {
     appName: "Email review", signIn: "Sign in", signOut: "Sign out", yourName: "Full name",
@@ -92,6 +98,12 @@ const T = {
     evRegistered: "Received", evClassified: "Classified by the system", evReviewed: "Reviewed",
     evLeft: "Left the mailbox", system: "system",
     analysis: "Model note",
+    suggestedCats: "System suggestions", greekCats: "Greek", englishCats: "English",
+    noMatchCats: "No category matches the search.", findCat: "Search categories…", clear: "Clear",
+    activity: "Activity log", close: "Close", onlyReviews: "Reviews only", noEvents: "No activity yet.",
+    evClassifiedAs: "Suggested: {c} ({p}) → {r}", evChanged: "{a} → {b}", evFirst: "Set to: {b}",
+    routeAUTO: "automatic", routeREVIEW: "to review", routeEXCEPTION: "error",
+    evRerouted: "New automatic threshold",
   },
 };
 const FIELD = {
@@ -203,7 +215,11 @@ const norm = (s) => (s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCa
 const fromOf = (it) => it.from || "";
 
 function statusPill(it) {
-  if (it.status === "REVIEWED") return h("span", { class: "pill done", text: t("stReviewed") });
+  if (it.status === "REVIEWED") {
+    const by = it.reviewedBy && it.reviewedBy.name;
+    return h("span", { class: "pill done", title: by ? `${by}, ${when(it.reviewedAt)}` : null,
+      text: by ? `${t("stReviewed")} · ${by}` : t("stReviewed") });
+  }
   if (it.status === "RECEIVED") return h("span", { class: "pill plain", text: t("stReceived") });
   if (it.route === "AUTO") return h("span", { class: "pill auto", text: t("stAuto") });
   if (it.route === "EXCEPTION") return h("span", { class: "pill bad", text: t("stException") });
@@ -318,6 +334,7 @@ async function openCase(id, keepViewer) {
   if (!res.ok) return;
   S.detail = res.data;
   S.choice = null;
+  S.enter = true; // animate this render only, not re-renders while reviewing
   if (!keepViewer) S.viewer = { tab: "email", page: null, images: false };
   api(`/api/cases/${encodeURIComponent(id)}/open`, { json: {} });
   renderCase();
@@ -337,8 +354,9 @@ function reasonText(r) {
 function certaintyWord(c) {
   if (c === null || c === undefined) return "";
   const pct = Math.round(c * 100);
-  const word = lang === "el" ? (c >= .95 ? "πολύ υψηλή" : c >= .8 ? "υψηλή" : c >= .6 ? "μέτρια" : "χαμηλή")
-    : (c >= .95 ? "very high" : c >= .8 ? "high" : c >= .6 ? "medium" : "low");
+  // 90% is where automatic classification starts (AUTO_ACCEPT_THRESHOLD).
+  const word = lang === "el" ? (c >= .98 ? "πολύ υψηλή" : c >= .9 ? "υψηλή" : c >= .7 ? "μέτρια" : "χαμηλή")
+    : (c >= .98 ? "very high" : c >= .9 ? "high" : c >= .7 ? "medium" : "low");
   return `${t("certainty")}: ${word} (${pct}%)`;
 }
 function whereText(w) {
@@ -391,24 +409,82 @@ function decisionCard(c) {
   return card(t("decision"), null, ...parts);
 }
 
+// ------------------------------------------------------------------ category picker
+const isGreek = (s) => /^[\s_]*[Ͱ-Ͽἀ-῿]/.test(s);
+const catLabel = (c) => c.replace(/_/g, " ").replace(/\s+/g, " ").trim();
+function sortedCategories() {
+  const greek = S.categories.filter(isGreek).sort((a, b) => catLabel(a).localeCompare(catLabel(b), "el", { sensitivity: "base" }));
+  const latin = S.categories.filter((c) => !isGreek(c)).sort((a, b) => catLabel(a).localeCompare(catLabel(b), "en", { sensitivity: "base" }));
+  return { greek, latin };
+}
+
+/* Search box + scrolling list: suggestions first, then Greek A–Ω, then English A–Z. Arrow keys + Enter. */
+function categoryPicker({ id, value, suggested, onPick }) {
+  let current = value || "";
+  let active = -1;
+  let options = [];
+  const input = h("input", { id, type: "search", class: "picker-search", placeholder: t("findCat"), autocomplete: "off",
+    role: "combobox", "aria-controls": `${id}-list`, "aria-expanded": "true" });
+  const chosen = h("div", { class: "picked", "aria-live": "polite" });
+  const list = h("div", { class: "picker-list", role: "listbox", id: `${id}-list` });
+  const pick = (c) => { current = c; onPick(c); paintChosen(); paint(); };
+  function paintChosen() {
+    chosen.replaceChildren(current ? h("span", { class: "chip" }, catLabel(current),
+      h("button", { type: "button", class: "chip-x", "aria-label": t("clear"), text: "×", onclick: () => pick("") })) : "");
+  }
+  function paint() {
+    const q = norm(input.value.trim()).replace(/_/g, " ");
+    const hit = (c) => !q || norm(catLabel(c)).includes(q);
+    const { greek, latin } = sortedCategories();
+    const sugg = [...new Set(suggested || [])].filter((c) => S.categories.includes(c) && hit(c));
+    const groups = [[t("suggestedCats"), sugg], [t("greekCats"), greek.filter((c) => hit(c) && !sugg.includes(c))],
+      [t("englishCats"), latin.filter((c) => hit(c) && !sugg.includes(c))]].filter(([, items]) => items.length);
+    options = groups.flatMap(([, items]) => items);
+    if (active >= options.length) active = options.length - 1;
+    let i = 0;
+    list.replaceChildren(...groups.flatMap(([title, items]) => [h("div", { class: "picker-group", text: title }),
+      ...items.map((c) => {
+        const index = i++;
+        return h("button", { type: "button", role: "option", class: `picker-opt${index === active ? " active" : ""}`,
+          "aria-selected": String(c === current), onclick: () => pick(c) }, catLabel(c));
+      })]), options.length ? "" : h("div", { class: "picker-none", text: t("noMatchCats") }));
+    const el = list.querySelector(".picker-opt.active");
+    if (el) el.scrollIntoView({ block: "nearest" });
+  }
+  input.addEventListener("input", () => { active = input.value ? 0 : -1; paint(); });
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowDown") { active = Math.min(active + 1, options.length - 1); paint(); e.preventDefault(); }
+    else if (e.key === "ArrowUp") { active = Math.max(active - 1, 0); paint(); e.preventDefault(); }
+    else if (e.key === "Enter" && options[Math.max(active, 0)]) { pick(options[Math.max(active, 0)]); e.preventDefault(); }
+  });
+  paintChosen();
+  paint();
+  return h("div", { class: "picker" }, chosen, input, list);
+}
+
 function reviewForm(c) {
-  if (S.choice === null) S.choice = c.modelCategory && c.route !== "EXCEPTION" ? "accept" : "other";
-  const list = h("datalist", { id: "cats" }, ...S.categories.map((x) => h("option", { value: x })));
-  const cat = h("input", { id: "rv-cat", list: "cats", placeholder: t("chooseCat"), autocomplete: "off",
-    value: c.finalCategory || (S.choice === "other" ? "" : c.modelCategory || "") });
-  const extra = h("input", { id: "rv-extra", list: "cats", placeholder: t("chooseCat"), autocomplete: "off",
-    value: (c.otherCategories || [])[0] || "" });
+  if (S.choice === null) {
+    S.choice = c.modelCategory && c.route !== "EXCEPTION" ? "accept" : "other";
+    S.pick = c.status === "REVIEWED" ? c.finalCategory || "" : "";
+    S.pickExtra = (c.otherCategories || [])[0] || "";
+  }
+  const u = c.understanding || {};
+  const suggested = [...Object.keys(c.votes || {}).filter((k) => k !== c.modelCategory), ...(u.otherRequests || [])];
+  const cat = categoryPicker({ id: "rv-cat", value: S.pick, suggested, onPick: (v) => { S.pick = v; } });
   const comment = h("textarea", { id: "rv-comment", placeholder: t("comment") });
   comment.value = c.reviewComment || "";
   const err = h("p", { class: "error", role: "alert" });
   const next = h("input", { type: "checkbox", id: "rv-next", checked: store("next") !== "0" });
-  const opt = (value, label, extraEl) => h("label", { class: "opt" },
-    h("input", { type: "radio", name: "rv-choice", value, checked: S.choice === value,
-      onchange: () => { S.choice = value; renderCase(); } }), h("div", {}, h("div", { text: label }), extraEl || null));
+  const opt = (value, label, extraEl) => h("div", { class: `opt${S.choice === value ? " on" : ""}` },
+    h("label", {}, h("input", { type: "radio", name: "rv-choice", value, checked: S.choice === value,
+      onchange: () => { S.choice = value; renderCase(); } }), h("span", { text: label })), extraEl || "");
+  const extra = h("details", { class: "more extra", open: S.pickExtra ? true : null },
+    h("summary", { text: t("extra") }),
+    categoryPicker({ id: "rv-extra", value: S.pickExtra, suggested: u.otherRequests || [], onPick: (v) => { S.pickExtra = v; } }));
   const save = h("button", { class: "primary", type: "button", text: t("save"), onclick: async () => {
-    const body = { _etag: c._etag, comment: comment.value, otherCategories: extra.value ? [extra.value] : [] };
+    const body = { _etag: c._etag, comment: comment.value, otherCategories: S.pickExtra ? [S.pickExtra] : [] };
     if (S.choice === "none") body.noMatch = true;
-    else body.finalCategory = S.choice === "accept" ? c.modelCategory : cat.value.trim();
+    else body.finalCategory = S.choice === "accept" ? c.modelCategory : S.pick;
     if (!body.noMatch && !S.categories.includes(body.finalCategory)) { err.textContent = t("badCat"); return; }
     save.disabled = true;
     const res = await api(`/api/cases/${encodeURIComponent(c.id)}/review`, { json: body });
@@ -424,12 +500,11 @@ function reviewForm(c) {
     }
     openCase(c.id, true);
   } });
-  return h("div", { class: "choice" }, list,
-    c.modelCategory ? opt("accept", `${t("accept")}: ${c.modelCategory}`) : null,
-    opt("other", t("other"), S.choice === "other" ? cat : null),
+  return h("div", { class: "choice" },
+    c.modelCategory ? opt("accept", `${t("accept")}: ${catLabel(c.modelCategory)}`) : "",
+    opt("other", t("other"), S.choice === "other" ? h("div", { class: "reveal" }, cat) : ""),
     opt("none", t("noneFits")),
-    h("label", { class: "small muted", for: "rv-extra", text: t("extra") }), extra,
-    comment, err,
+    extra, comment, err,
     h("div", { class: "row" }, save, h("label", { class: "small muted" }, next, " ", t("next"))));
 }
 
@@ -500,11 +575,53 @@ function foundCard(u) {
       h("td", {}, ...(e.sources || []).map((s) => h("div", {}, sourceChip(s), snippet(s.snippet, e.value))))))));
 }
 
+/* One audit entry as a timeline row: when, who, what changed. Used per case and in the activity log. */
+const EVENT_LABEL = { registered: "evRegistered", classified: "evClassified", reviewed: "evReviewed", "left mailbox": "evLeft",
+  rerouted: "evRerouted" };
+function eventRow(e, extra) {
+  const who = e.byName || (e.by === "classifier" ? t("system") : e.by || "");
+  let detail = "";
+  if ((e.action === "classified" || e.action === "rerouted") && e.after) {
+    const pct = e.after.confidence == null ? "—" : `${Math.round(e.after.confidence * 100)}%`;
+    detail = t("evClassifiedAs", { c: catLabel(e.after.category || "—"), p: pct, r: t(`route${e.after.route}`) });
+  } else if (e.action === "reviewed" && e.after) {
+    const b = e.after.finalCategory ? catLabel(e.after.finalCategory) : t("noneFits");
+    const a = e.before && e.before.finalCategory ? catLabel(e.before.finalCategory) : "";
+    detail = a && a !== b ? t("evChanged", { a, b }) : t("evFirst", { b });
+  }
+  return h("div", { class: `event ev-${(e.action || "").replace(/\s/g, "-")}` },
+    h("div", { class: "ev-head" }, h("strong", { text: t(EVENT_LABEL[e.action] || e.action) }),
+      h("span", { class: "muted", text: ` · ${who} · ${when(e.at)}` })),
+    extra || "",
+    detail ? h("div", { class: "ev-detail", text: detail }) : "",
+    e.after && e.after.reviewComment ? h("div", { class: "snippet", text: `“${e.after.reviewComment}”` }) : "");
+}
 function historyCard(events) {
-  const label = { registered: "evRegistered", classified: "evClassified", reviewed: "evReviewed", "left mailbox": "evLeft" };
-  return card(t("history"), null, ...events.map((e) => h("div", { class: "event" },
-    `${when(e.at)} · ${t(label[e.action] || e.action)} · ${e.byName || (e.by === "classifier" ? t("system") : e.by || "")}`,
-    e.after && e.action === "reviewed" ? ` → ${e.after.finalCategory || "—"}` : "")));
+  return card(t("history"), null, h("div", { class: "timeline" }, ...[...events].reverse().map((e) => eventRow(e))));
+}
+
+// ------------------------------------------------------------------ activity log (all emails)
+async function openActivity() {
+  const panel = $("#activity");
+  panel.hidden = false;
+  requestAnimationFrame(() => panel.classList.add("open"));
+  const body = $("#activity-body");
+  body.replaceChildren(h("p", { class: "muted", text: "…" }));
+  const res = await api("/api/activity");
+  const onlyReviews = $("#activity-reviews");
+  const paint = () => {
+    const events = (res.data.events || []).filter((e) => !onlyReviews.checked || e.action === "reviewed");
+    body.replaceChildren(...(events.length ? events.map((e) => h("button", { type: "button", class: "activity-row",
+      onclick: () => { closeActivity(); openCase(e.caseId); } }, eventRow(e, h("div", { class: "ev-subject", text: e.subject || e.caseId }))))
+      : [h("p", { class: "muted", text: t("noEvents") })]));
+  };
+  onlyReviews.onchange = paint;
+  paint();
+}
+function closeActivity() {
+  const panel = $("#activity");
+  panel.classList.remove("open");
+  setTimeout(() => { panel.hidden = true; }, 220);
 }
 
 function notice(text) {
@@ -520,7 +637,11 @@ function renderCase() {
   const from = m.from?.emailAddress || {};
   const u = c.understanding || {};
   const lockedByOther = d.lock && d.lock.holder !== S.user.id;
-  $("#case").replaceChildren(
+  const pane = $("#case");
+  pane.dataset.caseId = c.id;
+  pane.classList.remove("enter");
+  if (S.enter) { void pane.offsetWidth; pane.classList.add("enter"); pane.scrollTop = 0; S.enter = false; }
+  pane.replaceChildren(
     h("div", { class: "case-head" },
       h("h2", { text: c.subject || "—" }),
       h("div", { class: "meta" },
@@ -575,9 +696,9 @@ function renderViewer() {
 
 // ------------------------------------------------------------------ chrome
 function toast(text) {
-  const el = h("div", { role: "status", text, style: "position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#1d2733;color:#fff;padding:8px 16px;border-radius:6px;z-index:9" });
+  const el = h("div", { class: "toast", role: "status", text });
   document.body.append(el);
-  setTimeout(() => el.remove(), 2200);
+  setTimeout(() => { el.classList.add("leaving"); setTimeout(() => el.remove(), 250); }, 2000);
 }
 
 function applyWords() {
@@ -639,6 +760,9 @@ function wire() {
   $("#day").addEventListener("change", (e) => { S.day = e.target.value; S.win = "all"; renderList(); });
   $("#basis").addEventListener("change", (e) => { S.basis = e.target.value; S.day = "all"; S.win = "all"; renderDays(); renderList(); });
   $("#sort").addEventListener("change", (e) => { S.sort = e.target.value; renderList(); });
+  $("#activity-open").addEventListener("click", openActivity);
+  $("#activity-close").addEventListener("click", closeActivity);
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("#activity").hidden) closeActivity(); });
   window.addEventListener("pagehide", () => { if (S.openId) navigator.sendBeacon(`/api/cases/${encodeURIComponent(S.openId)}/release`); });
 }
 
