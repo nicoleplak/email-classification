@@ -69,6 +69,14 @@ def is_locked(store, case_id: str, now: str) -> bool:
     return bool(lock) and str(lock.get("until", "")) > now
 
 
+def received_cutoff(run: str, runs_from: str) -> str:
+    """ISO time before which a mailbox email is ignored ('' for imports or no cutoff)."""
+    if run.startswith("import-") or not re.fullmatch(r"\d{8}T\d{6}Z", runs_from or ""):
+        return ""
+    d, t = runs_from[:8], runs_from[9:15]
+    return f"{d[:4]}-{d[4:6]}-{d[6:]}T{t[:2]}:{t[2:4]}:{t[4:]}Z"
+
+
 def wanted_run(run: str, runs_from: str) -> bool:
     """Imported runs always; ingest runs (named by UTC timestamp) only from ``runs_from`` on."""
     return run.startswith("import-") or not runs_from or run >= runs_from
@@ -119,7 +127,7 @@ def _removed_reason(item: dict[str, Any]) -> Any:
 
 
 def register_runs(store, blob, now: str, runs_from: str = "") -> dict[str, int]:
-    totals = {"runs": 0, "new_cases": 0, "resent": 0, "removed": 0, "older_skipped": 0}
+    totals = {"runs": 0, "new_cases": 0, "resent": 0, "removed": 0}
     for name in blob.list_names("bronze/"):
         match = RUN_FILE.match(name)
         if not match or not wanted_run(match.group(1), runs_from) or store.get("runs", match.group(1)):
@@ -127,12 +135,12 @@ def register_runs(store, blob, now: str, runs_from: str = "") -> dict[str, int]:
         run = match.group(1)
         messages, removed = unwrap_run(json.loads(blob.download(name)))
         new = resent = gone = 0
-        older = 0
+        cutoff = received_cutoff(run, runs_from)
         for message in messages:
-            # Go-live rule: the Graph delta also returns OLD emails that staff touched (read, moved,
-            # categorised). Only emails received from REGISTER_RUNS_FROM on become cases; imports are exempt.
-            if runs_from and not run.startswith("import-") and email_id(message)[:16] < runs_from:
-                older += 1
+            # Graph delta also returns older emails that were only changed (read, moved, flagged): those
+            # arrived before go-live and are not new work.
+            if cutoff and str(message.get("receivedDateTime") or "") < cutoff:
+                totals["older"] = totals.get("older", 0) + 1
                 continue
             case = new_case(message, run, name, now)
             existing = store.get("cases", case["id"])
@@ -158,12 +166,11 @@ def register_runs(store, blob, now: str, runs_from: str = "") -> dict[str, int]:
                 audit(store, existing["id"], "left mailbox", now, run=run, reason=_removed_reason(item))
                 gone += 1
         store.create("runs", {"id": run, "registeredAt": now, "emails": len(messages),
-                              "newCases": new, "resent": resent, "removed": gone, "olderSkipped": older})
+                              "newCases": new, "resent": resent, "removed": gone})
         totals["runs"] += 1
         totals["new_cases"] += new
         totals["resent"] += resent
         totals["removed"] += gone
-        totals["older_skipped"] += older
     return totals
 
 
