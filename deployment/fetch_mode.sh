@@ -31,5 +31,8 @@ esac
 
 ID=$(az containerapp job show -n "$JOB" -g "$RG" --subscription "$SUB" --query id -o tsv)
 az rest --method patch --url "https://management.azure.com${ID}?api-version=2024-03-01" --body "$BODY" -o none
+# Tell the review app too: its clock icon shows how and when emails arrive.
+az containerapp update -n "${APP:-ca-emclf-llm-gr}" -g "$RG" --subscription "$SUB" --only-show-errors -o none \
+  --set-env-vars "FETCH_CRON=${CRON:-}"
 az containerapp job show -n "$JOB" -g "$RG" --subscription "$SUB" \
   --query "{job:name, trigger:properties.configuration.triggerType, cron:properties.configuration.scheduleTriggerConfig.cronExpression}" -o table

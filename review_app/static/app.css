@@ -183,6 +183,47 @@ button.src:hover { background: var(--blue-wash); }
 .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 9px 18px; border-radius: 6px; z-index: 30; animation: toast-in .22s ease-out; }
 .toast.leaving { opacity: 0; transform: translate(-50%, 8px); transition: opacity .25s, transform .25s; }
 
+/* loading states */
+.splash { position: fixed; inset: 0; display: grid; place-items: center; background: var(--bg); z-index: 40; }
+.spinner { display: inline-block; width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--blue-wash);
+  border-top-color: var(--blue); animation: spin .8s linear infinite; flex: none; }
+.spinner.big { width: 34px; height: 34px; border-width: 3px; }
+.loading { display: flex; align-items: center; gap: 10px; color: var(--muted); padding: 14px 4px; animation: fade .2s ease-out; }
+.frame-wrap { position: relative; flex: 1; display: flex; min-height: 0; }
+.loading.cover { position: absolute; inset: 0; justify-content: center; background: rgba(255,255,255,.85); padding: 0; }
+.viewer-body > .loading { margin: auto; }
+.sk { height: 12px; border-radius: 6px; margin: 9px 0; background: linear-gradient(90deg, #edf1f5 25%, #f7f9fb 50%, #edf1f5 75%);
+  background-size: 200% 100%; animation: shimmer 1.2s ease-in-out infinite; }
+.sk-title { height: 20px; width: 70%; }
+.sk-card { margin-top: 14px; }
+.sk-item { pointer-events: none; }
+.item.opening { box-shadow: inset 3px 0 0 var(--blue); background: linear-gradient(90deg, var(--blue-wash), #fff); background-size: 200% 100%; animation: shimmer 1s ease-in-out infinite; }
+button.busy { position: relative; padding-left: 34px; cursor: progress; }
+button.busy::before { content: ""; position: absolute; left: 12px; top: 50%; width: 13px; height: 13px; margin-top: -8px; border-radius: 50%;
+  border: 2px solid rgba(255,255,255,.45); border-top-color: #fff; animation: spin .8s linear infinite; }
+.secondary.busy::before, .link.busy::before { border-color: var(--blue-wash); border-top-color: var(--blue); }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+
+/* reset a review */
+.danger { background: var(--bad); color: #fff; border: 0; border-radius: 6px; padding: 7px 14px; font-weight: 600; }
+.danger:hover { background: #912018; }
+.reset { flex-basis: 100%; }
+.reset-link { color: var(--bad); padding-left: 0; }
+.reset-ask { background: var(--bad-wash); border-radius: 6px; padding: 10px 12px; animation: drop .2s ease-out; }
+.reset-ask p { margin: 0 0 8px; color: #7a1a12; }
+
+/* email intake clock: hover or focus shows the card */
+.clock { position: relative; }
+.clock-btn { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--line); background: #fff; color: var(--blue); }
+.clock-btn:hover { background: var(--blue-wash); }
+.clock-pop { position: absolute; right: 0; top: calc(100% + 8px); width: 300px; background: #fff; border: 1px solid var(--line); border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(16, 24, 40, .14); padding: 12px 14px; z-index: 25; font-size: 13px;
+  opacity: 0; visibility: hidden; transform: translateY(-4px); transition: opacity .16s, transform .16s, visibility .16s; }
+.clock-pop p { margin: 6px 0; }
+.clock-pop:empty { display: none; }
+.clock:hover .clock-pop, .clock:focus-within .clock-pop { opacity: 1; visibility: visible; transform: none; }
+
 /* motion: things that open, close and move */
 @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 @keyframes drop { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
@@ -244,6 +285,9 @@ details.more[open] > :not(summary) { animation: drop .2s ease-out; }
   * { scroll-behavior: auto !important; }
   .casepane.enter .case-head, .casepane.enter .card, .notice, .windows, .chip, .choice .opt .reveal,
   details.more[open] > :not(summary), .toast { animation-name: fade !important; animation-delay: 0s !important; }
+  .sk, .item.opening { animation: none; }
+  .spinner, button.busy::before { animation-duration: 1.6s; }
+  .clock-pop { transform: none; }
   .drawer { transition: opacity .15s; transform: none; opacity: 0; }
   .drawer.open { opacity: 1; }
   .toast.leaving { transform: translate(-50%, 0); }

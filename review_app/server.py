@@ -42,7 +42,19 @@ from data.case_store import Conflict, open_store  # noqa: E402
 
 AUTH = os.getenv("REVIEW_AUTH", "dev").strip().lower()
 ACCESS_CODE = os.getenv("REVIEW_ACCESS_CODE", "")
-SESSION_SECRET = (os.getenv("REVIEW_SESSION_SECRET") or secrets.token_hex(32)).encode()
+def _session_secret() -> bytes:
+    """Azure: REVIEW_SESSION_SECRET (a Container App secret). Locally: a key kept in a git-ignored file,
+    so restarting the server does not sign everyone out."""
+    if os.getenv("REVIEW_SESSION_SECRET"):
+        return os.environ["REVIEW_SESSION_SECRET"].encode()
+    path = HERE / ".session_secret"
+    if not path.exists():
+        path.write_text(secrets.token_hex(32), encoding="utf-8")
+    return path.read_text(encoding="utf-8").strip().encode()
+
+
+SESSION_SECRET = _session_secret()
+FETCH_CRON = os.getenv("FETCH_CRON", "").strip()  # the job's schedule (UTC); empty = manual only
 SESSION_DAYS = 180
 LOCK_SECONDS = 300
 PRESENCE_TTL = 40
@@ -257,6 +269,95 @@ def case_detail(case_id: str) -> dict | None:
     }
 
 
+def reset_review(user: dict, case_id: str, body: dict) -> tuple[int, dict]:
+    """Undo a review: the email goes back to the 'to review' queue; the audit log keeps what it was."""
+    case = store().get("cases", case_id)
+    if case is None:
+        return 404, {"error": "not_found"}
+    if case.get("status") != "REVIEWED":
+        return 400, {"error": "not_reviewed"}
+    if body.get("_etag") != case.get("_etag"):
+        return 409, {"error": "changed", "case": case_detail(case_id)}
+    fields = ("status", "route", "finalCategory", "noMatch", "otherCategories", "reviewComment", "reviewedBy", "reviewedAt")
+    before = {k: case.get(k) for k in fields}
+    classified = bool(case.get("classifiedAt"))
+    reason = f"review reset by {user.get('name')}"
+    updated = {
+        **case,
+        # Classified emails return as REVIEW (even if they were AUTO); unclassified ones wait for the classifier.
+        "status": "CLASSIFIED" if classified else "RECEIVED",
+        "route": "REVIEW" if classified else None,
+        "routeReasons": [*(r for r in case.get("routeReasons") or [] if not r.startswith("review reset by")), reason]
+        if classified else [],
+        "finalCategory": None,
+        "noMatch": False,
+        "otherCategories": [],
+        "reviewComment": "",
+        "reviewedBy": None,
+        "reviewedAt": None,
+        "updatedAt": now(),
+    }
+    try:
+        saved = store().replace("cases", updated)
+    except Conflict:
+        return 409, {"error": "changed", "case": case_detail(case_id)}
+    store().create("audit", {"id": uuid.uuid4().hex, "caseId": case_id, "at": now(), "by": user["id"],
+                             "byName": user.get("name"), "action": "reset", "before": before,
+                             "after": {k: saved.get(k) for k in ("status", "route")}})
+    CASES.drop()
+    return 200, {"ok": True}
+
+
+def _cron_field(spec: str, low: int, high: int) -> set[int]:
+    values: set[int] = set()
+    for part in spec.split(","):
+        part, _, step = part.partition("/")
+        first, last = (low, high) if part == "*" else (int(part.split("-")[0]), int(part.split("-")[-1]))
+        values.update(range(first, last + 1, int(step or 1)))
+    return values
+
+
+def next_run(cron: str, after: datetime) -> datetime | None:
+    """Next start of a 5-field cron (UTC), standard day-of-month / day-of-week rules; None if unparsable."""
+    try:
+        minute, hour, dom, month, dow = cron.split()
+        minutes, hours = _cron_field(minute, 0, 59), _cron_field(hour, 0, 23)
+        days, months = _cron_field(dom, 1, 31), _cron_field(month, 1, 12)
+        weekdays = {d % 7 for d in _cron_field(dow, 0, 7)}
+    except ValueError:
+        return None
+    t = after.replace(second=0, microsecond=0) + timedelta(minutes=1)
+    for _ in range(60 * 24 * 8):  # a week and a day is enough for any weekly schedule
+        dom_ok, dow_ok = t.day in days, t.isoweekday() % 7 in weekdays
+        day_ok = (dom_ok or dow_ok) if dom != "*" and dow != "*" else (dom_ok and dow_ok)
+        if t.minute in minutes and t.hour in hours and t.month in months and day_ok:
+            return t
+        t += timedelta(minutes=1)
+    return None
+
+
+def _run_time(run_id: str) -> str | None:
+    try:
+        stamp = datetime.strptime(run_id.removeprefix("import-"), "%Y%m%dT%H%M%SZ")
+    except ValueError:
+        return None
+    return stamp.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def ingest_info() -> dict:
+    """For the clock in the top bar: how emails arrive, when they last did, when they next will."""
+    runs = [r for r in store().all("runs") if _run_time(r.get("id", ""))]
+    last = max(runs, key=lambda r: _run_time(r["id"]), default=None)
+    upcoming = next_run(FETCH_CRON, datetime.now(timezone.utc)) if FETCH_CRON else None
+    return {
+        "mode": "schedule" if FETCH_CRON else "manual",
+        "cron": FETCH_CRON or None,
+        "nextRun": upcoming.strftime("%Y-%m-%dT%H:%M:%SZ") if upcoming else None,
+        "lastRun": {"at": _run_time(last["id"]), "emails": last.get("emails"), "newCases": last.get("newCases"),
+                    "imported": last["id"].startswith("import-")} if last else None,
+    }
+
+
 def save_review(user: dict, case_id: str, body: dict) -> tuple[int, dict]:
     case = store().get("cases", case_id)
     if case is None:
@@ -439,7 +540,9 @@ class Handler(BaseHTTPRequestHandler):
                 return self.static(path)
             if path == "/api/session" and method == "GET":
                 user = self.user()
-                return self.json(200, {"mode": AUTH, "user": public_user(user) if user else None})
+                # Each visit renews the cookie, so people who use the app are never signed out.
+                renew = {"Set-Cookie": self.session_cookie(user["id"])} if user else None
+                return self.json(200, {"mode": AUTH, "user": public_user(user) if user else None}, renew)
             if path == "/api/login" and method == "POST":
                 doc, error = login(self.body(), self.client_address[0], self.cookie_user_id())
                 if error:
@@ -473,6 +576,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.json(200, {"categories": CATEGORIES, "user": public_user(user), "mode": AUTH})
         if path == "/api/cases" and method == "GET":
             return self.json(200, {"items": CASES.get(), "serverTime": now()})
+        if path == "/api/ingest" and method == "GET":
+            return self.json(200, ingest_info())
         if path == "/api/activity" and method == "GET":
             # ponytail: reads the whole audit log and sorts it here; page it in Cosmos once it grows large.
             subjects = {c["id"]: c.get("subject") for c in CASES.get()}
@@ -501,6 +606,9 @@ class Handler(BaseHTTPRequestHandler):
                 release_lock(user, case_id)
                 touch(user, None)
                 return self.json(200, {"ok": True})
+            if tail == ["reset"] and method == "POST":
+                status, data = reset_review(user, case_id, self.body())
+                return self.json(status, data)
             if tail == ["review"] and method == "POST":
                 status, data = save_review(user, case_id, self.body())
                 return self.json(status, data)
