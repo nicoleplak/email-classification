@@ -1,0 +1,2 @@
+# Local tools only (tools/*.py); never installed in the container image.
+extract-msg==0.55.0
