@@ -30,6 +30,7 @@
   <header class="topbar">
     <div class="brand"><span class="logo" aria-hidden="true"></span><span data-t="appName"></span></div>
     <div class="topbar-right">
+      <button id="activity-open" class="link" type="button" data-t="activity"></button>
       <button id="lang" class="link" type="button"></button>
       <span id="me" class="me"></span>
       <button id="signout" class="link" type="button" data-t="signOut"></button>
@@ -70,6 +71,15 @@
       <div id="viewer-body" class="viewer-body"></div>
     </section>
   </div>
+
+  <aside id="activity" class="drawer" hidden aria-labelledby="activity-title">
+    <div class="drawer-head">
+      <h2 id="activity-title" data-t="activity"></h2>
+      <label class="small muted"><input type="checkbox" id="activity-reviews"> <span data-t="onlyReviews"></span></label>
+      <button id="activity-close" class="link" type="button" data-t="close"></button>
+    </div>
+    <div id="activity-body" class="drawer-body"></div>
+  </aside>
 </div>
 </body>
 </html>

@@ -473,6 +473,13 @@ class Handler(BaseHTTPRequestHandler):
             return self.json(200, {"categories": CATEGORIES, "user": public_user(user), "mode": AUTH})
         if path == "/api/cases" and method == "GET":
             return self.json(200, {"items": CASES.get(), "serverTime": now()})
+        if path == "/api/activity" and method == "GET":
+            # ponytail: reads the whole audit log and sorts it here; page it in Cosmos once it grows large.
+            subjects = {c["id"]: c.get("subject") for c in CASES.get()}
+            events = sorted(store().all("audit"), key=lambda e: e.get("at") or "", reverse=True)[:300]
+            return self.json(200, {"events": [
+                {**{k: e.get(k) for k in ("at", "by", "byName", "action", "before", "after", "comment", "caseId")},
+                 "subject": subjects.get(e.get("caseId"))} for e in events]})
         if path == "/api/sync" and method == "POST":
             body = self.body()
             case_id = body.get("open")

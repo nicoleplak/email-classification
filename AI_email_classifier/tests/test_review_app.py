@@ -125,3 +125,15 @@ def test_static_files_cannot_escape_their_folder(app):
     assert call(f"{base}/../server.py")[0] == 404
     assert call(f"{base}/%2e%2e/server.py")[0] == 404
     assert call(f"{base}/healthz")[0] == 200
+
+
+def test_the_activity_log_shows_who_did_what_on_which_email(app):
+    _, base, case_id = app
+    cookie = sign_in(base)
+    etag = json.loads(call(f"{base}/api/cases/{case_id}", cookie=cookie)[2])["case"]["_etag"]
+    call(f"{base}/api/cases/{case_id}/review", {"_etag": etag, "finalCategory": "Βεβαίωση άρσης προσημείωσης"}, cookie)
+    events = json.loads(call(f"{base}/api/activity", cookie=cookie)[2])["events"]
+    assert events[0]["action"] == "reviewed" and events[0]["byName"] == "Ann Example"
+    assert events[0]["subject"] == "Βεβαίωση" and events[0]["after"]["finalCategory"] == "Βεβαίωση άρσης προσημείωσης"
+    listed = json.loads(call(f"{base}/api/cases", cookie=cookie)[2])["items"][0]
+    assert listed["reviewedBy"]["name"] == "Ann Example"  # the list can say who reviewed it
