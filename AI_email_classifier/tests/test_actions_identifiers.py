@@ -5,9 +5,9 @@ from pathlib import Path
 
 import pytest
 
-from evaluation.action_rules import FLAGS, REASONS, RULES, decide, explain
+from core.action_rules import FLAGS, REASONS, RULES, decide, explain
 from evaluation.email_chain import split_chain
-from evaluation.identifiers import find_candidates, merge_candidates, mod97_valid
+from core.identifiers import find_candidates, merge_candidates, mod97_valid
 from utils.afm_utils import afm_checksum_valid
 from utils.html_text import html_to_text
 

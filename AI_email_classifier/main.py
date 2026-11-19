@@ -12,9 +12,9 @@ from config import settings
 
 import logging
 
+# stdout, so Container Apps sends it to Log Analytics; a file inside the container is lost after each run.
 logging.basicConfig(
-    filename="run.log",  # or use a full path if you prefer
-    level=logging.INFO,  # INFO is usually enough; use DEBUG for more detail
+    level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s",
 )
 
@@ -22,8 +22,8 @@ logger = logging.getLogger(__name__)
 logger.info("Starting main.py")
 
 
-def env_flag(name: str) -> bool:
-    return os.getenv(name, "false").strip().lower() == "true"
+def env_flag(name: str, default: bool = False) -> bool:
+    return os.getenv(name, str(default)).strip().lower() == "true"
 
 
 def load_registry():
@@ -53,7 +53,50 @@ def load_registry():
         raise ValueError(f"Unsupported REGISTRY_SOURCE: {registry_source}")
 
     print(f"Registry source: {registry_source}; rows loaded: {len(registry_df)}")
-    return registry_df
+    return registry_df, registry_source
+
+
+def newest_blob(prefix: str) -> str | None:
+    """Names end in YYYYMMDD, so the last one sorted is the newest export."""
+    from data.blob_output import list_names
+
+    names = [n for n in list_names(prefix) if n.endswith(".csv")]
+    return names[-1] if names else None
+
+
+def understand_factory(processor, messages):
+    """The per-email reader, with one streaming pass over past Qualco requests for this run's emails."""
+    from core.customer_lookup import Registry, RequestHistory
+    from core.understand import lookup_tokens, understand
+
+    registry = Registry(processor.registry_df, getattr(processor, "registry_source", ""))
+    history = RequestHistory.empty()
+    requests_blob = newest_blob("in/request_output_") if env_flag("REQUEST_HISTORY", True) else None
+    if requests_blob:
+        from data.blob_output import download_to
+
+        emails, tax_ids = set(), set()
+        for message in messages:
+            found_emails, found_tax = lookup_tokens(message)
+            emails |= found_emails
+            tax_ids |= found_tax
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                path = Path(tmp) / "requests.csv"
+                download_to(requests_blob, path)
+                history = RequestHistory.scan(str(path), emails, tax_ids, requests_blob)
+            print(f"Request history: {requests_blob}; {len(history.rows)} matching rows")
+        except Exception as exc:  # The lookup still works from the registry alone.
+            print(f"Request history unavailable ({type(exc).__name__}: {exc}); continuing without it")
+    categories = [c["Categories"].strip() for c in processor.categories_data]
+    client = processor.classifier.client
+    model = processor.classifier.model_name
+
+    def read(message, records, text_dir):
+        return understand(client=client, model=model, message=message, records=records, text_dir=text_dir,
+                          categories=categories, registry=registry, history=history)
+
+    return read
 
 
 def build_processor(save_attachment_text: bool = False) -> EmailProcessor:
@@ -96,8 +139,9 @@ def build_processor(save_attachment_text: bool = False) -> EmailProcessor:
         ),
     )
 
-    return EmailProcessor(
-        registry_df=load_registry(),
+    registry_df, registry_source = load_registry()
+    processor = EmailProcessor(
+        registry_df=registry_df,
         classifier=classifier,
         categories_data=categories_data,
         reply_templates=reply_templates,
@@ -105,6 +149,8 @@ def build_processor(save_attachment_text: bool = False) -> EmailProcessor:
         default_reply=default_reply,
         attachment_processor=attachment_processor,
     )
+    processor.registry_source = registry_source  # shown on every case as where customer data came from
+    return processor
 
 
 def run_from_blob() -> None:
@@ -120,6 +166,8 @@ def run_from_blob() -> None:
         paused=env_flag("CLASSIFIER_PAUSED"),
         threshold=float(os.getenv("AUTO_ACCEPT_THRESHOLD", "0.95")),
         limit=int(os.getenv("CLASSIFY_MAX_PER_RUN", "0")),
+        runs_from=os.getenv("REGISTER_RUNS_FROM", "").strip(),
+        understand_factory=understand_factory if env_flag("UNDERSTAND_ENABLED", True) else None,
     )
     print(json.dumps(summary, indent=2))
     logger.info("Run summary: %s", summary)

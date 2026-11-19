@@ -679,6 +679,10 @@ class AttachmentProcessor:
         id_suffix = re.sub(r"[^A-Za-z0-9_-]+", "", attachment_id)[-12:]
         debug_path = debug_directory / f"{safe_name}_{id_suffix or 'no_id'}.txt"
         debug_path.write_text(extracted_text, encoding="utf-8")
+        # The real name, so the case page can say which attachment a value came from.
+        debug_path.with_suffix(".json").write_text(
+            json.dumps({"filename": filename}, ensure_ascii=False), encoding="utf-8"
+        )
         logger.info("Document Intelligence text saved to: %s", debug_path.resolve())
 
     @staticmethod

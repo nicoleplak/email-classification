@@ -160,8 +160,8 @@ def test_held_or_concurrently_saved_cases_are_left_to_people(store):
     blob.put_run("r1", {"messages": [msg(1), msg(2)], "removed": []})
     rc.register_runs(store, blob, T0)
 
-    held = store.get("cases", rc.email_id(msg(1)))
-    store.replace("cases", {**held, "lock": {"by": "reviewer@example.test", "until": "2026-11-17T09:00:00Z"}})
+    store.upsert("locks", {"id": rc.email_id(msg(1)), "holder": "reviewer@example.test",
+                           "until": "2026-11-17T09:00:00Z", "ttl": 300})
 
     def reviewer_saves_meanwhile(email):  # a person classifies email 2 while the model works
         case = store.get("cases", rc.email_id(email))

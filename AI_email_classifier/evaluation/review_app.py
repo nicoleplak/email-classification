@@ -27,7 +27,7 @@ from common import (
     load_categories,
     spec_path,
 )
-from action_rules import decide, explain
+from core.action_rules import decide, explain
 from email_chain import message_key, split_chain
 from evaluate import _load, ranked_scores
 import extract_and_act as ea
