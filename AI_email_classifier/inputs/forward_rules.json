@@ -1,0 +1,54 @@
+{
+  "ΥΑΣ- Διαμεσολάβηση": {
+    "routing_mode": "FORWARD",
+    "forward_to": [
+      "mediation@dovaluegreece.gr"
+    ]
+  },
+
+  "Αναβολές δικασίμων": {
+    "routing_mode": "FORWARD",
+    "forward_to": [
+      "Dikografa@dovaluegreece.gr",
+      "legalretail@dovaluegreece.gr"
+    ],
+    "extra_if_n3869": [
+      "L.3869_Requests_Support@dovaluegreece.gr"
+    ]
+  },
+
+  "Βιογραφικά με επισυναπτόμενα": {
+    "routing_mode": "FORWARD",
+    "forward_to": [
+      "peopleservices@dovaluegreece.gr"
+    ]
+  },
+"Αγωγές": {
+  "routing_mode": "FORWARD",
+  "forward_to": [
+    "spdallas@dovaluegreece.gr",
+    "agoges@dovaluegreece.gr",
+    "OpRISK@dovaluegreece.gr",
+    "Complaints@dovaluegreece.gr"
+  ]
+},
+
+"Διαφημιστικά- σεμινάρια": {
+  "routing_mode": "FORWARD",
+  "forward_to": [
+    "marketing_dvg@dovaluegreece.gr"
+  ]
+},
+
+
+"Τιμολόγια": {
+  "routing_mode": "FORWARD",
+  "forward_to": [
+   "accounting accounting@dovaluegreece.gr",
+   "fincon_legal_payments fincon_legal_payments@dovaluegreece.gr",
+   "FINCON-LEGAL FINCON-LEGAL@dovaluegreece.gr"
+  ]
+}
+
+}
+

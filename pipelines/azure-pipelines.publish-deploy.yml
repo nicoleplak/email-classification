@@ -108,6 +108,19 @@ stages:
                 --image acrdatallm-b2fabgebc6a7dygd.azurecr.io/email-classification:$(Build.BuildNumber)
             displayName: 'Update Container App image'
 
+          # The scheduled job is what actually runs ingest (and, when enabled, the classifier).
+          - script: |
+              set -euo pipefail
+
+              az login --identity
+              az account set --subscription 753ed49c-40d0-4289-8730-3db54951ce44
+
+              az containerapp job update \
+                --name caj-job-emclf-llm-gr \
+                --resource-group LLM \
+                --image acrdatallm-b2fabgebc6a7dygd.azurecr.io/email-classification:$(Build.BuildNumber)
+            displayName: 'Update scheduled job image'
+
           - script: |
               set -euo pipefail
 

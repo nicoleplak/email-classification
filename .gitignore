@@ -9,3 +9,7 @@ runs/
 .ruff_cache
 
 .pytest_cache/
+# Classifier: local case store and client data never go in git
+**/case_store/
+**/DWH_Output_Storage/
+**/debug_attachment_extractions/

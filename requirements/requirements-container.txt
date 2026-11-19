@@ -1,6 +1,7 @@
 # Unified runtime inputs: higher version from the two supplied files.
 # Regenerate runtime and CI locks and validate before promotion.
 azure-ai-documentintelligence==1.0.2
+azure-cosmos==4.17.1
 azure-identity==1.25.1
 azure-storage-blob==12.31.0
 beautifulsoup4==4.14.3
