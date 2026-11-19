@@ -39,6 +39,8 @@ RUN python -m pip install \
 
 COPY graphapi/src/ /app/graphapi/src/
 COPY AI_email_classifier/ /app/AI_email_classifier/
+# Review app (Container App ca-emclf-llm-gr runs: python /app/review_app/server.py); the job keeps the CMD below.
+COPY review_app/ /app/review_app/
 COPY deployment/run_pipeline.sh /app/deployment/run_pipeline.sh
 
 RUN chmod +x /app/deployment/run_pipeline.sh
