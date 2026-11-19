@@ -61,8 +61,8 @@ Job (`caj-job-emclf-llm-gr`, set by `configure_azure.sh job`; the ingest's own s
 | `REGISTRY_SOURCE` | `csv` | newest `in/qualco_output_*.csv` (Synapse is unreachable; see FR-77/FR-130) |
 | `REQUEST_HISTORY` | `true` | one scan of the newest `in/request_output_*.csv` per run (emails, past requests) |
 | `AUTO_ACCEPT_THRESHOLD` | `0.90` | certainty 90% or more, with nothing else wrong: AUTO; below 90%: REVIEW |
-| `CLASSIFY_MAX_PER_RUN` | `50` | cap per run; the rest wait for the next run |
-| `REGISTER_RUNS_FROM` | deploy time (UTC) | older ingest runs are skipped; `import-*` runs always register |
+| `CLASSIFY_MAX_PER_RUN` | `100` | cap per run (~28 s each, within the 1-hour limit); the rest wait for the next run |
+| `REGISTER_RUNS_FROM` | go-live time (UTC) | ingest runs before it are skipped, and so are emails RECEIVED before it (staff touching old mail in Outlook makes it reappear in the delta); `import-*` runs are exempt |
 | `AZURE_OPENAI_*`, `DOC_INTEL_*` | keys as secrets | model and OCR |
 
 Review app (`ca-emclf-llm-gr`, set by `configure_azure.sh app`):

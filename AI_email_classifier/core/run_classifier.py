@@ -119,7 +119,7 @@ def _removed_reason(item: dict[str, Any]) -> Any:
 
 
 def register_runs(store, blob, now: str, runs_from: str = "") -> dict[str, int]:
-    totals = {"runs": 0, "new_cases": 0, "resent": 0, "removed": 0}
+    totals = {"runs": 0, "new_cases": 0, "resent": 0, "removed": 0, "older_skipped": 0}
     for name in blob.list_names("bronze/"):
         match = RUN_FILE.match(name)
         if not match or not wanted_run(match.group(1), runs_from) or store.get("runs", match.group(1)):
@@ -127,7 +127,13 @@ def register_runs(store, blob, now: str, runs_from: str = "") -> dict[str, int]:
         run = match.group(1)
         messages, removed = unwrap_run(json.loads(blob.download(name)))
         new = resent = gone = 0
+        older = 0
         for message in messages:
+            # Go-live rule: the Graph delta also returns OLD emails that staff touched (read, moved,
+            # categorised). Only emails received from REGISTER_RUNS_FROM on become cases; imports are exempt.
+            if runs_from and not run.startswith("import-") and email_id(message)[:16] < runs_from:
+                older += 1
+                continue
             case = new_case(message, run, name, now)
             existing = store.get("cases", case["id"])
             if existing is None:
@@ -152,11 +158,12 @@ def register_runs(store, blob, now: str, runs_from: str = "") -> dict[str, int]:
                 audit(store, existing["id"], "left mailbox", now, run=run, reason=_removed_reason(item))
                 gone += 1
         store.create("runs", {"id": run, "registeredAt": now, "emails": len(messages),
-                              "newCases": new, "resent": resent, "removed": gone})
+                              "newCases": new, "resent": resent, "removed": gone, "olderSkipped": older})
         totals["runs"] += 1
         totals["new_cases"] += new
         totals["resent"] += resent
         totals["removed"] += gone
+        totals["older_skipped"] += older
     return totals
 
 
