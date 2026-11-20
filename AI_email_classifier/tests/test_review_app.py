@@ -235,3 +235,21 @@ def test_chosen_actions_are_saved_cleaned_and_audited(app):
     assert "extra" not in saved[1] and saved[0]["codes"] == ["R12"]
     reviewed = [e for e in server.STORE.find("audit", "caseId", case_id) if e["action"] == "reviewed"][0]
     assert len(reviewed["after"]["finalActions"]) == 2
+
+
+def test_case_list_carries_classifier_progress_and_ignores_a_dead_run(app):
+    from datetime import datetime, timedelta, timezone
+
+    server, base, _ = app
+    cookie = sign_in(base)
+    stamp = lambda s: (datetime.now(timezone.utc) - timedelta(seconds=s)).strftime("%Y-%m-%dT%H:%M:%SZ")  # noqa: E731
+
+    assert json.loads(call(f"{base}/api/cases", cookie=cookie)[2])["classifier"]["running"] is False
+    server.STORE.upsert("runs", {"id": "classifier-status", "state": "running", "phase": "classifying",
+                                 "done": 3, "total": 10, "current": "c1", "updatedAt": stamp(30)})
+    progress = json.loads(call(f"{base}/api/cases", cookie=cookie)[2])["classifier"]
+    assert progress["running"] is True and (progress["done"], progress["total"]) == (3, 10)
+    assert server.ingest_info()["lastRun"] is None  # the status document is not an ingest run
+
+    server.STORE.upsert("runs", {"id": "classifier-status", "state": "running", "updatedAt": stamp(3600)})
+    assert json.loads(call(f"{base}/api/cases", cookie=cookie)[2])["classifier"]["running"] is False

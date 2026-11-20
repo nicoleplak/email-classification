@@ -16,6 +16,7 @@ const T = {
     wholeDay: "Όλη η μέρα", stillArriving: "συνεχίζεται", noItems: "Δεν υπάρχουν email εδώ.",
     noReviewTime: "Μόνο τα ελεγμένα email έχουν ώρα ελέγχου.",
     pickOne: "Επιλέξτε ένα email από τη λίστα.",
+    stClassifying: "Ταξινομείται…", clfPreparing: "Ο ταξινομητής ξεκινά…", clfRunning: "Ταξινόμηση {done} από {total}",
     stReceived: "Δεν έχει ταξινομηθεί", stReview: "Χρειάζεται έλεγχο", stAuto: "Αυτόματη ταξινόμηση",
     stException: "Σφάλμα — έλεγχος", stReviewed: "Ελέγχθηκε",
     openBy: "Ανοιχτό: {n}", attachments: "{n} συνημμένα",
@@ -85,6 +86,7 @@ const T = {
     wholeDay: "Whole day", stillArriving: "ongoing", noItems: "No emails here.",
     noReviewTime: "Only reviewed emails have a review time.",
     pickOne: "Pick an email from the list.",
+    stClassifying: "Classifying…", clfPreparing: "Classifier starting…", clfRunning: "Classifying {done} of {total}",
     stReceived: "Not classified yet", stReview: "Needs review", stAuto: "Classified automatically",
     stException: "Error — review", stReviewed: "Reviewed",
     openBy: "Open: {n}", attachments: "{n} attachments",
@@ -256,6 +258,7 @@ function statusPill(it) {
     return h("span", { class: "pill done", title: by ? `${by}, ${when(it.reviewedAt)}` : null,
       text: by ? `${t("stReviewed")} · ${by}` : t("stReviewed") });
   }
+  if (it.status === "CLASSIFYING") return h("span", { class: "pill working", text: t("stClassifying") });
   if (it.status === "RECEIVED") return h("span", { class: "pill plain", text: t("stReceived") });
   if (it.route === "AUTO") return h("span", { class: "pill auto", text: t("stAuto") });
   if (it.route === "EXCEPTION") return h("span", { class: "pill bad", text: t("stException") });
@@ -356,8 +359,29 @@ async function loadCases() {
   const res = await api("/api/cases");
   if (!res.ok) return;
   S.items = res.data.items || [];
+  S.classifier = res.data.classifier || { running: false };
   renderDays();
   renderList();
+  renderClassifier();
+}
+
+// Progress chip in the top bar while the classifier job works through the waiting emails.
+function renderClassifier() {
+  const c = S.classifier || {};
+  const el = $("#clf");
+  el.hidden = !c.running;
+  if (!c.running) return;
+  const preparing = c.phase === "preparing";
+  const label = preparing ? t("clfPreparing") : t("clfRunning", { done: Math.min(c.done + 1, c.total), total: c.total });
+  el.replaceChildren(h("span", { class: "spinner", "aria-hidden": "true" }), h("span", { text: label }),
+    h("span", { class: "bar", "aria-hidden": "true" },
+      h("span", { style: `width:${c.total ? Math.round((100 * c.done) / c.total) : 0}%` })));
+}
+
+// The list refreshes every 20 s, and every 4 s while the classifier runs, so each email is seen moving on.
+async function pollCases() {
+  await loadCases().catch(() => null);
+  setTimeout(pollCases, S.classifier && S.classifier.running ? 4000 : 20000);
 }
 
 // ------------------------------------------------------------------ case
@@ -960,7 +984,7 @@ async function start() {
   await loadCases();
   const fromHash = decodeURIComponent(location.hash.slice(1));
   if (fromHash) openCase(fromHash);
-  setInterval(loadCases, 20000);
+  setTimeout(pollCases, S.classifier && S.classifier.running ? 4000 : 20000);
   setInterval(sync, 15000);
   sync();
 }
