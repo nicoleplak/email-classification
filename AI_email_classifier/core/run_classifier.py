@@ -9,7 +9,11 @@ Two phases, every time the job runs:
 2. **Classify** (skipped while ``CLASSIFIER_PAUSED=true``): every ``RECEIVED``
    case nobody holds is classified and saved one at a time, so a job killed by
    its timeout loses at most the email in flight. A case a person opened or saved
-   meanwhile is left alone (etag check).
+   meanwhile is left alone (etag check). While the model works on a case it shows
+   as ``CLASSIFYING``, and ``runs/classifier-status`` says how far the run is, so
+   the review app can show progress by polling (the job and the app are separate
+   containers; Cosmos is what they share). A time budget stops new emails from
+   being started before the job's own timeout; the rest wait for the next run.
 
 Reviewers can work on ``RECEIVED`` cases while classification is paused.
 """
@@ -20,6 +24,7 @@ import hashlib
 import json
 import re
 import tempfile
+import time
 import uuid
 from dataclasses import replace
 from datetime import datetime, timezone
@@ -37,6 +42,8 @@ REVIEW_STATUSES = {
 }
 # Large and already in silver; keeps Cosmos documents well under the 2 MB limit.
 HEAVY_FIELDS = ("attachment_evidence_text",)
+# Progress of the current or last classifier run, in the runs container (not a timestamp, so never an ingest run).
+STATUS_ID = "classifier-status"
 
 
 def utcnow() -> str:
@@ -67,6 +74,14 @@ def is_locked(store, case_id: str, now: str) -> bool:
     """A reviewer has the case open (lock documents expire on their own; ``until`` guards the gap)."""
     lock = store.get("locks", case_id) or {}
     return bool(lock) and str(lock.get("until", "")) > now
+
+
+def received_cutoff(run: str, runs_from: str) -> str:
+    """ISO time before which a mailbox email is ignored ('' for imports or no cutoff)."""
+    if run.startswith("import-") or not re.fullmatch(r"\d{8}T\d{6}Z", runs_from or ""):
+        return ""
+    d, t = runs_from[:8], runs_from[9:15]
+    return f"{d[:4]}-{d[4:6]}-{d[6:]}T{t[:2]}:{t[2:4]}:{t[4:]}Z"
 
 
 def wanted_run(run: str, runs_from: str) -> bool:
@@ -119,7 +134,7 @@ def _removed_reason(item: dict[str, Any]) -> Any:
 
 
 def register_runs(store, blob, now: str, runs_from: str = "") -> dict[str, int]:
-    totals = {"runs": 0, "new_cases": 0, "resent": 0, "removed": 0, "older_skipped": 0}
+    totals = {"runs": 0, "new_cases": 0, "resent": 0, "removed": 0}
     for name in blob.list_names("bronze/"):
         match = RUN_FILE.match(name)
         if not match or not wanted_run(match.group(1), runs_from) or store.get("runs", match.group(1)):
@@ -127,12 +142,12 @@ def register_runs(store, blob, now: str, runs_from: str = "") -> dict[str, int]:
         run = match.group(1)
         messages, removed = unwrap_run(json.loads(blob.download(name)))
         new = resent = gone = 0
-        older = 0
+        cutoff = received_cutoff(run, runs_from)
         for message in messages:
-            # Go-live rule: the Graph delta also returns OLD emails that staff touched (read, moved,
-            # categorised). Only emails received from REGISTER_RUNS_FROM on become cases; imports are exempt.
-            if runs_from and not run.startswith("import-") and email_id(message)[:16] < runs_from:
-                older += 1
+            # Graph delta also returns older emails that were only changed (read, moved, flagged): those
+            # arrived before go-live and are not new work.
+            if cutoff and str(message.get("receivedDateTime") or "") < cutoff:
+                totals["older"] = totals.get("older", 0) + 1
                 continue
             case = new_case(message, run, name, now)
             existing = store.get("cases", case["id"])
@@ -158,12 +173,11 @@ def register_runs(store, blob, now: str, runs_from: str = "") -> dict[str, int]:
                 audit(store, existing["id"], "left mailbox", now, run=run, reason=_removed_reason(item))
                 gone += 1
         store.create("runs", {"id": run, "registeredAt": now, "emails": len(messages),
-                              "newCases": new, "resent": resent, "removed": gone, "olderSkipped": older})
+                              "newCases": new, "resent": resent, "removed": gone})
         totals["runs"] += 1
         totals["new_cases"] += new
         totals["resent"] += resent
         totals["removed"] += gone
-        totals["older_skipped"] += older
     return totals
 
 
@@ -215,17 +229,44 @@ def understanding_reasons(understanding: dict[str, Any] | None) -> list[str]:
     return reasons
 
 
+def set_status(store, now: str, **fields: Any) -> None:
+    store.upsert("runs", {"id": STATUS_ID, "updatedAt": now, **fields})
+
+
 def classify_waiting(store, blob, processor_factory: Callable[[], Any], now_fn: Callable[[], str],
                      threshold: float, limit: int = 0,
-                     understand_factory: Callable[[Any, list[dict]], Callable] | None = None) -> dict[str, int]:
-    """``understand_factory(processor, messages)`` returns ``fn(message, records, text_dir) -> dict``."""
-    totals = {"classified": 0, "auto": 0, "review": 0, "exception": 0, "skipped_held": 0}
-    waiting = sorted(store.find("cases", "status", "RECEIVED"), key=lambda c: c.get("receivedAt") or "")
+                     understand_factory: Callable[[Any, list[dict]], Callable] | None = None,
+                     budget_seconds: float = 0, clock: Callable[[], float] = time.monotonic) -> dict[str, int]:
+    """``understand_factory(processor, messages)`` returns ``fn(message, records, text_dir) -> dict``.
+
+    ``budget_seconds`` (0 = none): no new email is started once this much time has passed.
+    """
+    started = clock()
+    totals = {"classified": 0, "auto": 0, "review": 0, "exception": 0, "skipped_held": 0, "left_waiting": 0}
+    # CLASSIFYING at the start of a run means the last run was killed mid-email (the job runs one at a time).
+    waiting = [*store.find("cases", "status", "RECEIVED"), *store.find("cases", "status", "CLASSIFYING")]
+    waiting = sorted(waiting, key=lambda c: c.get("receivedAt") or "")
     waiting = [c for c in waiting if not is_locked(store, c["id"], now_fn())]
     if limit > 0:
         waiting = waiting[:limit]
     if not waiting:
         return totals
+    progress = {"state": "running", "startedAt": now_fn(), "total": len(waiting), "done": 0, "current": None}
+    set_status(store, now_fn(), **progress, phase="preparing")
+    try:
+        _classify_cases(store, blob, processor_factory, now_fn, threshold, understand_factory,
+                        waiting, totals, progress, lambda: budget_seconds > 0 and clock() - started > budget_seconds)
+    except BaseException:
+        set_status(store, now_fn(), **{**progress, "state": "failed", "current": None})
+        raise
+    set_status(store, now_fn(), **{**progress, "state": "idle", "current": None, "finishedAt": now_fn()},
+               last=totals)
+    return totals
+
+
+def _classify_cases(store, blob, processor_factory, now_fn, threshold, understand_factory,
+                    waiting: list[dict], totals: dict[str, int], progress: dict[str, Any],
+                    out_of_time: Callable[[], bool]) -> None:
 
     runs: dict[str, dict[str, dict]] = {}
     for case in waiting:
@@ -238,72 +279,96 @@ def classify_waiting(store, blob, processor_factory: Callable[[], Any], now_fn: 
     found = [runs[c["sourceRefs"]["runFile"]].get(c["id"]) for c in waiting]
     understand_fn = understand_factory(processor, [m for m in found if m]) if understand_factory else None
     clf_run = now_fn().replace("-", "").replace(":", "")
-    for case, message in zip(waiting, found):
-        refs = case["sourceRefs"]
-        with tempfile.TemporaryDirectory() as tmp:
-            records, error, understanding = [], None, None
-            if message is None:
-                error = f"email not found in {refs['runFile']}"
-            else:
-                try:
-                    records = _classify_message(processor, message, Path(tmp))
-                except Exception as exc:  # One bad email must not stop the rest.
-                    error = f"{type(exc).__name__}: {exc}"
-            if understand_fn and not error:
-                try:
-                    understanding = understand_fn(message, records, Path(tmp))
-                except Exception as exc:  # The classification still counts; a person reads the details.
-                    understanding = {"error": f"{type(exc).__name__}: {exc}"}
-            route, reasons, confidence = decide_route(records, threshold, error)
-            extra = understanding_reasons(understanding)
-            if extra and route == "AUTO":
-                route = "REVIEW"
-            reasons += extra
-
-            silver = f"silver/{refs['ingestRun']}/{case['id']}/"
-            blob.upload_bytes(f"{silver}classification_{clf_run}.json", json.dumps(
-                {"caseId": case["id"], "classifierRun": clf_run, "route": route, "routeReasons": reasons,
-                 "error": error, "records": records, "understanding": understanding},
-                ensure_ascii=False, indent=1, default=str).encode("utf-8"))
-            # Attachment text plus its sidecar (the real file name): the review app highlights evidence in it.
-            for text in sorted([*Path(tmp).glob("*.txt"), *Path(tmp).glob("*.json")]):
-                blob.upload_bytes(f"{silver}text/{text.name}", text.read_bytes())
-
-        category = records[0].get("category") if records else None
-        now = now_fn()
-        updated = {
-            **case,
-            "status": "CLASSIFIED",
-            "route": route,
-            "routeReasons": reasons,
-            "modelCategory": category,
-            "confidence": confidence,
-            "votes": records[0].get("model_votes", {}) if records else {},
-            "finalCategory": category if route == "AUTO" else None,
-            "classifiedAt": now,
-            "classifierRun": clf_run,
-            "error": error,
-            "sourceRefs": {**refs, "silver": silver},
-            "payload": {"records": [{k: v for k, v in r.items() if k not in HEAVY_FIELDS} for r in records]},
-            "understanding": understanding,
-            "updatedAt": now,
-        }
-        try:
-            store.replace("cases", updated)  # Fails if a person opened or saved it meanwhile.
+    for n, (case, message) in enumerate(zip(waiting, found)):
+        if out_of_time():
+            totals["left_waiting"] = len(waiting) - n
+            break
+        try:  # Shows the case as being worked on; a person who saved it meanwhile wins.
+            case = store.replace("cases", {**case, "status": "CLASSIFYING", "classifyingSince": now_fn()})
         except Conflict:
             totals["skipped_held"] += 1
+            progress["done"] += 1
             continue
-        audit(store, case["id"], "classified", now, run=clf_run,
-              after={"route": route, "category": category, "confidence": confidence})
-        totals["classified"] += 1
-        totals[route.lower()] += 1
-    return totals
+        progress["current"] = case["id"]
+        set_status(store, now_fn(), **progress, phase="classifying")
+        try:
+            _classify_one(store, blob, processor, understand_fn, threshold, now_fn, clf_run, case, message, totals)
+        except BaseException:
+            try:  # Back to the queue for the next run, unless a person saved it meanwhile.
+                store.replace("cases", {**case, "status": "RECEIVED"})
+            except Conflict:
+                pass
+            raise
+        progress["done"] += 1
+
+
+def _classify_one(store, blob, processor, understand_fn, threshold, now_fn, clf_run,
+                  case: dict, message: dict | None, totals: dict[str, int]) -> None:
+    refs = case["sourceRefs"]
+    with tempfile.TemporaryDirectory() as tmp:
+        records, error, understanding = [], None, None
+        if message is None:
+            error = f"email not found in {refs['runFile']}"
+        else:
+            try:
+                records = _classify_message(processor, message, Path(tmp))
+            except Exception as exc:  # One bad email must not stop the rest.
+                error = f"{type(exc).__name__}: {exc}"
+        if understand_fn and not error:
+            try:
+                understanding = understand_fn(message, records, Path(tmp))
+            except Exception as exc:  # The classification still counts; a person reads the details.
+                understanding = {"error": f"{type(exc).__name__}: {exc}"}
+        route, reasons, confidence = decide_route(records, threshold, error)
+        extra = understanding_reasons(understanding)
+        if extra and route == "AUTO":
+            route = "REVIEW"
+        reasons += extra
+
+        silver = f"silver/{refs['ingestRun']}/{case['id']}/"
+        blob.upload_bytes(f"{silver}classification_{clf_run}.json", json.dumps(
+            {"caseId": case["id"], "classifierRun": clf_run, "route": route, "routeReasons": reasons,
+             "error": error, "records": records, "understanding": understanding},
+            ensure_ascii=False, indent=1, default=str).encode("utf-8"))
+        # Attachment text plus its sidecar (the real file name): the review app highlights evidence in it.
+        for text in sorted([*Path(tmp).glob("*.txt"), *Path(tmp).glob("*.json")]):
+            blob.upload_bytes(f"{silver}text/{text.name}", text.read_bytes())
+
+    category = records[0].get("category") if records else None
+    now = now_fn()
+    updated = {
+        **case,
+        "status": "CLASSIFIED",
+        "route": route,
+        "routeReasons": reasons,
+        "modelCategory": category,
+        "confidence": confidence,
+        "votes": records[0].get("model_votes", {}) if records else {},
+        "finalCategory": category if route == "AUTO" else None,
+        "classifiedAt": now,
+        "classifierRun": clf_run,
+        "error": error,
+        "sourceRefs": {**refs, "silver": silver},
+        "payload": {"records": [{k: v for k, v in r.items() if k not in HEAVY_FIELDS} for r in records]},
+        "understanding": understanding,
+        "updatedAt": now,
+    }
+    try:
+        store.replace("cases", updated)  # Fails if a person opened or saved it meanwhile.
+    except Conflict:
+        totals["skipped_held"] += 1
+        return
+    audit(store, case["id"], "classified", now, run=clf_run,
+          after={"route": route, "category": category, "confidence": confidence})
+    totals["classified"] += 1
+    totals[route.lower()] += 1
 
 
 def run(store, blob, processor_factory: Callable[[], Any], *, paused: bool, threshold: float,
         limit: int = 0, now_fn: Callable[[], str] = utcnow, runs_from: str = "",
-        understand_factory: Callable[[Any, list[dict]], Callable] | None = None) -> dict[str, Any]:
+        understand_factory: Callable[[Any, list[dict]], Callable] | None = None,
+        budget_seconds: float = 0) -> dict[str, Any]:
     summary: dict[str, Any] = {"registered": register_runs(store, blob, now_fn(), runs_from)}
     summary["classification"] = "paused" if paused else classify_waiting(
-        store, blob, processor_factory, now_fn, threshold, limit, understand_factory)
+        store, blob, processor_factory, now_fn, threshold, limit, understand_factory, budget_seconds)
     return summary

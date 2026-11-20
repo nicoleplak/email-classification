@@ -16,6 +16,7 @@ const T = {
     wholeDay: "Όλη η μέρα", stillArriving: "συνεχίζεται", noItems: "Δεν υπάρχουν email εδώ.",
     noReviewTime: "Μόνο τα ελεγμένα email έχουν ώρα ελέγχου.",
     pickOne: "Επιλέξτε ένα email από τη λίστα.",
+    stClassifying: "Ταξινομείται…", clfPreparing: "Ο ταξινομητής ξεκινά…", clfRunning: "Ταξινόμηση {done} από {total}",
     stReceived: "Δεν έχει ταξινομηθεί", stReview: "Χρειάζεται έλεγχο", stAuto: "Αυτόματη ταξινόμηση",
     stException: "Σφάλμα — έλεγχος", stReviewed: "Ελέγχθηκε",
     openBy: "Ανοιχτό: {n}", attachments: "{n} συνημμένα",
@@ -65,6 +66,12 @@ const T = {
     highlights: "Επισημάνσεις", lgClass: "Κατηγορία", lgAction: "Ενέργεια", lgId: "Στοιχεία πελάτη",
     viewOriginal: "Πρωτότυπο", viewText: "Κείμενο με επισημάνσεις", evidence: "Τεκμήρια από το email",
     noTextView: "Δεν υπάρχει κείμενο για επισημάνσεις σε αυτό το αρχείο.",
+    stepCategory: "1 · Κατηγορία", stepActions: "2 · Ενέργειες", stepSave: "3 · Αποθήκευση",
+    tickActions: "Τσεκάρετε όσες θα γίνουν", chosenActions: "Επιλέχθηκαν στον έλεγχο",
+    proposedOnly: "Προτάσεις συστήματος — δεν έχουν επιλεγεί ακόμη",
+    actionsForOther: "Οι προτεινόμενες ενέργειες αφορούν την αρχική κατηγορία «{c}». Ελέγξτε αν ισχύουν ή προσθέστε άλλες.",
+    noActionsChosen: "Δεν έχει επιλεγεί καμία ενέργεια.", addAction: "Προσθήκη ενέργειας", findAction: "Αναζήτηση ενέργειας ή κωδικού…",
+    generalActions: "Γενικές ενέργειες", addedByYou: "προστέθηκε", remove: "Αφαίρεση", actionsCount: "{n} ενέργειες",
   },
   en: {
     appName: "Email review", signIn: "Sign in", signOut: "Sign out", yourName: "Full name",
@@ -79,6 +86,7 @@ const T = {
     wholeDay: "Whole day", stillArriving: "ongoing", noItems: "No emails here.",
     noReviewTime: "Only reviewed emails have a review time.",
     pickOne: "Pick an email from the list.",
+    stClassifying: "Classifying…", clfPreparing: "Classifier starting…", clfRunning: "Classifying {done} of {total}",
     stReceived: "Not classified yet", stReview: "Needs review", stAuto: "Classified automatically",
     stException: "Error — review", stReviewed: "Reviewed",
     openBy: "Open: {n}", attachments: "{n} attachments",
@@ -128,6 +136,12 @@ const T = {
     highlights: "Highlights", lgClass: "Category", lgAction: "Action", lgId: "Customer details",
     viewOriginal: "Original", viewText: "Text with highlights", evidence: "Evidence from the email",
     noTextView: "No text with highlights for this file.",
+    stepCategory: "1 · Category", stepActions: "2 · Actions", stepSave: "3 · Save",
+    tickActions: "Tick the ones to carry out", chosenActions: "Chosen in the review",
+    proposedOnly: "System proposals — none chosen yet",
+    actionsForOther: "The proposed actions were made for the original category “{c}”. Check they still apply or add others.",
+    noActionsChosen: "No action chosen.", addAction: "Add an action", findAction: "Search actions or codes…",
+    generalActions: "General actions", addedByYou: "added", remove: "Remove", actionsCount: "{n} actions",
   },
 };
 const FIELD = {
@@ -244,6 +258,7 @@ function statusPill(it) {
     return h("span", { class: "pill done", title: by ? `${by}, ${when(it.reviewedAt)}` : null,
       text: by ? `${t("stReviewed")} · ${by}` : t("stReviewed") });
   }
+  if (it.status === "CLASSIFYING") return h("span", { class: "pill working", text: t("stClassifying") });
   if (it.status === "RECEIVED") return h("span", { class: "pill plain", text: t("stReceived") });
   if (it.route === "AUTO") return h("span", { class: "pill auto", text: t("stAuto") });
   if (it.route === "EXCEPTION") return h("span", { class: "pill bad", text: t("stException") });
@@ -344,8 +359,29 @@ async function loadCases() {
   const res = await api("/api/cases");
   if (!res.ok) return;
   S.items = res.data.items || [];
+  S.classifier = res.data.classifier || { running: false };
   renderDays();
   renderList();
+  renderClassifier();
+}
+
+// Progress chip in the top bar while the classifier job works through the waiting emails.
+function renderClassifier() {
+  const c = S.classifier || {};
+  const el = $("#clf");
+  el.hidden = !c.running;
+  if (!c.running) return;
+  const preparing = c.phase === "preparing";
+  const label = preparing ? t("clfPreparing") : t("clfRunning", { done: Math.min(c.done + 1, c.total), total: c.total });
+  el.replaceChildren(h("span", { class: "spinner", "aria-hidden": "true" }), h("span", { text: label }),
+    h("span", { class: "bar", "aria-hidden": "true" },
+      h("span", { style: `width:${c.total ? Math.round((100 * c.done) / c.total) : 0}%` })));
+}
+
+// The list refreshes every 20 s, and every 4 s while the classifier runs, so each email is seen moving on.
+async function pollCases() {
+  await loadCases().catch(() => null);
+  setTimeout(pollCases, S.classifier && S.classifier.running ? 4000 : 20000);
 }
 
 // ------------------------------------------------------------------ case
@@ -394,6 +430,9 @@ async function openCase(id, keepViewer) {
   if (!res || !res.ok) { $("#case").removeAttribute("aria-busy"); $("#case").replaceChildren(h("div", { class: "empty" }, h("p", { text: t("error") }))); return; }
   S.detail = res.data;
   S.choice = null;
+  S.forceEdit = false;
+  S.comment = undefined;
+  S.addOpen = false;
   S.enter = true; // animate this render only, not re-renders while reviewing
   if (!keepViewer) S.viewer = { tab: "email", page: null, images: false };
   api(`/api/cases/${encodeURIComponent(id)}/open`, { json: {} });
@@ -468,16 +507,16 @@ function decisionCard(c) {
   const votes = Object.entries(c.votes || {}).filter(([k]) => k !== c.modelCategory);
   if (votes.length) parts.push(h("div", { class: "votes" }, h("span", { class: "muted small", text: t("alsoConsidered") }),
     ...votes.map(([k, v]) => h("span", { text: `${k} · ${v}` }))));
-  if (c.status === "REVIEWED" && S.choice === null) {
+  if (c.status === "REVIEWED" && !S.forceEdit) {
     parts.push(h("div", { class: "choice" },
       h("div", {}, h("span", { class: "muted", text: `${t("final")}: ` }), h("strong", { text: c.noMatch ? t("noneFits") : c.finalCategory || "—" })),
       (c.otherCategories || []).length ? h("div", { class: "muted", text: `+ ${c.otherCategories.join(", ")}` }) : null,
       c.reviewComment ? h("div", { class: "snippet", text: c.reviewComment }) : null,
       h("div", { class: "reviewed" }, h("span", { class: "muted", text: t("reviewedBy", { n: c.reviewedBy?.name || "—", d: when(c.reviewedAt) }) }),
-        h("button", { class: "secondary", type: "button", text: t("change"), onclick: () => { S.choice = "other"; renderCase(); } }),
+        h("button", { class: "secondary", type: "button", text: t("change"), onclick: () => { S.forceEdit = true; S.choice = null; renderCase(); } }),
         resetControl(c))));
   } else parts.push(reviewForm(c));
-  return card(t("decision"), null, ...parts);
+  return card(editing(c) ? t("stepCategory") : t("decision"), null, ...parts);
 }
 
 /* "Reset to To review": a second, in-page step confirms (browsers' confirm() is not used). */
@@ -555,35 +594,123 @@ function categoryPicker({ id, value, suggested, onPick }) {
   return h("div", { class: "picker" }, chosen, input, list);
 }
 
+// ------------------------------------------------------------------ review: 1 category · 2 actions · 3 save
+const editing = (c) => c.status !== "REVIEWED" || S.forceEdit;
+const finalCategoryNow = (c) => S.choice === "accept" ? c.modelCategory : S.choice === "other" ? S.pick : null;
+const actionText = (a) => `${ACTION[lang][a.do] || a.do}${[].concat(a.to || []).length ? " → " + [].concat(a.to).join(", ") : ""}`;
+const codesOf = (a) => [a.open, a.closed, ...(a.codes || [])].filter(Boolean).filter((x, i, arr) => arr.indexOf(x) === i);
+const asChoice = (a, source) => ({ ...a, to: a.to ? [].concat(a.to) : [], codes: a.codes || [], source, on: true });
+
 function reviewForm(c) {
   if (S.choice === null) {
-    S.choice = c.modelCategory && c.route !== "EXCEPTION" ? "accept" : "other";
-    S.pick = c.status === "REVIEWED" ? c.finalCategory || "" : "";
+    const reviewed = c.status === "REVIEWED";
+    S.choice = reviewed ? (c.noMatch ? "none" : c.finalCategory === c.modelCategory ? "accept" : "other")
+      : c.modelCategory && c.route !== "EXCEPTION" ? "accept" : "other";
+    S.pick = reviewed ? c.finalCategory || "" : "";
     S.pickExtra = (c.otherCategories || [])[0] || "";
+    const u = c.understanding || {};
+    S.acts = (c.finalActions || []).length ? c.finalActions.map((a) => ({ ...a, on: true }))
+      : (u.actions || []).map((a) => asChoice(a, "suggested"));
   }
   const u = c.understanding || {};
   const suggested = [...Object.keys(c.votes || {}).filter((k) => k !== c.modelCategory), ...(u.otherRequests || [])];
-  const cat = categoryPicker({ id: "rv-cat", value: S.pick, suggested, onPick: (v) => { S.pick = v; } });
-  const comment = h("textarea", { id: "rv-comment", placeholder: t("comment") });
-  comment.value = c.reviewComment || "";
-  const err = h("p", { class: "error", role: "alert" });
-  const next = h("input", { type: "checkbox", id: "rv-next", checked: store("next") !== "0" });
+  const cat = categoryPicker({ id: "rv-cat", value: S.pick, suggested, onPick: (v) => { S.pick = v; renderCase(); } });
   const opt = (value, label, extraEl) => h("div", { class: `opt${S.choice === value ? " on" : ""}` },
     h("label", {}, h("input", { type: "radio", name: "rv-choice", value, checked: S.choice === value,
       onchange: () => { S.choice = value; renderCase(); } }), h("span", { text: label })), extraEl || "");
   const extra = h("details", { class: "more extra", open: S.pickExtra ? true : null },
     h("summary", { text: t("extra") }),
     categoryPicker({ id: "rv-extra", value: S.pickExtra, suggested: u.otherRequests || [], onPick: (v) => { S.pickExtra = v; } }));
+  return h("div", { class: "choice" },
+    c.modelCategory ? opt("accept", `${t("accept")}: ${catLabel(c.modelCategory)}`) : "",
+    opt("other", t("other"), S.choice === "other" ? h("div", { class: "reveal" }, cat) : ""),
+    opt("none", t("noneFits")),
+    extra);
+}
+
+function actionRow(a, u, editable) {
+  const quotes = (u.evidence || []).filter((e) => e.supports === "action" && (a.because || []).includes(`${e.flag}=true`));
+  const head = h("div", { class: "what" }, actionText(a),
+    a.source === "added" ? h("span", { class: "pill plain", text: t("addedByYou") }) : "");
+  const body = [
+    a.category ? h("div", { class: "muted small", text: catLabel(a.category) }) : "",
+    codesOf(a).length ? h("div", { class: "codes" }, ...codesOf(a).map((x) => h("code", { text: String(x) }))) : "",
+    a.missing ? h("div", { class: "caveat", text: `${lang === "el" ? "Λείπει" : "Missing"}: ${a.missing}` }) : "",
+    (a.reasons || []).length ? h("ul", {}, ...a.reasons.map((r) => h("li", { text: r }))) : "",
+    ...quotes.map(quoteRow),
+  ];
+  if (!editable) return h("div", { class: "action" }, head, ...body);
+  return h("div", { class: `action pickable${a.on === false ? " off" : ""}` },
+    h("label", { class: "action-check" },
+      h("input", { type: "checkbox", checked: a.on !== false, onchange: (e) => { a.on = e.target.checked; renderCase(); } }), head),
+    a.source === "added" ? h("button", { class: "link remove", type: "button", text: t("remove"),
+      onclick: () => { S.acts = S.acts.filter((x) => x !== a); renderCase(); } }) : "",
+    ...body);
+}
+
+/* "Add an action": the rule table's actions for the chosen category first, then general ones; typing searches all. */
+function actionAdder(category) {
+  const catalog = S.catalog || { byCategory: {}, general: [] };
+  const input = h("input", { type: "search", class: "picker-search", placeholder: t("findAction"), autocomplete: "off" });
+  const list = h("div", { class: "picker-list" });
+  const paint = () => {
+    const q = norm(input.value.trim());
+    const label = (o, cat) => norm(`${actionText(o)} ${codesOf(o).join(" ")} ${catLabel(cat || "")}`);
+    const groups = [];
+    if (category && catalog.byCategory[category]) groups.push([catLabel(category), catalog.byCategory[category].map((o) => [o, category])]);
+    groups.push([t("generalActions"), catalog.general.map((o) => [o, null])]);
+    if (q) for (const [cat, options] of Object.entries(catalog.byCategory)) if (cat !== category) groups.push([catLabel(cat), options.map((o) => [o, cat])]);
+    const shown = groups.map(([title, items]) => [title, items.filter(([o, cat]) => !q || label(o, cat).includes(q))]).filter(([, items]) => items.length);
+    list.replaceChildren(...shown.flatMap(([title, items]) => [h("div", { class: "picker-group", text: title }),
+      ...items.map(([o, cat]) => h("button", { type: "button", class: "picker-opt", onclick: () => {
+        S.acts.push(asChoice({ ...o, category: cat }, "added"));
+        S.addOpen = true;
+        renderCase();
+      } }, actionText(o), codesOf(o).length ? h("span", { class: "muted small", text: `  ${codesOf(o).join(" · ")}` }) : ""))]),
+    shown.length ? "" : h("div", { class: "picker-none", text: t("noMatchCats") }));
+  };
+  input.addEventListener("input", paint);
+  paint();
+  return h("details", { class: "more extra adder", open: S.addOpen ? true : null,
+    ontoggle: (e) => { S.addOpen = e.target.open; } },
+  h("summary", { text: t("addAction") }), h("div", { class: "picker" }, input, list));
+}
+
+function actionsCard(u, c) {
+  const proposed = u.actions || [];
+  if (!editing(c)) {
+    const chosen = c.finalActions || [];
+    if (chosen.length) return card(t("actions"), t("chosenActions"), ...chosen.map((a) => actionRow(a, u, false)));
+    if (!proposed.length) return card(t("actions"), null, h("p", { class: "muted", text: t("noActions") }));
+    return card(t("actions"), t("proposedOnly"), ...proposed.map((a) => actionRow(a, u, false)));
+  }
+  const finalCat = finalCategoryNow(c);
+  const other = finalCat && c.modelCategory && finalCat !== c.modelCategory && S.acts.some((a) => a.source === "suggested");
+  return card(t("stepActions"), t("tickActions"),
+    other ? h("div", { class: "notice info", text: t("actionsForOther", { c: catLabel(c.modelCategory) }) }) : "",
+    ...(S.acts.length ? S.acts.map((a) => actionRow(a, u, true)) : [h("p", { class: "muted", text: t("noActionsChosen") })]),
+    actionAdder(finalCat || c.modelCategory));
+}
+
+function saveBar(c) {
+  if (!editing(c)) return "";
+  const comment = h("textarea", { id: "rv-comment", placeholder: t("comment"), rows: 2 });
+  comment.value = S.comment ?? c.reviewComment ?? "";
+  comment.addEventListener("input", () => { S.comment = comment.value; });
+  const err = h("p", { class: "error", role: "alert" });
+  const next = h("input", { type: "checkbox", id: "rv-next", checked: store("next") !== "0" });
+  const chosen = S.acts.filter((a) => a.on !== false);
   const save = h("button", { class: "primary", type: "button", text: t("save"), onclick: async () => {
-    const body = { _etag: c._etag, comment: comment.value, otherCategories: S.pickExtra ? [S.pickExtra] : [] };
+    const body = { _etag: c._etag, comment: comment.value, otherCategories: S.pickExtra ? [S.pickExtra] : [],
+      finalActions: chosen.map(({ do: d, category, codes, open, closed, to, source }) => ({ do: d, category, codes, open, closed, to, source })) };
     if (S.choice === "none") body.noMatch = true;
     else body.finalCategory = S.choice === "accept" ? c.modelCategory : S.pick;
     if (!body.noMatch && !S.categories.includes(body.finalCategory)) { err.textContent = t("badCat"); return; }
     const restore = busy(save, t("saving"));
     const res = await api(`/api/cases/${encodeURIComponent(c.id)}/review`, { json: body }).catch(() => ({ ok: false, data: {} }));
     restore();
-    if (res.status === 409) { S.detail = res.data.case || S.detail; S.choice = null; renderCase(); notice(t("changed")); return; }
-    if (!res.ok) { err.textContent = res.data.error === "category" ? t("badCat") : "Error"; return; }
+    if (res.status === 409) { S.detail = res.data.case || S.detail; S.choice = null; S.forceEdit = false; renderCase(); notice(t("changed")); return; }
+    if (!res.ok) { err.textContent = res.data.error === "category" ? t("badCat") : t("error"); return; }
     store("next", next.checked ? "1" : "0");
     toast(t("saved"));
     await loadCases();
@@ -593,26 +720,14 @@ function reviewForm(c) {
     }
     openCase(c.id, true);
   } });
-  return h("div", { class: "choice" },
-    c.modelCategory ? opt("accept", `${t("accept")}: ${catLabel(c.modelCategory)}`) : "",
-    opt("other", t("other"), S.choice === "other" ? h("div", { class: "reveal" }, cat) : ""),
-    opt("none", t("noneFits")),
-    extra, comment, err,
-    h("div", { class: "row" }, save, h("label", { class: "small muted" }, next, " ", t("next"))));
-}
-
-function actionsCard(u) {
-  const actions = u.actions || [];
-  if (!actions.length) return card(t("actions"), null, h("p", { class: "muted", text: t("noActions") }));
-  return card(t("actions"), null, ...actions.map((a) => h("div", { class: "action" },
-    h("div", { class: "what", text: `${ACTION[lang][a.do] || a.do}${a.to ? " → " + [].concat(a.to).join(", ") : ""}` }),
-    h("div", { class: "muted small", text: a.category }),
-    (a.codes || []).length || a.open || a.closed ? h("div", { class: "codes" },
-      ...[a.open, a.closed, ...(a.codes || [])].filter(Boolean).filter((x, i, arr) => arr.indexOf(x) === i).map((x) => h("code", { text: String(x) }))) : null,
-    a.missing ? h("div", { class: "caveat", text: `${lang === "el" ? "Λείπει" : "Missing"}: ${a.missing}` }) : null,
-    (a.reasons || []).length ? h("ul", {}, ...a.reasons.map((r) => h("li", { text: r }))) : null,
-    // quotes for the facts this action rests on ("asks_debt_certificate=true" -> its quotes)
-    ...(u.evidence || []).filter((e) => e.supports === "action" && (a.because || []).includes(`${e.flag}=true`)).map(quoteRow))));
+  const summary = `${S.choice === "none" ? t("noneFits") : catLabel(finalCategoryNow(c) || "—")} · ${t("actionsCount", { n: chosen.length })}`;
+  return h("section", { class: "savebar" },
+    h("div", { class: "savebar-head" }, h("strong", { text: t("stepSave") }), h("span", { class: "muted small", text: summary })),
+    comment, err,
+    h("div", { class: "row" }, save,
+      S.forceEdit ? h("button", { class: "link", type: "button", text: t("cancel"),
+        onclick: () => { S.forceEdit = false; S.choice = null; S.comment = undefined; renderCase(); } }) : "",
+      h("label", { class: "small muted" }, next, " ", t("next"))));
 }
 
 function customerCard(u) {
@@ -749,9 +864,11 @@ function renderCase() {
     c.mailboxState === "removed" ? h("div", { class: "notice info", text: t("leftMailbox") }) : "",
     u.error ? h("div", { class: "notice warn", text: t("readError", { e: u.error }) }) : "",
     decisionCard(c),
-    ...(c.understanding && !u.error ? [actionsCard(u), customerCard(u), foundCard(u)] : []),
+    actionsCard(u, c),
+    ...(c.understanding && !u.error ? [customerCard(u), foundCard(u)] : []),
     u.analysis ? h("p", { class: "muted small", text: `${t("analysis")}: ${u.analysis}` }) : "",
-    historyCard(d.events || []));
+    historyCard(d.events || []),
+    saveBar(c));
 }
 
 // ------------------------------------------------------------------ viewer
@@ -859,6 +976,7 @@ async function start() {
   $("#list").replaceChildren(...Array.from({ length: 6 }, () => h("div", { class: "item sk-item" }, ...skeletonLines(3))));
   const meta = await api("/api/meta");
   S.categories = meta.data.categories || [];
+  S.catalog = meta.data.actions || { byCategory: {}, general: [] };
   $("#me").textContent = S.user.name;
   applyWords();
   loadIngest();
@@ -866,7 +984,7 @@ async function start() {
   await loadCases();
   const fromHash = decodeURIComponent(location.hash.slice(1));
   if (fromHash) openCase(fromHash);
-  setInterval(loadCases, 20000);
+  setTimeout(pollCases, S.classifier && S.classifier.running ? 4000 : 20000);
   setInterval(sync, 15000);
   sync();
 }

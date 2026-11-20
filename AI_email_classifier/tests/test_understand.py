@@ -145,24 +145,22 @@ def test_old_ingest_runs_are_skipped_but_imports_are_not():
     assert rc.wanted_run("20261027T120626Z", "")
 
 
-def test_only_emails_received_after_go_live_become_cases():
+def test_older_emails_that_only_changed_are_not_new_work():
+    assert rc.received_cutoff("20261119T130000Z", "20261119T125515Z") == "2026-11-19T12:55:15Z"
+    assert rc.received_cutoff("import-20261119T103340Z", "20261119T125515Z") == ""
     from data.case_store import LocalStore
     import tempfile
 
     class Blob:
-        files = {"bronze/20261119T160000Z/emails.json": json.dumps({"messages": [
-            {"id": "old", "internetMessageId": "<old@x>", "receivedDateTime": "2026-11-12T09:00:00Z"},
-            {"id": "new", "internetMessageId": "<new@x>", "receivedDateTime": "2026-11-19T15:00:00Z"},
-        ], "removed": []}).encode()}
-
         def list_names(self, prefix):
-            return list(self.files)
+            return ["bronze/20261119T130000Z/emails.json"]
 
         def download(self, name):
-            return self.files[name]
+            msgs = [{"id": "old", "internetMessageId": "<old@x>", "receivedDateTime": "2026-11-12T09:00:00Z"},
+                    {"id": "new", "internetMessageId": "<new@x>", "receivedDateTime": "2026-11-19T13:01:00Z"}]
+            return json.dumps({"messages": msgs, "removed": []}).encode()
 
     with tempfile.TemporaryDirectory() as tmp:
         store = LocalStore(tmp)
-        totals = rc.register_runs(store, Blob(), "2026-11-19T16:01:00Z", runs_from="20261119T125515Z")
-        assert totals["new_cases"] == 1 and totals["older_skipped"] == 1
-        assert [c["graphId"] for c in store.all("cases")] == ["new"]
+        totals = rc.register_runs(store, Blob(), "2026-11-19T13:05:00Z", "20261119T125515Z")
+        assert totals["new_cases"] == 1 and totals["older"] == 1

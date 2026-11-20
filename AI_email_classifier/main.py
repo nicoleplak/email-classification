@@ -166,6 +166,7 @@ def run_from_blob() -> None:
         paused=env_flag("CLASSIFIER_PAUSED"),
         threshold=float(os.getenv("AUTO_ACCEPT_THRESHOLD", "0.90")),
         limit=int(os.getenv("CLASSIFY_MAX_PER_RUN", "0")),
+        budget_seconds=float(os.getenv("CLASSIFY_TIME_BUDGET_SECONDS", "0")),
         runs_from=os.getenv("REGISTER_RUNS_FROM", "").strip(),
         understand_factory=understand_factory if env_flag("UNDERSTAND_ENABLED", True) else None,
     )

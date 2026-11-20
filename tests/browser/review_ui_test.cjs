@@ -25,6 +25,17 @@ fs.mkdirSync(OUTPUT, { recursive: true });
 const results = [];
 const ok = (name, condition, info) => results.push({ name, pass: !!condition, info });
 
+// Opacity of the first card 80 ms after the given case renders, measured inside the page (no network timing).
+const SAMPLE = (id) => new Promise((resolve) => {
+  const check = () => {
+    const pane = document.querySelector("#case");
+    if (pane.dataset.caseId === id && pane.querySelector(".card")) {
+      setTimeout(() => resolve(+getComputedStyle(pane.querySelector(".card")).opacity), 80);
+    } else requestAnimationFrame(check);
+  };
+  check();
+});
+
 async function signIn(page) {
   await page.goto(URL);
   await page.waitForSelector("#signin:not([hidden]), #app:not([hidden])");
@@ -157,6 +168,24 @@ async function behaviour(browser) {
   ok("attachment text shows highlights", Object.values(textMarks).reduce((a, b) => a + b, 0) > 0, textMarks);
   ok("evidence quotes are listed on cases", quotes > 0, { quotes });
 
+  // Review steps: actions can be ticked, unticked and added; the save bar follows (nothing is saved).
+  const unreviewed = await page.$$eval("#list .item", (items) => items.filter((i) => !/Ελέγχθηκε|Reviewed/.test(i.textContent)).map((i) => i.dataset.id));
+  if (unreviewed.length) {
+    await page.click(`#list .item[data-id="${unreviewed[0]}"]`);
+    await page.waitForFunction((x) => document.querySelector("#case").dataset.caseId === x && !!document.querySelector(".savebar"), unreviewed[0]);
+    const before = await page.locator(".action.pickable").count();
+    if (before) {
+      await page.locator(".action.pickable input[type=checkbox]").first().uncheck();
+      ok("unticking an action greys it out", (await page.locator(".action.pickable.off").count()) === 1);
+    }
+    await page.locator("details.adder summary").click();
+    await page.locator("details.adder .picker-opt").first().click();
+    const after = await page.locator(".action.pickable").count();
+    ok("an action can be added from the rule table", after === before + 1, { before, after });
+    const bar = await page.$eval(".savebar", (b) => ({ sticky: getComputedStyle(b).position, text: /\d/.test(b.querySelector(".savebar-head").textContent) }));
+    ok("save bar stays visible with a summary", bar.sticky === "sticky" && bar.text, bar);
+  } else ok("an unreviewed email exists to test actions", false);
+
   // Clock: hovering shows how and when emails arrive.
   await page.hover("#clock-btn");
   await page.waitForTimeout(250);
@@ -166,11 +195,11 @@ async function behaviour(browser) {
 
   // Motion: opening a case animates its cards (sampled mid-way, not just the end state).
   const other = await page.$$eval("#list .item", (items) => items.map((i) => i.dataset.id));
-  const otherId = other.find((id) => id !== target);
+  const openNow = await page.$eval("#case", (c) => c.dataset.caseId);
+  const otherId = other.find((id) => id !== target && id !== openNow);
+  const sampling = page.evaluate(SAMPLE, otherId);
   await page.click(`#list .item[data-id="${otherId}"]`);
-  await page.waitForFunction((id) => document.querySelector("#case").dataset.caseId === id, otherId);
-  await page.waitForTimeout(100);
-  const midOpacity = await page.$eval("#case .card", (c) => +getComputedStyle(c).opacity).catch(() => -1);
+  const midOpacity = await sampling;
   ok("opening a case fades its cards in", midOpacity > 0 && midOpacity < 1, { midOpacity });
   await page.waitForTimeout(500);
 
@@ -243,10 +272,9 @@ async function layoutAt(browser, width, height) {
     const rp = await reduced.newPage();
     await signIn(rp);
     const firstId = await rp.$eval("#list .item", (b) => b.dataset.id);
+    const sampling = rp.evaluate(SAMPLE, firstId);
     await rp.click("#list .item");
-    await rp.waitForFunction((id) => document.querySelector("#case").dataset.caseId === id, firstId);
-    await rp.waitForTimeout(100);
-    const fade = await rp.$eval("#case .card", (c) => +getComputedStyle(c).opacity).catch(() => -1);
+    const fade = await sampling;
     ok("reduced motion still fades the case in", fade > 0 && fade < 1, { fade });
     await reduced.close();
     for (const [w, h] of [[1920, 1080], [1366, 768], [1280, 600], [800, 900]]) await layoutAt(browser, w, h);

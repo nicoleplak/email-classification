@@ -88,7 +88,7 @@ def test_register_both_run_shapes_once_and_dedupe_resends(store):
     # A later delta run resends email 2 under a new Graph id (it moved folder).
     blob.put_run("20261117T120000Z", {"messages": [msg(2, graph_id="graph-2-moved")], "removed": []})
     totals = rc.register_runs(store, blob, T0)
-    assert totals == {"runs": 1, "new_cases": 0, "resent": 1, "removed": 0, "older_skipped": 0}
+    assert totals == {"runs": 1, "new_cases": 0, "resent": 1, "removed": 0}
     case = store.get("cases", rc.email_id(msg(2)))
     assert case["graphId"] == "graph-2-moved" and case["status"] == "RECEIVED"
     assert case["sourceRefs"]["eml"] == "messages/aa/graph-2/message.eml"
@@ -128,7 +128,8 @@ def test_classify_saves_silver_then_case_and_survives_a_bad_email(store):
     processor = FakeProcessor({"unclear": [record(confidence="60%")]})
     summary = rc.run(store, blob, lambda: processor, paused=False, threshold=0.95, now_fn=lambda: T0)
 
-    assert summary["classification"] == {"classified": 3, "auto": 1, "review": 1, "exception": 1, "skipped_held": 0}
+    assert summary["classification"] == {"classified": 3, "auto": 1, "review": 1, "exception": 1, "skipped_held": 0,
+                                       "left_waiting": 0}
     auto = store.get("cases", rc.email_id(msg(1)))
     assert auto["status"] == "CLASSIFIED" and auto["route"] == "AUTO"
     assert auto["finalCategory"] == "Βεβαίωση οφειλής" and auto["confidence"] == 1.0
@@ -201,3 +202,69 @@ def test_local_store_etag_and_create_conflicts(store):
     with pytest.raises(Conflict):
         store.create("cases", {"id": "c1"})
     assert store.get("cases", "c1")["n"] == 2
+
+
+def test_time_budget_stops_starting_new_emails_and_leaves_the_rest_waiting(store):
+    blob = FakeBlob()
+    blob.put_run("r1", {"messages": [msg(1), msg(2), msg(3)], "removed": []})
+    rc.register_runs(store, blob, T0)
+    ticks = iter([0, 0, 40, 80, 120])  # start, then before each email: 0 s, 40 s, 80 s ...
+    processor = FakeProcessor()
+    totals = rc.classify_waiting(store, blob, lambda: processor, lambda: T0, 0.95,
+                                 budget_seconds=60, clock=lambda: next(ticks))
+
+    assert processor.calls == ["graph-1", "graph-2"]  # 80 s > 60 s: the third is not started
+    assert totals["classified"] == 2 and totals["left_waiting"] == 1
+    assert store.get("cases", rc.email_id(msg(3)))["status"] == "RECEIVED"
+
+
+def test_each_email_shows_as_classifying_while_the_model_works(store):
+    blob = FakeBlob()
+    blob.put_run("r1", {"messages": [msg(1), msg(2)], "removed": []})
+    rc.register_runs(store, blob, T0)
+    seen = []
+
+    def look(email):
+        seen.append((store.get("cases", rc.email_id(email))["status"],
+                     store.get("runs", rc.STATUS_ID)))
+
+    rc.classify_waiting(store, blob, lambda: FakeProcessor(on_call=look), lambda: T0, 0.95)
+
+    assert [s for s, _ in seen] == ["CLASSIFYING", "CLASSIFYING"]
+    first, second = (p for _, p in seen)
+    assert first["state"] == "running" and first["total"] == 2 and first["done"] == 0
+    assert first["current"] == rc.email_id(msg(1)) and second["done"] == 1
+    final = store.get("runs", rc.STATUS_ID)
+    assert final["state"] == "idle" and final["done"] == 2 and final["current"] is None
+    assert final["last"]["classified"] == 2
+
+
+def test_an_email_left_classifying_by_a_killed_run_is_picked_up_again(store):
+    blob = FakeBlob()
+    blob.put_run("r1", {"messages": [msg(1)], "removed": []})
+    rc.register_runs(store, blob, T0)
+    case = store.get("cases", rc.email_id(msg(1)))
+    store.replace("cases", {**case, "status": "CLASSIFYING"})  # the job timed out mid-email
+
+    processor = FakeProcessor()
+    rc.classify_waiting(store, blob, lambda: processor, lambda: T0, 0.95)
+    assert processor.calls == ["graph-1"]
+    assert store.get("cases", rc.email_id(msg(1)))["status"] == "CLASSIFIED"
+
+
+def test_a_failed_run_puts_the_email_back_and_says_so(store):
+    blob = FakeBlob()
+    blob.put_run("r1", {"messages": [msg(1)], "removed": []})
+    blob.fail_uploads = True
+    with pytest.raises(RuntimeError):
+        rc.run(store, blob, lambda: FakeProcessor(), paused=False, threshold=0.95, now_fn=lambda: T0)
+    assert store.get("cases", rc.email_id(msg(1)))["status"] == "RECEIVED"
+    assert store.get("runs", rc.STATUS_ID)["state"] == "failed"
+
+
+def test_status_document_is_not_mistaken_for_an_ingest_run(store):
+    blob = FakeBlob()
+    blob.put_run("r1", {"messages": [msg(1)], "removed": []})
+    rc.run(store, blob, lambda: FakeProcessor(), paused=False, threshold=0.95, now_fn=lambda: T0)
+    blob.put_run(rc.STATUS_ID, {"messages": [msg(2)], "removed": []})  # even a run folder with that name
+    assert rc.register_runs(store, blob, T0)["runs"] == 0

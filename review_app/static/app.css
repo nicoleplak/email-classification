@@ -83,6 +83,9 @@ textarea { width: 100%; resize: vertical; min-height: 64px; }
 .pill.done { color: var(--done); background: var(--done-wash); }
 .pill.bad { color: var(--bad); background: var(--bad-wash); }
 .pill.plain { color: var(--ink-2); background: #eef1f5; }
+.pill.working { color: var(--blue-dark); background: var(--blue-wash); }
+.pill.working::before { content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 6px; border-radius: 50%;
+  background: var(--blue); vertical-align: 1px; animation: pulse 1.2s ease-in-out infinite; }
 .cat { font-size: 12.5px; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
 .presence { font-size: 12px; color: var(--blue-dark); }
 
@@ -202,6 +205,24 @@ table.mini td strong { background: var(--ev-id-wash); box-shadow: inset 0 -2px v
 .viewer-tools .seg button + button { border-left: 1px solid var(--line); }
 .viewer-tools .seg button[aria-pressed="true"] { background: var(--blue); color: #fff; }
 
+/* review step 2: actions to tick */
+.action.pickable { border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; margin-bottom: 8px; transition: opacity .18s, border-color .18s, background-color .18s; }
+.action.pickable:has(input:checked) { border-color: var(--ev-action); background: #faf8ff; }
+.action.pickable.off { opacity: .55; }
+.action.pickable.off .what { text-decoration: line-through; }
+.action-check { display: flex; gap: 8px; align-items: flex-start; cursor: pointer; }
+.action-check input { margin-top: 3px; }
+.action .what { display: inline-flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.action .remove { float: right; color: var(--bad); font-size: 12.5px; }
+.adder { margin-top: 10px; }
+.adder .picker-opt { display: flex; justify-content: space-between; gap: 8px; }
+
+/* review step 3: save bar stays at the bottom of the case while scrolling */
+.savebar { position: sticky; bottom: 0; z-index: 3; margin-top: 16px; background: #fff; border: 1px solid var(--blue);
+  border-radius: 8px; padding: 12px 14px; display: grid; gap: 8px; box-shadow: 0 -6px 18px rgba(16, 24, 40, .08); animation: rise .22s ease-out; }
+.savebar-head { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.savebar textarea { min-height: 44px; }
+
 /* loading states */
 .splash { position: fixed; inset: 0; display: grid; place-items: center; background: var(--bg); z-index: 40; }
 .spinner { display: inline-block; width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--blue-wash);
@@ -222,6 +243,13 @@ button.busy::before { content: ""; position: absolute; left: 12px; top: 50%; wid
   border: 2px solid rgba(255,255,255,.45); border-top-color: #fff; animation: spin .8s linear infinite; }
 .secondary.busy::before, .link.busy::before { border-color: var(--blue-wash); border-top-color: var(--blue); }
 @keyframes spin { to { transform: rotate(360deg); } }
+@keyframes pulse { 50% { opacity: .25; } }
+/* classifier progress chip in the top bar */
+.clf { display: flex; align-items: center; gap: 8px; padding: 4px 12px; border-radius: 999px; background: var(--blue-wash);
+  color: var(--blue-dark); font-size: 12.5px; font-weight: 600; white-space: nowrap; animation: fade .2s ease-out; }
+.clf .spinner { width: 12px; height: 12px; }
+.clf .bar { width: 64px; height: 4px; border-radius: 2px; background: #fff; overflow: hidden; }
+.clf .bar > span { display: block; height: 100%; background: var(--blue); transition: width .4s ease-out; }
 @keyframes shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
 
 /* reset a review */
@@ -306,6 +334,8 @@ details.more[open] > :not(summary) { animation: drop .2s ease-out; }
   details.more[open] > :not(summary), .toast { animation-name: fade !important; animation-delay: 0s !important; }
   .sk, .item.opening { animation: none; }
   .spinner, button.busy::before { animation-duration: 1.6s; }
+  .pill.working::before { animation: none; }
+  .clf .bar > span { transition: none; }
   .clock-pop { transform: none; }
   .drawer { transition: opacity .15s; transform: none; opacity: 0; }
   .drawer.open { opacity: 1; }
