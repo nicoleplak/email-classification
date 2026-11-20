@@ -355,6 +355,29 @@ def _run_time(run_id: str) -> str | None:
     return stamp.strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+CLASSIFIER_STALE_SECONDS = 900  # no word from a "running" classifier for this long: the job died
+
+
+def classifier_info() -> dict:
+    """Progress of the classifier job (it writes runs/classifier-status as it goes; see core/run_classifier)."""
+    from core.run_classifier import STATUS_ID
+
+    doc = store().get("runs", STATUS_ID) or {}
+    try:
+        updated = datetime.strptime(doc.get("updatedAt", ""), "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+        age = (datetime.now(timezone.utc) - updated).total_seconds()
+    except ValueError:
+        age = float("inf")
+    return {
+        "running": doc.get("state") == "running" and age < CLASSIFIER_STALE_SECONDS,
+        "phase": doc.get("phase"),
+        "done": doc.get("done", 0),
+        "total": doc.get("total", 0),
+        "current": doc.get("current"),
+        "finishedAt": doc.get("finishedAt"),
+    }
+
+
 def ingest_info() -> dict:
     """For the clock in the top bar: how emails arrive, when they last did, when they next will."""
     runs = [r for r in store().all("runs") if _run_time(r.get("id", ""))]
@@ -691,7 +714,7 @@ class Handler(BaseHTTPRequestHandler):
             return self.json(200, {"categories": CATEGORIES, "actions": action_catalog(), "user": public_user(user),
                                    "mode": AUTH})
         if path == "/api/cases" and method == "GET":
-            return self.json(200, {"items": CASES.get(), "serverTime": now()})
+            return self.json(200, {"items": CASES.get(), "classifier": classifier_info(), "serverTime": now()})
         if path == "/api/ingest" and method == "GET":
             return self.json(200, ingest_info())
         if path == "/api/activity" and method == "GET":
