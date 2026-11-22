@@ -29,7 +29,13 @@
 
 <div id="app" class="app" hidden>
   <header class="topbar">
-    <div class="brand"><span class="logo" aria-hidden="true"></span><span data-t="appName"></span></div>
+    <div class="topbar-left">
+      <div class="brand"><span class="logo" aria-hidden="true"></span><span data-t="appName"></span></div>
+      <nav class="views" id="views" aria-label="Views">
+        <button type="button" data-view="emails" data-t="viewEmails"></button>
+        <button type="button" data-view="metrics" data-t="viewMetrics"></button>
+      </nav>
+    </div>
     <div class="topbar-right">
       <div id="clf" class="clf" role="status" aria-live="polite" hidden></div>
       <div class="clock">
@@ -80,6 +86,14 @@
       <div id="viewer-body" class="viewer-body"></div>
     </section>
   </div>
+
+  <section id="metrics" class="metrics" hidden aria-labelledby="metrics-title">
+    <div class="metrics-head">
+      <h1 id="metrics-title" data-t="viewMetrics"></h1>
+      <div class="ranges" id="ranges" role="group"></div>
+    </div>
+    <div id="metrics-body" class="metrics-body"></div>
+  </section>
 
   <aside id="activity" class="drawer" hidden aria-labelledby="activity-title">
     <div class="drawer-head">

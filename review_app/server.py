@@ -43,6 +43,7 @@ sys.path.insert(0, str(HERE))
 from data.case_store import Conflict, open_store  # noqa: E402
 from highlight import STYLE as HL_STYLE  # noqa: E402
 from highlight import mark_html, text_page  # noqa: E402
+import metrics  # noqa: E402
 
 AUTH = os.getenv("REVIEW_AUTH", "dev").strip().lower()
 ACCESS_CODE = os.getenv("REVIEW_ACCESS_CODE", "")
@@ -158,6 +159,25 @@ def read_session(token: str) -> str | None:
         return None
     return user_id
 
+
+class MetricsCache:
+    """The fields the Metrics view needs from every case, read at most every 30 s (understanding is large)."""
+
+    def __init__(self):
+        self.lock = threading.Lock()
+        self.at = 0.0
+        self.items: list[dict] = []
+
+    def get(self) -> list[dict]:
+        with self.lock:
+            if time.monotonic() - self.at > 30:
+                self.items = store().all("cases", metrics.FIELDS)
+                self.at = time.monotonic()
+            return self.items
+
+
+METRICS = MetricsCache()
+METRIC_RANGES = {"7": 7, "30": 30, "90": 90, "all": 0}
 
 _users: dict[str, dict] = {}
 
@@ -715,6 +735,11 @@ class Handler(BaseHTTPRequestHandler):
                                    "mode": AUTH})
         if path == "/api/cases" and method == "GET":
             return self.json(200, {"items": CASES.get(), "classifier": classifier_info(), "serverTime": now()})
+        if path == "/api/metrics" and method == "GET":
+            days = METRIC_RANGES.get((query.get("days") or ["30"])[0])
+            if days is None:
+                return self.json(400, {"error": "days"})
+            return self.json(200, metrics.compute(METRICS.get(), days, metrics.athens_day(now())))
         if path == "/api/ingest" and method == "GET":
             return self.json(200, ingest_info())
         if path == "/api/activity" and method == "GET":

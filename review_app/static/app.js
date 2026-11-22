@@ -72,6 +72,31 @@ const T = {
     actionsForOther: "Οι προτεινόμενες ενέργειες αφορούν την αρχική κατηγορία «{c}». Ελέγξτε αν ισχύουν ή προσθέστε άλλες.",
     noActionsChosen: "Δεν έχει επιλεγεί καμία ενέργεια.", addAction: "Προσθήκη ενέργειας", findAction: "Αναζήτηση ενέργειας ή κωδικού…",
     generalActions: "Γενικές ενέργειες", addedByYou: "προστέθηκε", remove: "Αφαίρεση", actionsCount: "{n} ενέργειες",
+    viewEmails: "Email", viewMetrics: "Στατιστικά", range7: "7 ημέρες", range30: "30 ημέρες", range90: "90 ημέρες",
+    rangeAll: "Όλα", rangeLabel: "Περίοδος", mPeriod: "{a} – {b} · ώρα Ελλάδας", mReceived: "Παραλήφθηκαν",
+    mAuto: "Αυτόματα", mReview: "Χρειάστηκαν έλεγχο", mException: "Σφάλμα", mWaiting: "Χωρίς ταξινόμηση ακόμη",
+    mOpen: "Εκκρεμούν για έλεγχο", mReviewed: "Ελέγχθηκαν", mTurnaround: "Διάμεσος χρόνος έως τον έλεγχο",
+    mOfClassified: "{p} των ταξινομημένων", mHours: "{n} ώρες", mNoData: "Δεν υπάρχουν email σε αυτή την περίοδο.",
+    mDaily: "Email ανά ημέρα", mDailySub: "Πώς δρομολογήθηκε κάθε email που παραλήφθηκε", mDay: "Ημέρα",
+    mTotal: "Σύνολο", mAsTable: "Προβολή ως πίνακας", mRouting: "Δρομολόγηση", mActionsTitle: "Ενέργειες",
+    mReasons: "Γιατί χρειάστηκαν έλεγχο", mReasonsSub: "Email ανά λόγο· ένα email μπορεί να έχει πολλούς λόγους",
+    mOutcome: "Αποτέλεσμα ελέγχου ανά δρομολόγηση", mOutcomeSub: "Πόσο συχνά ο ελεγκτής κράτησε την κατηγορία του συστήματος",
+    mRoute: "Δρομολόγηση", mEmails: "Email", mAccepted: "Σωστή κατηγορία", mChanged: "Άλλαξε", mNoneFits: "Καμία δεν ταιριάζει",
+    mAcceptRate: "Ποσοστό σωστών", mBands: "Βεβαιότητα και ακρίβεια", mBandsSub: "Βοηθά να οριστεί το όριο αυτόματης ταξινόμησης (σήμερα 90%)",
+    mBand: "Βεβαιότητα", mCategories: "Κατηγορίες", mCategoriesSub: "Κατηγορία συστήματος· αυτόματα και προς έλεγχο",
+    mCategory: "Κατηγορία", mAutoShare: "Αυτόματα %", mProposed: "Προτάθηκαν", mKept: "Κρατήθηκαν", mRemoved: "Αφαιρέθηκαν",
+    mAdded: "Προστέθηκαν από ελεγκτές", mKeptRate: "Ποσοστό που κρατήθηκε", mUnchanged: "Έλεγχοι χωρίς αλλαγή ενεργειών",
+    mActionsSub: "Προτάσεις των κανόνων και τι έκαναν οι ελεγκτές", mKind: "Ενέργεια", mFinal: "Τελικές",
+    mProposedAll: "Προτάθηκαν (όλα τα email)", mProposedReviewed: "Προτάθηκαν (ελεγμένα)",
+    mCodes: "Συχνότεροι κωδικοί αιτημάτων Qualco", mCodesSub: "Στις τελικές ενέργειες των ελεγμένων email", mCode: "Κωδικός",
+    mCount: "Φορές", mNoReviews: "Δεν υπάρχουν ακόμη ελεγμένα email σε αυτή την περίοδο.", mNone: "—",
+    mOfReviewed: "των ελεγμένων με προτάσεις", mAllCats: "Όλες οι κατηγορίες ({n})", mFewerCats: "Μόνο οι 10 συχνότερες",
+    rs_low_confidence: "Χαμηλή βεβαιότητα", rs_no_tax_id: "Δεν βρέθηκε ΑΦΜ", rs_tax_id_unknown: "Ο ΑΦΜ δεν είναι στο μητρώο",
+    rs_split_categories: "ΑΦΜ με διαφορετικές κατηγορίες", rs_no_category: "Καμία κατηγορία δεν ταιριάζει",
+    rs_attachment_unread: "Συνημμένο δεν διαβάστηκε", rs_failed: "Η ταξινόμηση απέτυχε", rs_no_result: "Χωρίς αποτέλεσμα",
+    rs_name_mismatch: "Το όνομα διαφέρει από το μητρώο", rs_possible_customer: "Μόνο πιθανός πελάτης",
+    rs_no_customer: "Δεν βρέθηκε πελάτης", rs_details_unread: "Στοιχεία πελάτη δεν διαβάστηκαν",
+    rs_email_missing: "Λείπει το email", rs_reset: "Επαναφορά ελέγχου", rs_other: "Άλλο",
   },
   en: {
     appName: "Email review", signIn: "Sign in", signOut: "Sign out", yourName: "Full name",
@@ -142,6 +167,31 @@ const T = {
     actionsForOther: "The proposed actions were made for the original category “{c}”. Check they still apply or add others.",
     noActionsChosen: "No action chosen.", addAction: "Add an action", findAction: "Search actions or codes…",
     generalActions: "General actions", addedByYou: "added", remove: "Remove", actionsCount: "{n} actions",
+    viewEmails: "Emails", viewMetrics: "Metrics", range7: "7 days", range30: "30 days", range90: "90 days",
+    rangeAll: "All", rangeLabel: "Period", mPeriod: "{a} – {b} · Greek time", mReceived: "Received",
+    mAuto: "Automatic", mReview: "Needed review", mException: "Error", mWaiting: "Not classified yet",
+    mOpen: "Still to review", mReviewed: "Reviewed", mTurnaround: "Median time to review",
+    mOfClassified: "{p} of classified", mHours: "{n} hours", mNoData: "No emails in this period.",
+    mDaily: "Emails per day", mDailySub: "How each received email was routed", mDay: "Day",
+    mTotal: "Total", mAsTable: "Show as table", mRouting: "Routing", mActionsTitle: "Actions",
+    mReasons: "Why emails needed review", mReasonsSub: "Emails per reason; one email can have several",
+    mOutcome: "Review outcome by route", mOutcomeSub: "How often the reviewer kept the system's category",
+    mRoute: "Route", mEmails: "Emails", mAccepted: "Right category", mChanged: "Changed", mNoneFits: "None fits",
+    mAcceptRate: "Right %", mBands: "Certainty and accuracy", mBandsSub: "Helps set the automatic threshold (now 90%)",
+    mBand: "Certainty", mCategories: "Categories", mCategoriesSub: "System category; automatic and to review",
+    mCategory: "Category", mAutoShare: "Automatic %", mProposed: "Proposed", mKept: "Kept", mRemoved: "Removed",
+    mAdded: "Added by reviewers", mKeptRate: "Kept rate", mUnchanged: "Reviews with actions unchanged",
+    mActionsSub: "What the rules proposed and what reviewers did", mKind: "Action", mFinal: "Final",
+    mProposedAll: "Proposed (all emails)", mProposedReviewed: "Proposed (reviewed)",
+    mCodes: "Most used Qualco request codes", mCodesSub: "In the final actions of reviewed emails", mCode: "Code",
+    mCount: "Times", mNoReviews: "No reviewed emails in this period yet.", mNone: "—",
+    mOfReviewed: "of reviewed emails with proposals", mAllCats: "All categories ({n})", mFewerCats: "Only the 10 most frequent",
+    rs_low_confidence: "Low certainty", rs_no_tax_id: "No tax ID found", rs_tax_id_unknown: "Tax ID not in registry",
+    rs_split_categories: "Tax IDs in different categories", rs_no_category: "No category fits",
+    rs_attachment_unread: "Attachment not read", rs_failed: "Classification failed", rs_no_result: "No result",
+    rs_name_mismatch: "Name differs from registry", rs_possible_customer: "Only a possible customer",
+    rs_no_customer: "No customer found", rs_details_unread: "Customer details not read",
+    rs_email_missing: "Email missing", rs_reset: "Review reset", rs_other: "Other",
   },
 };
 const FIELD = {
@@ -186,7 +236,8 @@ const REASONS_EL = [
 let lang = store("lang") || "el";
 const S = { user: null, mode: "dev", categories: [], items: [], queue: store("queue") || "review", day: "all",
             win: "all", basis: "received", sort: "newest", q: "", openId: null, detail: null, presence: {},
-            viewer: { tab: "email", page: null, images: false }, choice: null };
+            viewer: { tab: "email", page: null, images: false }, choice: null,
+            view: store("view") === "metrics" ? "metrics" : "emails", range: store("range") || "30", metrics: null };
 
 function store(key, value) {
   try {
@@ -824,7 +875,7 @@ async function openActivity() {
   const paint = () => {
     const events = (res.data.events || []).filter((e) => !onlyReviews.checked || e.action === "reviewed");
     body.replaceChildren(...(events.length ? events.map((e) => h("button", { type: "button", class: "activity-row",
-      onclick: () => { closeActivity(); openCase(e.caseId); } }, eventRow(e, h("div", { class: "ev-subject", text: e.subject || e.caseId }))))
+      onclick: () => { closeActivity(); setView("emails"); openCase(e.caseId); } }, eventRow(e, h("div", { class: "ev-subject", text: e.subject || e.caseId }))))
       : [h("p", { class: "muted", text: t("noEvents") })]));
   };
   onlyReviews.onchange = paint;
@@ -959,6 +1010,224 @@ async function loadIngest() {
     h("p", { class: "muted small", text: t("ingestDelay") }));
 }
 
+// ------------------------------------------------------------------ metrics view
+// Routes in a fixed order, bottom of the stack to the top; colours in app.css (--m-*). Validated set.
+const M_ROUTES = [["AUTO", "mAuto", "auto"], ["REVIEW", "mReview", "review"], ["EXCEPTION", "mException", "exc"],
+  ["WAITING", "mWaiting", "wait"]];
+const SVG_NS = "http://www.w3.org/2000/svg";
+const fmtN = (n) => n == null ? t("mNone") : new Intl.NumberFormat(lang === "el" ? "el-GR" : "en-GB").format(n);
+const fmtP = (p) => p == null ? t("mNone") : `${new Intl.NumberFormat(lang === "el" ? "el-GR" : "en-GB", { maximumFractionDigits: 1 }).format(p)}%`;
+
+function svg(tag, attrs = {}, ...kids) {
+  const el = document.createElementNS(SVG_NS, tag);
+  for (const [k, v] of Object.entries(attrs)) if (v !== null && v !== undefined) el.setAttribute(k, v);
+  for (const kid of kids.flat()) if (kid) el.append(kid);
+  return el;
+}
+function niceMax(v) {
+  if (v <= 4) return 4;
+  const step = 10 ** Math.floor(Math.log10(v / 4));
+  const nice = [1, 2, 2.5, 5, 10].map((m) => m * step).find((s) => s * 4 >= v);
+  return nice * 4;
+}
+function shortDay(day) {
+  const [y, m, d] = day.split("-").map(Number);
+  return new Intl.DateTimeFormat(lang === "el" ? "el-GR" : "en-GB", { day: "numeric", month: "short", timeZone: "UTC" })
+    .format(Date.UTC(y, m - 1, d));
+}
+
+function statTile(label, value, sub, key) {
+  return h("div", { class: "tile", "data-key": key || null },
+    h("div", { class: "tile-label" }, key ? h("span", { class: `swatch m-${key}`, "aria-hidden": "true" }) : null, label),
+    h("div", { class: "tile-value", text: value }),
+    sub ? h("div", { class: "tile-sub", text: sub }) : null);
+}
+
+function legend() {
+  return h("ul", { class: "mlegend" }, ...M_ROUTES.map(([, label, key]) =>
+    h("li", {}, h("span", { class: `swatch m-${key}`, "aria-hidden": "true" }), t(label))));
+}
+
+// Stacked columns: one per day, routes stacked in M_ROUTES order with a 2px surface gap, rounded top.
+function dailyChart(daily) {
+  const box = h("div", { class: "chart" });
+  const tip = h("div", { class: "tip", role: "status", hidden: true });
+  const draw = () => {
+    const width = Math.max(box.clientWidth, 280);
+    const height = 240, left = 36, right = 8, top = 18, bottom = 26;
+    const plotW = width - left - right, plotH = height - top - bottom;
+    const max = niceMax(Math.max(1, ...daily.map((d) => d.received)));
+    const y = (v) => top + plotH - (v / max) * plotH;
+    const band = plotW / daily.length;
+    const barW = Math.max(2, Math.min(24, band * 0.62));
+    const labelEvery = Math.ceil(daily.length / Math.max(1, Math.floor(plotW / 56)));
+    const chart = svg("svg", { width, height, role: "img", "aria-label": `${t("mDaily")}: ${daily.map((d) => `${d.day} ${d.received}`).join(", ")}` });
+    for (let i = 0; i <= 4; i++) {
+      const v = (max / 4) * i;
+      chart.append(svg("line", { x1: left, x2: width - right, y1: y(v), y2: y(v), class: i ? "grid" : "base" }),
+        svg("text", { x: left - 6, y: y(v) + 4, "text-anchor": "end", class: "tick" }, document.createTextNode(fmtN(v))));
+    }
+    daily.forEach((d, i) => {
+      const x = left + band * i + (band - barW) / 2;
+      const parts = M_ROUTES.map(([route, , key]) => [d[route], key]).filter(([n]) => n > 0);
+      let base = 0;
+      parts.forEach(([n, key], j) => {
+        const y0 = y(base), y1 = y(base + n);
+        const last = j === parts.length - 1;
+        const gap = j > 0 ? 2 : 0;  // the surface gap sits at the bottom of every segment but the first
+        const h0 = Math.max(0, y0 - y1 - gap);
+        const r = last ? Math.min(4, h0, barW / 2) : 0;
+        const yb = y0 - gap, yt = yb - h0;
+        const path = r
+          ? `M${x},${yb}V${yt + r}Q${x},${yt} ${x + r},${yt}H${x + barW - r}Q${x + barW},${yt} ${x + barW},${yt + r}V${yb}Z`
+          : `M${x},${yb}V${yt}H${x + barW}V${yb}Z`;
+        chart.append(svg("path", { d: path, class: `bar m-${key}` }));
+        base += n;
+      });
+      if (d.received && band >= 26) {
+        chart.append(svg("text", { x: x + barW / 2, y: y(d.received) - 5, "text-anchor": "middle", class: "cap" },
+          document.createTextNode(fmtN(d.received))));
+      }
+      if (i % labelEvery === 0) {
+        chart.append(svg("text", { x: left + band * i + band / 2, y: height - 8, "text-anchor": "middle", class: "tick" },
+          document.createTextNode(shortDay(d.day))));
+      }
+      const hit = svg("rect", { x: left + band * i, y: top, width: band, height: plotH, class: "hit", tabindex: "0",
+        "aria-label": `${dayLabel(d.day)}: ${fmtN(d.received)}` });
+      const show = () => {
+        tip.replaceChildren(h("strong", { text: dayLabel(d.day) }),
+          h("div", { class: "tip-row" }, h("span", { text: t("mReceived") }), h("b", { text: fmtN(d.received) })),
+          ...[...M_ROUTES].reverse().map(([route, label, key]) => h("div", { class: "tip-row" },
+            h("span", {}, h("span", { class: `swatch m-${key}`, "aria-hidden": "true" }), t(label)), h("b", { text: fmtN(d[route]) }))),
+          h("div", { class: "tip-row muted" }, h("span", { text: t("mOpen") }), h("b", { text: fmtN(d.open) })));
+        tip.hidden = false;
+        const cx = left + band * i + band / 2;
+        tip.style.left = `${Math.min(Math.max(cx - 90, 0), width - 180)}px`;
+        tip.style.top = `${Math.max(y(d.received) - 150, 0)}px`;
+        chart.querySelectorAll(".hit").forEach((el) => el.classList.toggle("on", el === hit));
+      };
+      const hide = () => { tip.hidden = true; hit.classList.remove("on"); };
+      hit.addEventListener("mouseenter", show); hit.addEventListener("focus", show);
+      hit.addEventListener("mouseleave", hide); hit.addEventListener("blur", hide);
+      chart.append(hit);
+    });
+    box.replaceChildren(chart, tip);
+  };
+  box._draw = draw;
+  return box;
+}
+
+function table(head, rows, opts = {}) {
+  return h("div", { class: "table-wrap" }, h("table", { class: `mtable ${opts.class || ""}` },
+    h("thead", {}, h("tr", {}, ...head.map((x, i) => h("th", { class: i ? "num" : null, text: x })))),
+    h("tbody", {}, ...rows.map((r) => h("tr", {}, ...r.map((x, i) => h("td", { class: i ? "num" : null }, x)))))));
+}
+// A value with a thin bar behind it (single series, so no legend: the column header names it).
+function barCell(value, max, text) {
+  return h("div", { class: "barcell" }, h("span", { class: "barfill", style: `width:${max ? (100 * value) / max : 0}%` }),
+    h("span", { class: "barval", text: text ?? fmtN(value) }));
+}
+function mcard(title, sub, ...body) {
+  const wide = body[0] === "wide";
+  if (wide) body.shift();
+  return h("section", { class: wide ? "mcard wide" : "mcard" }, h("h3", {}, h("span", { text: title }), sub ? h("span", { class: "sub", text: sub }) : null), ...body);
+}
+
+function renderMetrics() {
+  const m = S.metrics;
+  const body = $("#metrics-body");
+  $("#ranges").replaceChildren(...[["7", "range7"], ["30", "range30"], ["90", "range90"], ["all", "rangeAll"]].map(([v, k]) =>
+    h("button", { type: "button", "aria-pressed": String(S.range === v), onclick: () => { S.range = v; store("range", v); loadMetrics(); } }, t(k))));
+  if (!m) return;
+  const tot = m.totals;
+  if (!tot.received) {
+    body.replaceChildren(h("p", { class: "muted period", text: t("mPeriod", { a: dayLabel(m.from), b: dayLabel(m.to) }) }),
+      h("div", { class: "mcard empty-m", text: t("mNoData") }));
+    return;
+  }
+  const chart = dailyChart(m.daily);
+  const r = m.routing, a = m.actions;
+  const routeName = { AUTO: t("mAuto"), REVIEW: t("mReview"), EXCEPTION: t("mException") };
+  const maxReason = Math.max(0, ...r.reasons.map((x) => x.emails));
+  const maxBand = Math.max(0, ...r.bands.map((x) => x.emails));
+  const maxKind = Math.max(0, ...a.byKind.map((x) => x.proposed));
+  const anyReviewed = tot.reviewed > 0;
+  body.replaceChildren(
+    h("p", { class: "muted period", text: t("mPeriod", { a: dayLabel(m.from), b: dayLabel(m.to) }) }),
+    h("div", { class: "tiles" },
+      statTile(t("mReceived"), fmtN(tot.received)),
+      statTile(t("mAuto"), fmtN(tot.auto), t("mOfClassified", { p: fmtP(tot.autoPct) }), "auto"),
+      statTile(t("mReview"), fmtN(tot.review + tot.exception),
+        `${t("mOfClassified", { p: fmtP(tot.reviewPct) })} · ${t("mException")}: ${fmtN(tot.exception)}`, "review"),
+      statTile(t("mWaiting"), fmtN(tot.waiting), null, "wait"),
+      statTile(t("mOpen"), fmtN(tot.open)),
+      statTile(t("mReviewed"), fmtN(tot.reviewed),
+        tot.medianHoursToReview == null ? null : `${t("mTurnaround")}: ${t("mHours", { n: fmtN(tot.medianHoursToReview) })}`)),
+    mcard(t("mDaily"), t("mDailySub"), legend(), chart,
+      h("details", { class: "astable" }, h("summary", { text: t("mAsTable") }),
+        table([t("mDay"), t("mReceived"), t("mAuto"), t("mReview"), t("mException"), t("mWaiting"), t("mReviewed"), t("mOpen")],
+          [...m.daily].reverse().filter((d) => d.received).map((d) => [dayLabel(d.day), fmtN(d.received), fmtN(d.AUTO),
+            fmtN(d.REVIEW), fmtN(d.EXCEPTION), fmtN(d.WAITING), fmtN(d.reviewed), fmtN(d.open)])))),
+    h("h2", { class: "msection", text: t("mRouting") }),
+    h("div", { class: "mgrid" },
+      mcard(t("mReasons"), t("mReasonsSub"), r.reasons.length
+        ? table([t("mReasons"), t("mEmails")], r.reasons.map((x) => [t(`rs_${x.key}`), barCell(x.emails, maxReason)]), { class: "bars" })
+        : h("p", { class: "muted pad", text: t("mNone") })),
+      mcard(t("mBands"), t("mBandsSub"),
+        table([t("mBand"), t("mEmails"), t("mReviewed"), t("mAcceptRate")],
+          [...r.bands].reverse().map((b) => [b.to === 100 ? `${b.from}–100%` : `${b.from}–${b.to}%`, barCell(b.emails, maxBand),
+            fmtN(b.reviewed), fmtP(b.acceptedPct)]), { class: "bars" })),
+      mcard(t("mOutcome"), t("mOutcomeSub"), "wide", anyReviewed
+        ? table([t("mRoute"), t("mEmails"), t("mReviewed"), t("mAccepted"), t("mChanged"), t("mNoneFits"), t("mAcceptRate")],
+          Object.entries(r.byRoute).map(([k, v]) => [routeName[k], fmtN(v.emails), fmtN(v.reviewed), fmtN(v.accepted),
+            fmtN(v.changed), fmtN(v.noneFits), fmtP(v.acceptedPct)]))
+        : h("p", { class: "muted pad", text: t("mNoReviews") })),
+      mcard(t("mCategories"), t("mCategoriesSub"), "wide",
+        table([t("mCategory"), t("mEmails"), t("mAuto"), t("mReview"), t("mAutoShare"), t("mAcceptRate")],
+          r.categories.slice(0, S.allCats ? undefined : 10).map((c) => [catLabel(c.category), fmtN(c.emails), fmtN(c.auto),
+            fmtN(c.review), fmtP(c.autoPct), fmtP(c.acceptedPct)]), { class: "cats" }),
+        r.categories.length > 10 ? h("button", { type: "button", class: "link more-cats",
+          onclick: () => { S.allCats = !S.allCats; renderMetrics(); } },
+        S.allCats ? t("mFewerCats") : t("mAllCats", { n: r.categories.length })) : null)),
+    h("h2", { class: "msection", text: t("mActionsTitle") }),
+    h("div", { class: "tiles" },
+      statTile(t("mProposedAll"), fmtN(a.totals.proposed)),
+      statTile(t("mKept"), fmtN(a.totals.kept), a.totals.keptPct == null ? null : `${fmtP(a.totals.keptPct)} · ${t("mProposedReviewed")}: ${fmtN(a.totals.proposedReviewed)}`),
+      statTile(t("mRemoved"), fmtN(a.totals.removed)),
+      statTile(t("mAdded"), fmtN(a.totals.added)),
+      statTile(t("mUnchanged"), fmtP(a.totals.unchangedPct), `${fmtN(a.totals.casesWithProposals)} ${t("mOfReviewed")}`)),
+    h("div", { class: "mgrid" },
+      mcard(t("mActionsTitle"), t("mActionsSub"), "wide", a.byKind.length
+        ? table([t("mKind"), t("mProposedAll"), t("mProposedReviewed"), t("mKept"), t("mRemoved"), t("mAdded"), t("mKeptRate")],
+          a.byKind.map((k) => [ACTION[lang][k.do] || k.do, barCell(k.proposed, maxKind), fmtN(k.proposedReviewed), fmtN(k.kept),
+            fmtN(k.removed), fmtN(k.added), fmtP(k.keptPct)]), { class: "bars" })
+        : h("p", { class: "muted pad", text: t("mNone") })),
+      mcard(t("mCodes"), t("mCodesSub"), a.codes.length
+        ? table([t("mCode"), t("mCount")], a.codes.map((c) => [c.code, fmtN(c.count)]))
+        : h("p", { class: "muted pad", text: anyReviewed ? t("mNone") : t("mNoReviews") }))));
+  chart._draw();
+}
+
+async function loadMetrics() {
+  renderMetrics();
+  if (!S.metrics) $("#metrics-body").replaceChildren(spinner(t("loading")));
+  $("#metrics-body").setAttribute("aria-busy", "true");
+  const res = await api(`/api/metrics?days=${encodeURIComponent(S.range)}`).catch(() => null);
+  $("#metrics-body").removeAttribute("aria-busy");
+  if (!res || !res.ok) { $("#metrics-body").replaceChildren(h("p", { class: "error", text: t("error") })); return; }
+  S.metrics = res.data;
+  renderMetrics();
+}
+
+function setView(view) {
+  S.view = view;
+  store("view", view);
+  document.querySelectorAll("#views button").forEach((b) => b.setAttribute("aria-current", String(b.dataset.view === view)));
+  $(".layout").hidden = view !== "emails";
+  $("#metrics").hidden = view !== "metrics";
+  if (view === "metrics") loadMetrics();
+}
+
 function showSignin() {
   $("#splash").hidden = true;
   $("#app").hidden = true;
@@ -983,6 +1252,7 @@ async function start() {
   setInterval(loadIngest, 60000);
   await loadCases();
   const fromHash = decodeURIComponent(location.hash.slice(1));
+  setView(fromHash ? "emails" : S.view);
   if (fromHash) openCase(fromHash);
   setTimeout(pollCases, S.classifier && S.classifier.running ? 4000 : 20000);
   setInterval(sync, 15000);
@@ -1015,11 +1285,14 @@ function wire() {
     start();
   });
   $("#signout").addEventListener("click", async () => { await api("/api/logout", { json: {} }); location.hash = ""; location.reload(); });
-  $("#lang").addEventListener("click", () => { lang = lang === "el" ? "en" : "el"; store("lang", lang); applyWords(); renderDays(); renderList(); renderCase(); renderViewer(); });
+  $("#lang").addEventListener("click", () => { lang = lang === "el" ? "en" : "el"; store("lang", lang); applyWords(); renderDays(); renderList(); renderCase(); renderViewer(); if (S.view === "metrics") renderMetrics(); });
   $("#search").addEventListener("input", (e) => { S.q = e.target.value; renderList(); });
   $("#day").addEventListener("change", (e) => { S.day = e.target.value; S.win = "all"; renderList(); });
   $("#basis").addEventListener("change", (e) => { S.basis = e.target.value; S.day = "all"; S.win = "all"; renderDays(); renderList(); });
   $("#sort").addEventListener("change", (e) => { S.sort = e.target.value; renderList(); });
+  document.querySelectorAll("#views button").forEach((b) => b.addEventListener("click", () => setView(b.dataset.view)));
+  let resizing;
+  window.addEventListener("resize", () => { clearTimeout(resizing); resizing = setTimeout(() => { if (S.view === "metrics") renderMetrics(); }, 150); });
   $("#activity-open").addEventListener("click", openActivity);
   $("#activity-close").addEventListener("click", closeActivity);
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("#activity").hidden) closeActivity(); });

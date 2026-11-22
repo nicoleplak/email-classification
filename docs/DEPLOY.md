@@ -77,6 +77,20 @@ Review app (`ca-emclf-llm-gr`, set by `configure_azure.sh app`):
 
 The review app holds no mailbox secret and no AI keys.
 
+## Metrics view
+
+The review app's **Metrics** tab (top bar) shows, for the last 7 / 30 / 90 days or everything, in Greek time:
+
+- **Per day:** emails received and how each was routed: automatic, needed review, error, or not classified yet.
+  Also how many have been reviewed and how many are still waiting for review.
+- **Routing:** why emails needed review, certainty bands with how often reviewers kept the category (use this
+  to tune `AUTO_ACCEPT_THRESHOLD`), the review outcome per route, and per category.
+- **Actions:** what the action rules proposed, how many reviewers kept, removed or added, and the Qualco
+  request codes used most.
+
+Served by `GET /api/metrics?days=7|30|90|all`, computed in `review_app/metrics.py` from the case store
+(read at most every 30 s). It needs nothing new in Azure.
+
 ## Importing emails by hand
 
 Outlook `.msg` files (for example `test_data/`) go in with a local tool:

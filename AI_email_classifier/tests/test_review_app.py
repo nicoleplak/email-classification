@@ -253,3 +253,13 @@ def test_case_list_carries_classifier_progress_and_ignores_a_dead_run(app):
 
     server.STORE.upsert("runs", {"id": "classifier-status", "state": "running", "updatedAt": stamp(3600)})
     assert json.loads(call(f"{base}/api/cases", cookie=cookie)[2])["classifier"]["running"] is False
+
+
+def test_metrics_need_sign_in_and_a_known_range(app):
+    _, base, _ = app
+    assert call(f"{base}/api/metrics")[0] == 401
+    cookie = sign_in(base)
+    assert call(f"{base}/api/metrics?days=12", cookie=cookie)[0] == 400
+    status, _, body = call(f"{base}/api/metrics?days=all", cookie=cookie)
+    data = json.loads(body)
+    assert status == 200 and data["totals"]["received"] == 1 and data["totals"]["review"] == 1

@@ -243,6 +243,29 @@ async function behaviour(browser) {
   ok("reload keeps the open case", reopened);
   await page.screenshot({ path: path.join(OUTPUT, "review_1600x900.png") });
 
+  // Metrics view: tiles, a column per day with a tooltip, the tables, range buttons, back to the emails.
+  await page.click('#views button[data-view="metrics"]');
+  await page.waitForSelector("#metrics .tile");
+  ok("metrics view replaces the email panes", await page.$eval(".layout", (l) => l.hidden) && !(await page.$eval("#metrics", (m) => m.hidden)));
+  const tiles = await page.$$eval("#metrics .tile-value", (v) => v.map((x) => x.textContent));
+  ok("metrics tiles show numbers", tiles.length >= 6 && /\d/.test(tiles[0]), { tiles: tiles.length });
+  const columns = await page.locator("#metrics .chart .hit").count();
+  ok("daily chart has one column per day (30 days)", columns === 30, { columns });
+  const busiest = await page.$$eval("#metrics .chart .hit", (hits) => hits.findIndex((h) => !/: 0$/.test(h.getAttribute("aria-label"))));
+  await page.hover(`#metrics .chart .hit >> nth=${Math.max(busiest, 0)}`);
+  ok("hovering a day shows its counts", await page.$eval("#metrics .tip", (t) => !t.hidden && t.querySelectorAll(".tip-row").length === 6));
+  const tables = await page.locator("#metrics .mtable").count();
+  ok("routing and action tables are shown", tables >= 5, { tables });
+  await page.click("#ranges button >> nth=0");
+  await page.waitForFunction(() => document.querySelectorAll("#metrics .chart .hit").length === 7);
+  ok("7-day range redraws the chart", (await page.locator("#metrics .chart .hit").count()) === 7);
+  await page.click("#ranges button >> nth=1");
+  const msideways = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
+  ok("metrics: no sideways page scroll", msideways <= 1, { sideways: msideways });
+  await page.screenshot({ path: path.join(OUTPUT, "metrics_1600x900.png") });
+  await page.click('#views button[data-view="emails"]');
+  ok("back to the emails", !(await page.$eval(".layout", (l) => l.hidden)) && (await page.locator("#list .item").count()) > 0);
+
   ok("no script errors", scriptErrors === 0, { scriptErrors });
   ok("no console errors", consoleErrors === 0, { consoleErrors });
   await context.close();
@@ -259,6 +282,11 @@ async function layoutAt(browser, width, height) {
   const listBox = await page.locator("#list").boundingBox();
   ok(`${width}x${height} list is visible`, listBox && listBox.height > 100, { listHeight: listBox && Math.round(listBox.height) });
   await page.screenshot({ path: path.join(OUTPUT, `review_${width}x${height}.png`) });
+  await page.click('#views button[data-view="metrics"]');
+  await page.waitForSelector("#metrics .chart svg");
+  const msideways = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
+  ok(`${width}x${height} metrics: no sideways page scroll`, msideways <= 1, { sideways: msideways });
+  await page.screenshot({ path: path.join(OUTPUT, `metrics_${width}x${height}.png`) });
   await context.close();
 }
 
@@ -277,7 +305,7 @@ async function layoutAt(browser, width, height) {
     const fade = await sampling;
     ok("reduced motion still fades the case in", fade > 0 && fade < 1, { fade });
     await reduced.close();
-    for (const [w, h] of [[1920, 1080], [1366, 768], [1280, 600], [800, 900]]) await layoutAt(browser, w, h);
+    for (const [w, h] of [[1920, 1080], [1366, 768], [1280, 600], [800, 900], [390, 844]]) await layoutAt(browser, w, h);
   } catch (error) {
     ok("run completed", false, String(error.message).split("\n")[0].slice(0, 160));
   } finally {

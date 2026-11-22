@@ -1,7 +1,8 @@
 """Fill a local folder with invented emails, so the classifier and review app run with no Azure at all.
 
-    python tools/local_demo.py                     # 12 invented emails, given made-up classifications
-    python tools/local_demo.py --emails 30
+    python tools/local_demo.py                     # 40 invented emails over two weeks, classified, some reviewed
+    python tools/local_demo.py --emails 100
+    python tools/local_demo.py --no-reviews        # classified, but nobody has reviewed anything yet
     python tools/local_demo.py --unclassified      # leave them waiting, for the real classifier to classify
     python tools/local_demo.py --folder other_dir  # default: local_data/ (git-ignored)
 
@@ -13,7 +14,8 @@ Writes, under <folder>/blob/ (the stand-in for the blob container, LOCAL_BLOB_DI
 and registers them as cases in <folder>/case_store/ (LOCAL_STORE_DIR). Without --unclassified, a stand-in
 model (no network calls) classifies them through the real run_classifier and understand code, so every
 queue and card in the review app has something in it: AUTO, REVIEW, EXCEPTION and not-yet-classified,
-customer details, evidence highlights and attachment text.
+customer details, evidence highlights and attachment text. Older emails also get invented reviews (category
+kept or changed, actions kept, removed or added), so the Metrics view has numbers in every table.
 
 Then start the review app on the same folders (the script prints the exact command):
 
@@ -100,11 +102,11 @@ def tiny_pdf(text: str) -> bytes:
     return bytes(out)
 
 
-def invented_email(n: int, now: datetime, upload) -> dict:
+def invented_email(n: int, now: datetime, upload, hours_ago: float | None = None) -> dict:
     name, address = SENDERS[n % len(SENDERS)]
     subject, ask = REQUESTS[n % len(REQUESTS)]
     afm = invented_afm(n)
-    received = now - timedelta(hours=n * 5, minutes=n * 7)
+    received = now - timedelta(hours=n * 8.5 + 1 if hours_ago is None else hours_ago, minutes=n * 7)
     key = f"demo-{hashlib.sha256(f'{now.isoformat()}-{n}'.encode()).hexdigest()[:16]}"
     text = f"Καλημέρα σας,\n\n{ask}\nΑΦΜ: {afm}\n\nΕυχαριστώ,\n{name}"
     html = "<p>" + "</p><p>".join(line or "&nbsp;" for line in text.split("\n")) + "</p>"
@@ -233,10 +235,57 @@ class FakeModel:
         return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=json.dumps(answer)))])
 
 
+def invented_reviews(store, categories: list[str], now: datetime) -> int:
+    """Review most classified emails older than two days, the way people would: the category is usually
+    kept, sometimes changed or found not to fit; proposed actions are usually kept, sometimes one is
+    removed or a manual one added. Written like review_app/server.py save_review, with an audit entry."""
+    import uuid
+
+    reviewers = [{"id": "dev-demo-a", "name": "Demo reviewer A", "email": "reviewer.a@example.test"},
+                 {"id": "dev-demo-b", "name": "Demo reviewer B", "email": "reviewer.b@example.test"}]
+    cutoff = (now - timedelta(days=2)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    cases = sorted((c for c in store.find("cases", "status", "CLASSIFIED") if (c.get("receivedAt") or "") < cutoff),
+                   key=lambda c: c["receivedAt"])
+    done = 0
+    for i, case in enumerate(cases):
+        if i % 10 >= 8:
+            continue  # some stay in the queue
+        model = case.get("modelCategory")
+        no_match = bool(model) and int(case["id"][-8:], 16) % 9 == 4
+        # The id ends in 8 hex digits of a hash: a fair, repeatable "coin" independent of the order above.
+        coin = int(case["id"][-8:], 16)
+        if not model or (case.get("route") != "AUTO" and coin % 4 == 1):
+            final = categories[(i * 3) % len(categories)]  # the reviewer picked another category
+        else:
+            final = model
+        proposed = (case.get("understanding") or {}).get("actions") or []
+        kept = proposed[:-1] if proposed and i % 3 == 0 else proposed
+        actions = [{"do": a["do"], "category": a.get("category"), "codes": a.get("codes") or [], "open": a.get("open"),
+                    "closed": a.get("closed"), "to": [a["to"]] if isinstance(a.get("to"), str) else a.get("to") or [],
+                    "source": "suggested"} for a in kept]
+        if i % 5 == 2:
+            actions.append({"do": "manual", "category": final, "codes": [], "open": None, "closed": None, "to": [],
+                            "source": "added"})
+        reviewer = reviewers[i % 2]
+        received = datetime.fromisoformat(case["receivedAt"].replace("Z", "+00:00"))
+        at = min(received + timedelta(hours=2 + (i * 7) % 30), now).strftime("%Y-%m-%dT%H:%M:%SZ")
+        fields = ("status", "finalCategory", "otherCategories", "finalActions", "reviewComment")
+        before = {k: case.get(k) for k in fields}
+        saved = store.replace("cases", {**case, "status": "REVIEWED", "finalCategory": None if no_match else final,
+                                        "noMatch": no_match, "otherCategories": [], "finalActions": actions,
+                                        "reviewComment": "", "reviewedBy": reviewer, "reviewedAt": at, "updatedAt": at})
+        store.create("audit", {"id": uuid.uuid4().hex, "caseId": case["id"], "at": at, "by": reviewer["id"],
+                               "byName": reviewer["name"], "action": "reviewed", "before": before,
+                               "after": {k: saved.get(k) for k in fields}})
+        done += 1
+    return done
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--folder", default=str(ROOT / "local_data"), help="default: local_data/ in the repo")
-    parser.add_argument("--emails", type=int, default=12)
+    parser.add_argument("--emails", type=int, default=40)
+    parser.add_argument("--no-reviews", action="store_true", help="classify, but add no invented reviews")
     parser.add_argument("--unclassified", action="store_true", help="register only; classify later")
     args = parser.parse_args()
 
@@ -261,8 +310,8 @@ def main() -> int:
     registry_blob = f"in/qualco_output_{now:%Y%m%d}.csv"
     blob_output.upload_bytes(registry_blob, registry_csv(total))
 
-    def write_run(run: str, numbers: range) -> int:
-        messages = [invented_email(n, now, blob_output.upload_bytes) for n in numbers]
+    def write_run(run: str, numbers: range, hours_ago: float | None = None) -> int:
+        messages = [invented_email(n, now, blob_output.upload_bytes, hours_ago) for n in numbers]
         blob_output.upload_bytes(f"bronze/{run}/emails.json", json.dumps(
             {"messages": messages, "removed": []}, ensure_ascii=False, indent=1).encode("utf-8"))
         return len(messages)
@@ -294,9 +343,11 @@ def main() -> int:
                                      understand_factory=understand_factory)
         print("Fake classification:", {k: v for k, v in totals.items() if v})
         later = f"import-demo-{stamp}-waiting"
-        write_run(later, range(args.emails, total))
+        write_run(later, range(args.emails, total), hours_ago=0.5)
         rc.register_runs(store, blob_output, rc.utcnow())
         print(f"Wrote {waiting_count} more as bronze/{later}/emails.json, left waiting for the classifier")
+        if not args.no_reviews:
+            print(f"Invented reviews: {invented_reviews(store, categories, now)}")
 
     print("\nStart the review app on these folders (http://127.0.0.1:8765):\n")
     print(f'  LOCAL_BLOB_DIR="{blob_dir}" LOCAL_STORE_DIR="{store_dir}" REVIEW_AUTH=dev python review_app/server.py')
