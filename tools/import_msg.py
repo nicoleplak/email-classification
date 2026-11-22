@@ -11,6 +11,8 @@ Writes, in container email-classification:
 The classifier always registers runs named import-*, even when REGISTER_RUNS_FROM skips older ingest runs.
 
 Auth: STG_KEY (storage account key) if set, else your az login (needs Storage Blob Data Contributor).
+Offline: set LOCAL_BLOB_DIR to write into that local folder instead of Azure (no login needed); the
+.msg files must then come from a local folder.
 Local tool only: needs extract-msg (requirements/requirements-tools.txt), which the image does not carry.
 """
 
@@ -146,10 +148,15 @@ def convert(raw: bytes, upload) -> dict:
 
 
 def main(target: str) -> None:
-    client = container_client()
+    from data import blob_output
+
+    offline = blob_output.local_root() is not None
+    client = None if offline else container_client()
     local = Path(target)
     if local.exists():
         sources = [(p.name, p.read_bytes) for p in sorted(local.rglob("*.msg"))]
+    elif offline:
+        sys.exit(f"{target} is not a local folder (LOCAL_BLOB_DIR is set, so Azure is not read)")
     else:
         names = sorted(b.name for b in client.list_blobs(name_starts_with=target) if b.name.lower().endswith(".msg"))
         sources = [(n.rsplit("/", 1)[-1], lambda n=n: client.download_blob(n).readall()) for n in names]
@@ -157,7 +164,10 @@ def main(target: str) -> None:
         sys.exit(f"No .msg files under {target}")
 
     def upload(path: str, data: bytes) -> None:
-        client.upload_blob(path, data, overwrite=True)
+        if offline:
+            blob_output.upload_bytes(path, data)
+        else:
+            client.upload_blob(path, data, overwrite=True)
 
     messages = []
     for number, (_name, read) in enumerate(sources, 1):  # file names can hold customer names: not printed

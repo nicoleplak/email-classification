@@ -239,6 +239,13 @@ A `.eml` is the raw email: Greek text and attachments are encoded, so Notepad or
 python tools\eml_to_html.py <file.eml or folder>   # no arguments: run its self-check
 ```
 
+### Running everything locally, without Azure
+
+Set `LOCAL_BLOB_DIR` to a folder and the classifier, the review app and the Graph ingest read and write it
+instead of the blob container. `python tools/local_demo.py` fills `local_data/` with invented emails, an
+invented registry and classified cases, and prints the command that starts the review app on them. See
+`docs/DEPLOY.md`, *Running locally*.
+
 ## 9. Troubleshooting and failure behavior
 
 - **No messages:** inspect mailbox, Inbox, UTC date range, active unread/category filter and excluded domains. A Graph filter cannot begin with `and`.

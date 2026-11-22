@@ -20,3 +20,6 @@ __pycache__/
 ui_test_output/
 node_modules/
 review_app/.session_secret
+
+# tools/local_demo.py: the offline stand-in for blob storage and Cosmos
+local_data/

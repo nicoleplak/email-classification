@@ -88,6 +88,39 @@ Then run the job (or `python -m main` locally) to classify them.
 
 ## Running locally
 
+### Without Azure (invented emails)
+
+`LOCAL_BLOB_DIR` makes every blob read and write (classifier, review app, Graph ingest, `tools/import_msg.py`)
+use a local folder with the same layout instead of the storage account. Together with the local case store
+(`CASE_STORE=local`, the default, in `LOCAL_STORE_DIR`), nothing needs Azure, keys or a login.
+
+    python tools/local_demo.py                 # invented emails + registry in local_data/ (git-ignored)
+    LOCAL_BLOB_DIR=local_data/blob LOCAL_STORE_DIR=local_data/case_store REVIEW_AUTH=dev \
+        python review_app/server.py            # http://127.0.0.1:8765
+
+PowerShell:
+
+    python tools\local_demo.py
+    $env:LOCAL_BLOB_DIR="local_data\blob"; $env:LOCAL_STORE_DIR="local_data\case_store"; $env:REVIEW_AUTH="dev"
+    python review_app\server.py
+
+`local_demo.py` classifies the emails with a stand-in model (no network calls) through the real
+`run_classifier` and `understand` code, so every queue and card has something in it; two emails are left
+waiting. `--unclassified` leaves all of them waiting instead, for the real classifier. Run it again to add
+more; delete `local_data/` to start over. Everything in it is invented.
+
+The real classifier on the same folder (only the model keys are needed; the registry is the invented one):
+
+    cd AI_email_classifier
+    LOCAL_BLOB_DIR=../local_data/blob LOCAL_STORE_DIR=../local_data/case_store UPLOAD_RESULTS_TO_BLOB=true \
+        AZURE_OPENAI_ENDPOINT=... AZURE_OPENAI_API_KEY=... AZURE_OPENAI_DEPLOYMENT=... AZURE_OPENAI_API_VERSION=... \
+        DOC_INTEL_ENDPOINT=... DOC_INTEL_API_KEY=... python -m main
+
+Real `.msg` files can go into the folder too: `LOCAL_BLOB_DIR=local_data/blob python tools/import_msg.py <folder>`.
+They are client data then: keep them on your machine.
+
+### Against dev Azure
+
     # classifier against dev Azure: needs the variables above in your shell
     cd AI_email_classifier && python -m main
     # review app on http://127.0.0.1:8765 (no access code, local only)
