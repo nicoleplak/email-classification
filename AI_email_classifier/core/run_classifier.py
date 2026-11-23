@@ -212,21 +212,44 @@ def _classify_message(processor, message: dict[str, Any], text_dir: Path) -> lis
     return processor.process_batch([message], export=False, use_thread_context=True)
 
 
+NEEDS_CUSTOMER = {"request", "ask_identification"}  # actions that only make sense for a known customer
+
+
 def understanding_reasons(understanding: dict[str, Any] | None) -> list[str]:
-    """Extra REVIEW reasons from reading the email: a name that does not fit the tax ID, a failed read."""
+    """Extra REVIEW reasons from reading the email (business rules, Nov 2026).
+
+    Only a tax ID or an account identifies the customer; a name or email match is complementary and is
+    never a reason on its own (a name that differs from the registry owner is shown, not routed).
+    The customer only matters when an action needs one: folders, forwards and activities do not.
+    """
     if not understanding:
         return []
     if understanding.get("error"):
         return ["the customer details could not be read: " + understanding["error"]]
     reasons = []
-    if any(c.get("nameMismatch") for c in understanding.get("customers", [])):
-        reasons.append("the name in the email differs from the registry owner of its tax ID or account")
+    actions = understanding.get("actions") or []
+    needs_customer = any(a.get("do") in NEEDS_CUSTOMER for a in actions)
     confirmed = [c for c in understanding.get("customers", []) if c.get("status") == "confirmed"]
-    if not confirmed and any(c.get("status") == "possible" for c in understanding.get("customers", [])):
-        reasons.append("the customer is only a possible match (by name or email), not confirmed")
-    elif not confirmed:
-        reasons.append("no customer found in the registry")
+    if needs_customer and not confirmed:
+        reasons.append("no customer found in the registry by tax ID or account")
+    elif any(a.get("caveat") == "account_not_identified" for a in actions):
+        reasons.append("the account or portfolio (SPV) the request concerns is not identified")
+    if understanding.get("complaintDemoted"):
+        reasons.append("the complaint is not the main request: the email also asks for "
+                       + str(understanding.get("principalCategory")))
+    if "distress_or_threat" in (understanding.get("flags") or []):
+        reasons.append("the email mentions self-harm or threatens legal action")
     return reasons
+
+
+def identification_waived(understanding: dict[str, Any] | None) -> bool:
+    """The classifier's own tax-ID check (no AFM / AFM not in registry) no longer decides the route when
+    reading the email confirmed the customer by tax ID or account, or when no action needs a customer."""
+    if not understanding or understanding.get("error"):
+        return False
+    actions = understanding.get("actions") or []
+    confirmed = any(c.get("status") == "confirmed" for c in understanding.get("customers", []))
+    return confirmed or not any(a.get("do") in NEEDS_CUSTOMER for a in actions)
 
 
 def set_status(store, now: str, **fields: Any) -> None:
@@ -320,6 +343,9 @@ def _classify_one(store, blob, processor, understand_fn, threshold, now_fn, clf_
             except Exception as exc:  # The classification still counts; a person reads the details.
                 understanding = {"error": f"{type(exc).__name__}: {exc}"}
         route, reasons, confidence = decide_route(records, threshold, error)
+        if route == "REVIEW" and identification_waived(understanding):
+            reasons = [r for r in reasons if r not in REVIEW_STATUSES.values()]
+            route = "REVIEW" if reasons else "AUTO"
         extra = understanding_reasons(understanding)
         if extra and route == "AUTO":
             route = "REVIEW"
@@ -335,6 +361,8 @@ def _classify_one(store, blob, processor, understand_fn, threshold, now_fn, clf_
             blob.upload_bytes(f"{silver}text/{text.name}", text.read_bytes())
 
     category = records[0].get("category") if records else None
+    if understanding and understanding.get("complaintDemoted") and understanding.get("principalCategory"):
+        category = understanding["principalCategory"]  # the request, not the complaint, leads (it goes to review)
     now = now_fn()
     updated = {
         **case,

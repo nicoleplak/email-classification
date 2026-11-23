@@ -29,15 +29,18 @@ amounts). Reasoning comes first; choose the Category only after it.
    hints, not literal triggers: match meaning, inflections, misspellings,
    accents, Greek and English.
 4. Decide. Apply the business rules in section 4, then pick the category
-   whose definition best matches the principal action. Use Priority (lower
-   number = higher priority) only to break a genuine tie.
+   whose definition best matches the principal action. When the email makes
+   several distinct, actionable requests, the principal one is the most
+   important: the lowest Priority number (1 = most important). A complaint
+   ("Παράπονα") is never the principal request when anything else is asked
+   (section 13.1).
 5. "No Match Found" only when no category plausibly applies: the email is
    empty, unintelligible, or unrelated to every category. If one category is
    a reasonable fit, choose it; uncertain cases are measured and routed to
    review automatically.
 
-When the email contains several requests, choose the one requiring the
-principal action and mention the others in Reasoning.
+When the email contains several requests, choose the principal one by
+Priority as in step 4 and mention the others in Reasoning.
 
 ============================================================
 2. THREADS
@@ -219,7 +222,7 @@ Thread continuity qualification:
 
 
 # ============================================================
-# 13. MANDATORY COMPLAINT AND AUTHORITY OVERRIDE
+# 13. COMPLAINTS AND AUTHORITIES
 # ============================================================
 
 There are two separate categories:
@@ -231,76 +234,54 @@ Apply each rule only if its exact category exists in Categories_JSON.
 
 ## 13.1 CUSTOMER COMPLAINT
 
-Select exactly:
+"Παράπονα" is the principal category ONLY when both hold:
 
-"Παράπονα"
+1. the email asks for nothing else: no certificate, document, reversal,
+   settlement, correction, information or any other operational request;
+   and
+2. the dissatisfaction with doValue's service or handling is clear and
+   strong: explicit complaint wording (παράπονο, καταγγελία, διαμαρτυρία,
+   complaint, formal complaint), harsh criticism of the service, repeated
+   unanswered contact, a demand for investigation or redress, or extremely
+   negative content such as a threat of legal action against doValue
+   (μήνυση) or any mention of self-harm or suicide (αυτοχειρία, αυτοκτονία).
 
-when customer-authored content contains clear evidence of dissatisfaction
-about the organisation's service, conduct, communication, delay, repeated
-failure, incorrect handling, failure to respond, or failure to resolve an
-issue.
+When the email complains AND asks for something concrete, classify the
+concrete request by its own category (by Priority if there are several) and
+mention the complaint in Reasoning. The complaint is handled as a secondary
+request; it does not override the operational category.
 
-The complaint must be directed at the organisation's handling or service and
-must be supported by at least one of the following:
+Any mention of self-harm or suicide must be noted in Reasoning (without
+personal data), whatever the category.
+
+The complaint must be directed at the organisation's handling or service.
+Typical evidence:
 
 A. Explicit complaint terminology:
-- παράπονο;
-- υποβολή παραπόνου;
-- επίσημο παράπονο;
-- καταγγελία;
-- διαμαρτυρία;
-- διαμαρτύρομαι;
-- complaint;
-- formal complaint;
-- grievance;
-- I wish to complain.
+- παράπονο; υποβολή παραπόνου; επίσημο παράπονο; καταγγελία; διαμαρτυρία;
+  διαμαρτύρομαι; complaint; formal complaint; grievance; I wish to complain.
 
 B. Explicit criticism of service or handling:
-- απαράδεκτη εξυπηρέτηση;
-- κακή εξυπηρέτηση;
-- απαράδεκτη καθυστέρηση;
-- ελλιπής ενημέρωση;
-- λανθασμένη διαχείριση;
-- με αγνοείτε;
-- με ταλαιπωρείτε;
-- δεν χειριστήκατε σωστά την υπόθεσή μου;
-- unacceptable service;
-- poor service;
-- incorrect handling.
+- απαράδεκτη εξυπηρέτηση; κακή εξυπηρέτηση; απαράδεκτη καθυστέρηση;
+  ελλιπής ενημέρωση; λανθασμένη διαχείριση; με αγνοείτε; με ταλαιπωρείτε;
+  δεν χειριστήκατε σωστά την υπόθεσή μου; unacceptable service; poor
+  service; incorrect handling.
 
-C. Repeated unresolved contact accompanied by dissatisfaction:
-- repeated emails or calls without response;
-- repeated unsuccessful attempts to resolve the same issue;
-- repeated incorrect information;
-- failure to perform a previously promised action.
+C. Repeated unresolved contact accompanied by dissatisfaction.
 
-D. Request for formal redress:
-- request for investigation;
-- request for official response;
-- request for corrective action;
-- request for intervention;
-- request for escalation;
-- request to record or review a complaint.
+D. Request for formal redress: investigation, official response, corrective
+   action, intervention, escalation, or recording the complaint.
 
 E. Escalation to a supervisory, regulatory, consumer-protection, legal, or
-competent authority because of dissatisfaction with the organisation's
-handling.
+   competent authority because of dissatisfaction with the organisation's
+   handling.
 
-When the complaint condition applies:
-- "Παράπονα" overrides the underlying operational category.
-- This includes cases that could otherwise be classified as:
-  - Αμφισβήτηση οφειλής;
-  - Αντιλογισμοί;
-  - Follow -up;
-  - Ρύθμιση;
-  - Portal or payment difficulty;
-  - or another operational category.
+When "Παράπονα" is selected:
 - Matched_Rules must include exact complaint evidence from the available
   customer-authored thread.
-- Reasoning must identify the explicit complaint, service criticism, repeated
-  unresolved contact, formal escalation, or redress request.
-- Do not infer emotions such as anger or frustration.
-- Describe only the observable complaint evidence.
+- Reasoning must identify the complaint evidence and state that nothing else
+  is asked.
+- Do not infer emotions; describe only the observable evidence.
 
 ## 13.2 AUTHORITY OR BODY CORRESPONDENCE
 
@@ -396,11 +377,22 @@ Example B:
 λάθος. Η διαχείριση είναι απαράδεκτη και υποβάλλω επίσημο παράπονο."
 
 Result:
+Select the applicable debt-dispute category; mention the complaint in
+Reasoning.
+
+Reason:
+The email complains, but it also asks for something concrete (the debt to be
+checked and corrected), so the concrete request leads.
+
+Example B2:
+"Υποβάλλω επίσημο παράπονο. Τρεις μήνες κανείς δεν απαντά στα email μου και
+η συμπεριφορά των υπαλλήλων σας είναι απαράδεκτη."
+
+Result:
 "Παράπονα"
 
 Reason:
-Explicit complaint, service criticism, and repeated unresolved contact activate
-the override.
+Strong, explicit complaint and nothing else is asked.
 
 Example C:
 "Δεν μπορώ να συνδεθώ στο Portal. Παρακαλώ ενημερώστε με για άλλον τρόπο

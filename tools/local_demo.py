@@ -67,6 +67,12 @@ def plain_upper(name: str) -> str:
     return "".join(c for c in unicodedata.normalize("NFD", name.upper()) if not unicodedata.combining(c))
 
 
+def demo_accounts(n: int) -> list[tuple[str, str]]:
+    """(account, SPV) of invented customer n: every third has one account, the rest three in two SPVs."""
+    count = 1 if n % 3 == 1 else 3
+    return [(f"{9000000000000 + n * 10 + k}", ("SPV Alpha", "SPV Beta")[k % 2]) for k in range(count)]
+
+
 def registry_csv(count: int) -> bytes:
     """Registry rows (qualco_output columns) for the invented customers; every 4th tax ID is left out, so
     some cases show "tax ID not found in the customer registry"."""
@@ -77,9 +83,10 @@ def registry_csv(count: int) -> bytes:
         if n % 4 == 3:
             continue
         last, first = reversed(SENDERS[n % len(SENDERS)][0].split())
-        rows.append(";".join([invented_afm(n), plain_upper(f"{last} {first}"), "Qualco" if n % 2 else "Datamart",
-                              "Active", f"DEMO{n:04d}", "P1", "Demo portfolio", f"{9000000000000 + n}", "", "",
-                              "Y" if n % 2 else "N", "I"]))
+        for account, spv in demo_accounts(n):
+            rows.append(";".join([invented_afm(n), plain_upper(f"{last} {first}"), "Datamart" if n % 10 == 5 else "Qualco",
+                                  "Ν.3869" if n % 6 == 0 else "Active", f"DEMO{n:04d}", spv[-4:].upper(), spv,
+                                  account, "", "", "Y" if n % 2 else "N", "I"]))
     return ("\n".join(rows) + "\n").encode("utf-8")
 
 
@@ -108,7 +115,12 @@ def invented_email(n: int, now: datetime, upload, hours_ago: float | None = None
     afm = invented_afm(n)
     received = now - timedelta(hours=n * 8.5 + 1 if hours_ago is None else hours_ago, minutes=n * 7)
     key = f"demo-{hashlib.sha256(f'{now.isoformat()}-{n}'.encode()).hexdigest()[:16]}"
-    text = f"Καλημέρα σας,\n\n{ask}\nΑΦΜ: {afm}\n\nΕυχαριστώ,\n{name}"
+    extra = ""
+    if n % 5 == 2:
+        extra = f"\nΛογαριασμός: {demo_accounts(n)[-1][0]}"
+    elif n % 7 == 3:
+        extra = "\nΤο αίτημα αφορά όλες τις οφειλές μου."
+    text = f"Καλημέρα σας,\n\n{ask}\nΑΦΜ: {afm}{extra}\n\nΕυχαριστώ,\n{name}"
     html = "<p>" + "</p><p>".join(line or "&nbsp;" for line in text.split("\n")) + "</p>"
 
     files = []
@@ -221,14 +233,16 @@ class FakeModel:
         answer = {
             "analysis": "Invented reading from tools/local_demo.py (no model was called).",
             "candidates": [
-                {"id": c["id"], "field": "afm" if c["hint"].startswith("afm") else "other", "role": "debtor",
-                 "identifies_case": c["hint"].startswith("afm"), "certainty": "high"}
+                {"id": c["id"], "field": "afm" if c["hint"].startswith("afm") else "account" if c["hint"] == "account_like"
+                 else "other", "role": "debtor", "identifies_case": c["hint"].startswith("afm") or c["hint"] == "account_like",
+                 "certainty": "high"}
                 for c in user["candidates"]
             ],
             "people": [{"name": sender, "registry_form": plain_upper(" ".join(reversed(sender.split()))),
                         "role": "debtor", "is_principal": True, "evidence": sender, "source": "body"}]
             if sender else [],
-            "flags": {k: k == "asks_debt_certificate" and "βεβαίωση" in user["body"].lower() for k in FLAGS},
+            "flags": {k: (k == "asks_debt_certificate" and "βεβαίωση" in user["body"].lower())
+                      or (k == "all_debts" and "όλες τις οφειλές" in user["body"]) for k in FLAGS},
             "other_requests": [],
             "evidence": [{"quote": lines[0], "supports": "category", "flag": "", "source": "body"}] if lines else [],
         }

@@ -34,6 +34,9 @@ REASON_KEYS = [
     ("details_unread", r"^the customer details could not be read"),
     ("email_missing", r"^email not found in"),
     ("reset", r"^review reset by"),
+    ("account_unknown", r"^the account or portfolio \(SPV\) the request concerns is not identified"),
+    ("complaint_secondary", r"^the complaint is not the main request"),
+    ("distress", r"^the email mentions self-harm"),
 ]
 REASON_RES = [(key, re.compile(pattern)) for key, pattern in REASON_KEYS]
 # Certainty bands for threshold tuning: [low, high) in percent; the last one includes 100.

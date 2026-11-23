@@ -77,6 +77,23 @@ Review app (`ca-emclf-llm-gr`, set by `configure_azure.sh app`):
 
 The review app holds no mailbox secret and no AI keys.
 
+## Decision rules (prompts and actions)
+
+The business rules (rules_for_prompt.xlsx, Nov 2026) live in `AI_email_classifier/inputs/`:
+`action_rules.json` (per category: Qualco requests with open / `_Cust` codes, forwards, Outlook folders,
+activities, Portal, reply template, how the account is chosen), `qualco_requests.json` (code names),
+`reply_templates.json` (automatic replies) and `categories.json` (keywords and Priority for the model).
+`core/action_rules.py` applies them; `docs/decision_rules.html` shows them for business review and is
+regenerated with `python tools/rules_report.py` after any change (a test fails when it is out of date).
+
+| Variable | Meaning |
+|---|---|
+| `ACCOUNT_STATUS_COLUMN` | registry column with the Qualco case state per account. Unset (today): every request uses the open-case code, without `_Cust` |
+| `ACCOUNT_CLOSED_VALUES` | values of that column meaning "closed" (default `CLOSED,C,Κλειστός,ΚΛΕΙΣΤΟΣ`); a closed account gets the `_Cust` code |
+
+Identification is by tax ID or account number only; a name or email match is shown to the reviewer but
+never makes a case automatic.
+
 ## Metrics view
 
 The review app's **Metrics** tab (top bar) shows, for the last 7 / 30 / 90 days or everything, in Greek time:

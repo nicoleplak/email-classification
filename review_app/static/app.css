@@ -454,3 +454,11 @@ details.more[open] > :not(summary) { animation: drop .2s ease-out; }
   .layout:has(.savetop) { padding-bottom: 84px; }
   .savetop .next { display: none; }
 }
+
+/* request account, Outlook folder and reply template on an action */
+.account-line { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 4px 0; }
+.account-line select { max-width: 100%; min-width: 0; font-size: 13px; padding: 4px 6px; }
+.codes .small { color: var(--ink-2); }
+details.template { margin-top: 4px; }
+details.template summary { font-size: 13px; color: var(--blue); cursor: pointer; width: max-content; max-width: 100%; }
+.template-text { white-space: pre-wrap; font: 13px/1.5 var(--font); background: #f7f9fb; border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; margin: 6px 0 0; }

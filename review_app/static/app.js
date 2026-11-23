@@ -72,6 +72,11 @@ const T = {
     actionsForOther: "Οι προτεινόμενες ενέργειες αφορούν την αρχική κατηγορία «{c}». Ελέγξτε αν ισχύουν ή προσθέστε άλλες.",
     noActionsChosen: "Δεν έχει επιλεγεί καμία ενέργεια.", addAction: "Προσθήκη ενέργειας", findAction: "Αναζήτηση ενέργειας ή κωδικού…",
     generalActions: "Γενικές ενέργειες", addedByYou: "προστέθηκε", remove: "Αφαίρεση", actionsCount: "{n} ενέργειες",
+    accountLabel: "Λογαριασμός", pickAccount: "Επιλέξτε λογαριασμό…", stOpen: "ανοιχτή υπόθεση", stClosed: "κλειστή υπόθεση (_Cust)",
+    stUnknown: "ανοιχτή/κλειστή: δεν είναι γνωστό", folderLabel: "Φάκελος", templateLabel: "Πρότυπο απάντησης",
+    cv_not_identified: "Ο πελάτης δεν ταυτοποιήθηκε με ΑΦΜ ή λογαριασμό· πριν την καταχώρηση χρειάζονται στοιχεία.",
+    cv_not_in_registry: "Ο ΑΦΜ ή ο λογαριασμός δεν βρέθηκε στο μητρώο.",
+    cv_account_not_identified: "Ο λογαριασμός δεν ταυτοποιήθηκε από το email· επιλέξτε λογαριασμό ή στείλτε «Χρειάζονται στοιχεία».",
     viewEmails: "Email", viewMetrics: "Στατιστικά", range7: "7 ημέρες", range30: "30 ημέρες", range90: "90 ημέρες",
     rangeAll: "Όλα", rangeLabel: "Περίοδος", mPeriod: "{a} – {b} · ώρα Ελλάδας", mReceived: "Παραλήφθηκαν",
     mAuto: "Αυτόματα", mReview: "Χρειάστηκαν έλεγχο", mException: "Σφάλμα", mWaiting: "Χωρίς ταξινόμηση ακόμη",
@@ -97,6 +102,8 @@ const T = {
     rs_name_mismatch: "Το όνομα διαφέρει από το μητρώο", rs_possible_customer: "Μόνο πιθανός πελάτης",
     rs_no_customer: "Δεν βρέθηκε πελάτης", rs_details_unread: "Στοιχεία πελάτη δεν διαβάστηκαν",
     rs_email_missing: "Λείπει το email", rs_reset: "Επαναφορά ελέγχου", rs_other: "Άλλο",
+    rs_account_unknown: "Δεν ταυτοποιήθηκε λογαριασμός/SPV", rs_complaint_secondary: "Παράπονο μαζί με άλλο αίτημα",
+    rs_distress: "Αυτοτραυματισμός ή απειλή νομικών μέτρων",
   },
   en: {
     appName: "Email review", signIn: "Sign in", signOut: "Sign out", yourName: "Full name",
@@ -167,6 +174,11 @@ const T = {
     actionsForOther: "The proposed actions were made for the original category “{c}”. Check they still apply or add others.",
     noActionsChosen: "No action chosen.", addAction: "Add an action", findAction: "Search actions or codes…",
     generalActions: "General actions", addedByYou: "added", remove: "Remove", actionsCount: "{n} actions",
+    accountLabel: "Account", pickAccount: "Pick an account…", stOpen: "open case", stClosed: "closed case (_Cust)",
+    stUnknown: "open/closed: not known", folderLabel: "Folder", templateLabel: "Reply template",
+    cv_not_identified: "The customer is not identified by tax ID or account; details are needed before filing.",
+    cv_not_in_registry: "The tax ID or account is not in the registry.",
+    cv_account_not_identified: "The email does not identify the account; pick one or send “Need more Info”.",
     viewEmails: "Emails", viewMetrics: "Metrics", range7: "7 days", range30: "30 days", range90: "90 days",
     rangeAll: "All", rangeLabel: "Period", mPeriod: "{a} – {b} · Greek time", mReceived: "Received",
     mAuto: "Automatic", mReview: "Needed review", mException: "Error", mWaiting: "Not classified yet",
@@ -192,6 +204,8 @@ const T = {
     rs_name_mismatch: "Name differs from registry", rs_possible_customer: "Only a possible customer",
     rs_no_customer: "No customer found", rs_details_unread: "Customer details not read",
     rs_email_missing: "Email missing", rs_reset: "Review reset", rs_other: "Other",
+    rs_account_unknown: "Account/SPV not identified", rs_complaint_secondary: "Complaint with another request",
+    rs_distress: "Self-harm or legal threat",
   },
 };
 const FIELD = {
@@ -212,10 +226,10 @@ const ACTION = {
   el: { request: "Καταχώρηση αιτήματος στο Qualco", portal_referral: "Παραπομπή στο Portal",
         ask_identification: "Ζητάμε στοιχεία ταυτοποίησης", manual: "Χειρισμός από το προσωπικό",
         forward: "Προώθηση", reply: "Απάντηση με πρότυπο", bank_referral: "Παραπομπή στην τράπεζα",
-        activity: "Καταγραφή δραστηριότητας", no_action: "Καμία ενέργεια" },
+        activity: "Καταγραφή δραστηριότητας (activity)", no_action: "Καμία ενέργεια", outlook_folder: "Μεταφορά σε φάκελο Outlook" },
   en: { request: "File a Qualco request", portal_referral: "Refer to the Portal", ask_identification: "Ask for identification",
         manual: "Handled by staff", forward: "Forward", reply: "Reply with template", bank_referral: "Refer to the bank",
-        activity: "Log an activity", no_action: "No action" },
+        activity: "Log a Qualco activity", no_action: "No action", outlook_folder: "Move to an Outlook folder" },
 };
 const REASONS_EL = [
   [/^no tax ID \(AFM\) found/, "Δεν βρέθηκε ΑΦΜ στο email ή στα συνημμένα"],
@@ -227,6 +241,10 @@ const REASONS_EL = [
   [/^classification failed/, "Η αυτόματη ταξινόμηση απέτυχε"],
   [/^the classifier returned no result/, "Η αυτόματη ταξινόμηση δεν έδωσε αποτέλεσμα"],
   [/^the name in the email differs/, "Το όνομα στο email διαφέρει από τον κάτοχο του ΑΦΜ/λογαριασμού στο μητρώο"],
+  [/^no customer found in the registry by tax ID or account/, "Δεν βρέθηκε πελάτης στο μητρώο με ΑΦΜ ή λογαριασμό"],
+  [/^the account or portfolio \(SPV\) the request concerns is not identified/, "Δεν ταυτοποιήθηκε ο λογαριασμός ή το χαρτοφυλάκιο (SPV) του αιτήματος"],
+  [/^the complaint is not the main request: the email also asks for (.*)/, "Το παράπονο δεν είναι το κύριο αίτημα· το email ζητά επίσης: $1"],
+  [/^the email mentions self-harm or threatens legal action/, "Το email αναφέρει αυτοτραυματισμό ή απειλεί με νομικά μέτρα"],
   [/^the customer is only a possible match/, "Ο πελάτης είναι μόνο πιθανή αντιστοίχιση (από όνομα ή email)"],
   [/^the customer details could not be read/, "Δεν διαβάστηκαν τα στοιχεία πελάτη"],
   [/^email not found in/, "Το email δεν βρέθηκε στα αρχεία παραλαβής"],
@@ -681,14 +699,53 @@ function reviewForm(c) {
     extra);
 }
 
+// Where a request goes: the account (pickable while reviewing), its portfolio (SPV) and open/closed state.
+function accountLine(a, u, editable) {
+  if (a.do !== "request") return "";
+  const accounts = (u.customerFacts || {}).accounts || [];
+  const state = (x) => t({ open: "stOpen", closed: "stClosed" }[x] || "stUnknown");
+  const label = (x) => `${x.account} · ${x.spv} · ${state(x.state)}`;
+  if (editable && accounts.length) {
+    const pick = h("select", { class: "account-pick", "aria-label": t("accountLabel"), onchange: (e) => {
+      const x = accounts.find((y) => y.account === e.target.value);
+      if (!x) return;
+      // A closed case takes the _cust request, when the rule has one.
+      const code = x.state === "closed" && a.closedCode ? a.closedCode : a.openCode || a.code;
+      Object.assign(a, { account: x.account, spv: x.spv, accountState: x.state, code, codes: [code],
+        codeName: (S.codeNames || {})[code] || a.codeName, caveat: a.caveat === "account_not_identified" ? null : a.caveat });
+      renderCase();
+    } },
+    a.account ? "" : h("option", { value: "", text: t("pickAccount") }),
+    ...accounts.map((x) => h("option", { value: x.account, selected: x.account === a.account ? true : null, text: label(x) })));
+    return h("label", { class: "account-line" }, h("span", { class: "muted small", text: t("accountLabel") }), pick);
+  }
+  if (!a.account) return "";
+  return h("div", { class: "account-line small" }, h("span", { class: "muted", text: `${t("accountLabel")}: ` }),
+    label({ account: a.account, spv: a.spv || "—", state: a.accountState }));
+}
+
+function templateBlock(a) {
+  if (!a.template) return "";
+  const tpl = (S.templates || {})[a.template] || {};
+  return h("details", { class: "more template" }, h("summary", { text: `${t("templateLabel")}: ${tpl.label || a.template}` }),
+    h("pre", { class: "template-text", text: a.text || tpl.text || "" }));
+}
+
 function actionRow(a, u, editable) {
   const quotes = (u.evidence || []).filter((e) => e.supports === "action" && (a.because || []).includes(`${e.flag}=true`));
   const head = h("div", { class: "what" }, actionText(a),
     a.source === "added" ? h("span", { class: "pill plain", text: t("addedByYou") }) : "");
+  const codes = a.code ? [a.code] : codesOf(a);
+  const missing = [].concat(a.missing || []);
   const body = [
     a.category ? h("div", { class: "muted small", text: catLabel(a.category) }) : "",
-    codesOf(a).length ? h("div", { class: "codes" }, ...codesOf(a).map((x) => h("code", { text: String(x) }))) : "",
-    a.missing ? h("div", { class: "caveat", text: `${lang === "el" ? "Λείπει" : "Missing"}: ${a.missing}` }) : "",
+    codes.length ? h("div", { class: "codes" }, ...codes.map((x) => h("code", { text: String(x) })),
+      a.codeName ? h("span", { class: "small", text: ` ${a.codeName}` }) : "") : "",
+    accountLine(a, u, editable),
+    a.folder ? h("div", { class: "small" }, h("span", { class: "muted", text: `${t("folderLabel")}: ` }), a.folder) : "",
+    a.caveat ? h("div", { class: "caveat", text: t(`cv_${a.caveat}`) }) : "",
+    missing.length && !a.template ? h("div", { class: "caveat", text: `${lang === "el" ? "Λείπει" : "Missing"}: ${missing.join(", ")}` }) : "",
+    templateBlock(a),
     (a.reasons || []).length ? h("ul", {}, ...a.reasons.map((r) => h("li", { text: r }))) : "",
     ...quotes.map(quoteRow),
   ];
@@ -768,7 +825,8 @@ function saveTop(c) {
   const chosen = S.acts.filter((a) => a.on !== false);
   const save = h("button", { class: "primary", type: "button", text: t("save"), onclick: async () => {
     const body = { _etag: c._etag, comment: S.comment ?? c.reviewComment ?? "", otherCategories: S.pickExtra ? [S.pickExtra] : [],
-      finalActions: chosen.map(({ do: d, category, codes, open, closed, to, source }) => ({ do: d, category, codes, open, closed, to, source })) };
+      finalActions: chosen.map(({ do: d, category, codes, code, open, closed, to, account, spv, accountState, folder, template, source }) =>
+        ({ do: d, category, codes, code, open, closed, to, account, spv, accountState, folder, template, source })) };
     if (S.choice === "none") body.noMatch = true;
     else body.finalCategory = S.choice === "accept" ? c.modelCategory : S.pick;
     if (!body.noMatch && !S.categories.includes(body.finalCategory)) { err.textContent = t("badCat"); return; }
@@ -1274,6 +1332,8 @@ async function start() {
   const meta = await api("/api/meta");
   S.categories = meta.data.categories || [];
   S.catalog = meta.data.actions || { byCategory: {}, general: [] };
+  S.templates = meta.data.templates || {};
+  S.codeNames = meta.data.codeNames || {};
   $("#me").textContent = S.user.name;
   applyWords();
   loadIngest();

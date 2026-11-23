@@ -268,3 +268,34 @@ def test_status_document_is_not_mistaken_for_an_ingest_run(store):
     rc.run(store, blob, lambda: FakeProcessor(), paused=False, threshold=0.95, now_fn=lambda: T0)
     blob.put_run(rc.STATUS_ID, {"messages": [msg(2)], "removed": []})  # even a run folder with that name
     assert rc.register_runs(store, blob, T0)["runs"] == 0
+
+
+@pytest.mark.parametrize("understanding, route", [
+    # No tax ID in the email, but the account number confirmed the customer: automatic.
+    ({"customers": [{"status": "confirmed"}], "actions": [{"do": "request"}]}, "AUTO"),
+    # Only a name matched: the request needs a customer, so a person checks it.
+    ({"customers": [{"status": "possible"}], "actions": [{"do": "request"}]}, "REVIEW"),
+    # Nothing needs a customer (a forward): the missing tax ID does not matter.
+    ({"customers": [], "actions": [{"do": "forward"}]}, "AUTO"),
+])
+def test_identification_by_account_or_none_needed(store, understanding, route):
+    blob = FakeBlob()
+    blob.put_run("r1", [msg(1)])
+    rc.register_runs(store, blob, T0)
+    processor = FakeProcessor({"Αίτημα βεβαίωσης": [record(status="needs_identification")]})
+    rc.classify_waiting(store, blob, lambda: processor, lambda: T0, 0.95,
+                        understand_factory=lambda p, m: (lambda message, records, tmp: understanding))
+    assert store.get("cases", rc.email_id(msg(1)))["route"] == route
+
+
+def test_a_demoted_complaint_hands_the_category_to_the_request(store):
+    blob = FakeBlob()
+    blob.put_run("r1", [msg(1)])
+    rc.register_runs(store, blob, T0)
+    processor = FakeProcessor({"Αίτημα βεβαίωσης": [record(category="Παράπονα")]})
+    understanding = {"customers": [{"status": "confirmed"}], "actions": [{"do": "request"}],
+                     "complaintDemoted": True, "principalCategory": "Βεβαιώσεις οφειλής"}
+    rc.classify_waiting(store, blob, lambda: processor, lambda: T0, 0.95,
+                        understand_factory=lambda p, m: (lambda message, records, tmp: understanding))
+    case = store.get("cases", rc.email_id(msg(1)))
+    assert (case["modelCategory"], case["route"]) == ("Βεβαιώσεις οφειλής", "REVIEW")

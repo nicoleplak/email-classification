@@ -1,0 +1,324 @@
+<title>Κανόνες αποφάσεων email</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Commissioner:wght@500;600;700&family=Noto+Sans:wght@400;600&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: one reading column; the flow figure and the category table may scroll sideways in their own boxes. */
+:root {
+  --bg: #f6f7f9; --surface: #ffffff; --ink: #18212b; --ink-2: #4a5663; --muted: #6c7783; --line: #dbe1e8;
+  --accent: #155e8f; --accent-wash: #e6f0f7; --tpl: #6a4fb0; --tpl-wash: #f1edfa; --ok: #1d7a4c; --warn: #a14d0e;
+  --display: "Commissioner", "Noto Sans", system-ui, sans-serif; --body: "Noto Sans", system-ui, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #12171d; --surface: #1a2129; --ink: #e8edf2; --ink-2: #b7c2cd; --muted: #8b97a3; --line: #2e3842;
+  --accent: #6cb4e4; --accent-wash: #1c3344; --tpl: #b39cf0; --tpl-wash: #2a2340; --ok: #5cc78f; --warn: #f0a36a; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #12171d; --surface: #1a2129; --ink: #e8edf2; --ink-2: #b7c2cd; --muted: #8b97a3; --line: #2e3842;
+  --accent: #6cb4e4; --accent-wash: #1c3344; --tpl: #b39cf0; --tpl-wash: #2a2340; --ok: #5cc78f; --warn: #f0a36a; color-scheme: dark }
+body { background: var(--bg); color: var(--ink); font: 15px/1.6 var(--body); }
+.wrap { max-width: 1180px; margin: 0 auto; padding-block: 32px 64px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+h1, h2, h3 { font-family: var(--display); text-wrap: balance; line-height: 1.25; }
+h1 { font-size: 30px; margin: 0 0 6px; }
+h2 { font-size: 21px; margin: 44px 0 10px; }
+h3 { font-size: 16px; margin: 0 0 6px; }
+p { max-width: 70ch; }
+.lede { color: var(--ink-2); margin: 0; }
+.meta { color: var(--muted); font-size: 13px; margin-top: 8px; }
+.eyebrow { font: 600 12px/1 var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--accent); margin-bottom: 10px; }
+.muted { color: var(--muted); }
+.mono, code, .code b { font-family: var(--mono); font-size: 12.5px; }
+.mono { overflow-wrap: anywhere; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+figure { margin: 0; padding: 18px; overflow-x: auto; }
+figure svg { display: block; width: 100%; min-width: 640px; max-width: 860px; height: auto; margin: 0 auto; color: var(--ink-2); }
+figcaption { color: var(--ink-2); font-size: 14px; margin-top: 12px; max-width: 80ch; }
+.node rect, .node path { fill: var(--surface); stroke: var(--ink-2); stroke-width: 1.4; }
+.node text { fill: var(--ink); font: 600 14px var(--display); text-anchor: middle; }
+.node text.h { font: 600 14px var(--display); }
+.node text.s { font: 400 12px var(--body); fill: var(--ink-2); }
+.node.decide path { fill: var(--accent-wash); stroke: var(--accent); }
+.node.start rect { fill: var(--ink); stroke: var(--ink); } .node.start text { fill: var(--bg); }
+.node.tpl rect { fill: var(--tpl-wash); stroke: var(--tpl); }
+.node.side rect { stroke-dasharray: 5 4; }
+.node.end.auto rect { fill: var(--ok); stroke: var(--ok); } .node.end.review rect { fill: var(--warn); stroke: var(--warn); }
+.node.end text { fill: #fff; }
+.lbl text { fill: var(--muted); font: 500 12px var(--body); }
+.feed { color: var(--tpl); }
+.grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+.card { padding: 16px 18px; min-width: 0; }
+.card .k { font: 600 12px var(--display); color: var(--muted); letter-spacing: .06em; text-transform: uppercase; }
+.two { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; }
+ul.plain { margin: 0; padding-left: 18px; } ul.plain li { margin: 4px 0; }
+.tools { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 6px 0 10px; }
+.tools input { font: inherit; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); min-width: 0; flex: 1 1 260px; max-width: 420px; }
+.tools input:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.table-box { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; min-width: 900px; font-size: 13.5px; }
+th, td { text-align: left; vertical-align: top; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+thead th { font: 600 12px var(--display); color: var(--muted); letter-spacing: .04em; text-transform: uppercase; position: sticky; top: 0; background: var(--surface); }
+tbody th { font: 600 14px var(--display); width: 220px; }
+td.num { font-variant-numeric: tabular-nums; text-align: center; }
+ul.rules { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+ul.rules li > * { min-width: 0; }
+ul.rules li { display: grid; grid-template-columns: minmax(150px, 1fr) 16px minmax(220px, 1.4fr); gap: 6px; }
+.when { color: var(--ink-2); } .arrow { color: var(--muted); }
+.act { font-weight: 600; } .act-request { color: var(--accent); }
+.code { display: inline; margin-right: 6px; } .code b { background: var(--accent-wash); padding: 1px 5px; border-radius: 4px; }
+.cust { display: block; color: var(--muted); font-size: 12.5px; margin-top: 2px; } .cust .code b { background: transparent; border: 1px solid var(--line); }
+.tag { font-size: 11.5px; color: var(--tpl); border: 1px solid var(--tpl); border-radius: 999px; padding: 0 7px; margin-left: 4px; white-space: nowrap; }
+details.tpl { padding: 10px 14px; border-bottom: 1px solid var(--line); } details.tpl:last-child { border-bottom: 0; }
+details.tpl summary { cursor: pointer; } details.tpl pre { white-space: pre-wrap; font: 13.5px/1.6 var(--body); background: var(--tpl-wash); border-radius: 8px; padding: 12px 14px; margin: 10px 0 2px; }
+ol.questions { margin: 0; padding: 0; list-style: none; counter-reset: q; display: grid; gap: 10px; }
+ol.questions li { counter-increment: q; padding: 12px 16px 12px 52px; position: relative; }
+ol.questions li::before { content: counter(q); position: absolute; left: 16px; top: 12px; width: 24px; height: 24px; border-radius: 50%;
+  background: var(--accent-wash); color: var(--accent); font: 600 12px/24px var(--display); text-align: center; }
+ol.questions b { font-family: var(--display); }
+.none { padding: 14px; color: var(--muted); }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">doValue Greece · Email classification</div>
+    <h1>Κανόνες αποφάσεων email</h1>
+    <p class="lede">Πώς το σύστημα αποφασίζει για κάθε email: ποιο είναι το κύριο αίτημα, ποιος είναι ο πελάτης, ποιο αίτημα Qualco ανοίγει και σε ποιον λογαριασμό, ποια απάντηση στέλνεται, και πότε το email πηγαίνει σε έλεγχο.</p>
+    <p class="meta">Πηγή: rules_for_prompt.xlsx (Νοέμβριος 2026). Ο πίνακας κατηγοριών δημιουργείται από τα αρχεία κανόνων που χρησιμοποιεί το σύστημα.</p>
+  </header>
+
+  <h2>Η διαδρομή ενός email</h2>
+  <div class="panel"><figure>
+    <svg viewBox="0 0 820 1010" role="img" aria-label="Η διαδρομή ενός email: ταξινόμηση, σειρά αιτημάτων, κανόνες κατηγορίας, Portal, ταυτοποίηση με ΑΦΜ ή λογαριασμό, επιλογή λογαριασμού, κωδικός Qualco, μία απάντηση και δρομολόγηση σε αυτόματα ή έλεγχο.">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <g class="spine" fill="none" stroke="currentColor" stroke-width="1.5" marker-end="url(#arr)">
+    <line x1="230" y1="58" x2="230" y2="84"/>
+    <line x1="230" y1="144" x2="230" y2="164"/>
+    <line x1="230" y1="224" x2="230" y2="244"/>
+    <line x1="230" y1="304" x2="230" y2="328"/>
+    <line x1="230" y1="412" x2="230" y2="436"/>
+    <line x1="230" y1="520" x2="230" y2="544"/>
+    <line x1="230" y1="628" x2="230" y2="652"/>
+    <line x1="230" y1="712" x2="230" y2="736"/>
+    <line x1="230" y1="796" x2="230" y2="824"/>
+  </g>
+  <!-- nodes -->
+  <g class="node start"><rect x="130" y="14" width="200" height="44" rx="22"/><text x="230" y="41">Νέο email</text></g>
+  <g class="node"><rect x="80" y="84" width="300" height="60" rx="8"/>
+    <text x="230" y="108" class="h">1 · Ταξινόμηση</text><text x="230" y="128" class="s">κύριο αίτημα + λοιπά αιτήματα</text></g>
+  <g class="node"><rect x="80" y="164" width="300" height="60" rx="8"/>
+    <text x="230" y="188" class="h">2 · Σειρά αιτημάτων</text><text x="230" y="208" class="s">προτεραιότητα 1 → 3 · παράπονο τελευταίο</text></g>
+  <g class="node"><rect x="80" y="244" width="300" height="60" rx="8"/>
+    <text x="230" y="268" class="h">3 · Κανόνες κατηγορίας</text><text x="230" y="288" class="s">ό,τι λέει το email → ενέργεια</text></g>
+  <g class="node decide"><path d="M230,328 L410,370 L230,412 L50,370 z"/>
+    <text x="230" y="366" class="h">4 · Portal;</text><text x="230" y="384" class="s">κατηγορία και πελάτης με Portal</text></g>
+  <g class="node decide"><path d="M230,436 L410,478 L230,520 L50,478 z"/>
+    <text x="230" y="474" class="h">5 · Ταυτοποίηση;</text><text x="230" y="492" class="s">ΑΦΜ ή λογαριασμός</text></g>
+  <g class="node decide"><path d="M230,544 L410,586 L230,628 L50,586 z"/>
+    <text x="230" y="582" class="h">6 · Λογαριασμός;</text><text x="230" y="600" class="s">βρέθηκε λογαριασμός / SPV</text></g>
+  <g class="node"><rect x="80" y="652" width="300" height="60" rx="8"/>
+    <text x="230" y="676" class="h">7 · Κωδικός Qualco</text><text x="230" y="696" class="s">ανοιχτή: χωρίς _Cust · κλειστή: _Cust</text></g>
+  <g class="node"><rect x="80" y="736" width="300" height="60" rx="8"/>
+    <text x="230" y="760" class="h">8 · Μία απάντηση ανά email</text><text x="230" y="780" class="s">από τα πρότυπα (δεξιά)</text></g>
+  <g class="node decide"><path d="M230,824 L410,866 L230,908 L50,866 z"/>
+    <text x="230" y="862" class="h">9 · Αυτόματα;</text><text x="230" y="880" class="s">κανένας λόγος ελέγχου</text></g>
+  <g class="node end auto"><rect x="130" y="944" width="200" height="44" rx="22"/><text x="230" y="971">Αυτόματα</text></g>
+  <g class="node end review"><rect x="560" y="844" width="200" height="44" rx="22"/><text x="660" y="871">Προς έλεγχο</text></g>
+  <!-- exits -->
+  <g fill="none" stroke="currentColor" stroke-width="1.5" marker-end="url(#arr)">
+    <line x1="230" y1="908" x2="230" y2="938"/>
+    <line x1="410" y1="866" x2="554" y2="866"/>
+    <line x1="380" y1="274" x2="554" y2="274"/>
+    <line x1="410" y1="370" x2="554" y2="370"/>
+    <line x1="410" y1="478" x2="554" y2="478"/>
+    <line x1="410" y1="586" x2="554" y2="586"/>
+  </g>
+  <g class="lbl">
+    <text x="244" y="928">ναι</text><text x="476" y="858">όχι</text>
+    <text x="244" y="322">αίτημα Qualco</text><text x="468" y="266">άλλη ενέργεια</text>
+    <text x="476" y="362">ναι</text><text x="244" y="430">όχι, ή τεχνικό πρόβλημα</text>
+    <text x="476" y="470">όχι</text><text x="244" y="538">ναι</text>
+    <text x="476" y="578">όχι</text><text x="244" y="646">ναι</text>
+  </g>
+  <g class="node side"><rect x="560" y="240" width="240" height="68" rx="8"/>
+    <text x="680" y="264" class="h">Χωρίς πελάτη</text><text x="680" y="284" class="s">προώθηση · φάκελος Outlook</text><text x="680" y="300" class="s">activity · τράπεζα · προσωπικό</text></g>
+  <g class="node tpl"><rect x="560" y="344" width="240" height="52" rx="8"/>
+    <text x="680" y="366" class="h">Πρότυπο Portal</text><text x="680" y="384" class="s">αντί για αίτημα</text></g>
+  <g class="node tpl"><rect x="560" y="452" width="240" height="52" rx="8"/>
+    <text x="680" y="474" class="h">Need more Info</text><text x="680" y="492" class="s">ζητάμε ΑΦΜ</text></g>
+  <g class="node tpl"><rect x="560" y="560" width="240" height="52" rx="8"/>
+    <text x="680" y="582" class="h">Need more Info</text><text x="680" y="600" class="s">ζητάμε αριθμό λογαριασμού</text></g>
+  <g class="node tpl"><rect x="560" y="660" width="240" height="96" rx="8"/>
+    <text x="680" y="682" class="h">Πρότυπα απάντησης</text>
+    <text x="680" y="702" class="s">1 Need more Info</text><text x="680" y="718" class="s">2 Portal · 3 Eurobank</text>
+    <text x="680" y="734" class="s">4 Received / In Progress</text><text x="680" y="750" class="s">της κατηγορίας</text></g>
+  <g fill="none" stroke="currentColor" stroke-width="1.2" stroke-dasharray="4 4" class="feed">
+    <polyline points="800,308 812,308 812,706 800,706"/>
+    <polyline points="800,396 812,396"/>
+    <polyline points="800,504 812,504"/>
+    <polyline points="800,612 812,612"/>
+    <line x1="560" y1="760" x2="386" y2="766" marker-end="url(#arr)"/>
+  </g>
+</svg>
+    <figcaption>Τα βήματα 4–7 ισχύουν για κάθε αίτημα Qualco του email, με τη σειρά του βήματος 2. Οι μωβ θέσεις είναι πρότυπα απάντησης· κάθε email παίρνει ένα, με αυτή τη σειρά: Need more Info, Portal, Eurobank, και αλλιώς το Received ή In Progress της κατηγορίας. Το Portal παρακάμπτεται όταν ο πελάτης αναφέρει τεχνικό πρόβλημα ή όταν το ίδιο email έχει αίτημα που δεν γίνεται στο Portal.</figcaption>
+  </figure></div>
+
+  <h2>Τα βασικά κριτήρια</h2>
+  <div class="grid3">
+    <div class="panel card"><div class="k">Ταυτοποίηση</div><h3>Μόνο ΑΦΜ ή λογαριασμός</h3>
+      <p>Ο πελάτης ταυτοποιείται μόνο με ΑΦΜ (με σωστό ψηφίο ελέγχου) ή αριθμό λογαριασμού που υπάρχουν στο μητρώο. Όνομα και email είναι συμπληρωματικά: εμφανίζονται ως «πιθανός» πελάτης, αλλά δεν αρκούν για αυτόματη επεξεργασία.</p></div>
+    <div class="panel card"><div class="k">Προτεραιότητα</div><h3>Το πιο σημαντικό αίτημα πρώτο</h3>
+      <p>Όταν ένα email έχει πολλά αιτήματα, κύριο είναι αυτό με τη μικρότερη προτεραιότητα (1 = πιο σημαντικό). Το «Παράπονα» είναι κύριο μόνο όταν το email δεν ζητά τίποτε άλλο και η δυσαρέσκεια είναι έντονη.</p></div>
+    <div class="panel card"><div class="k">Portal</div><h3>Portal πρώτα</h3>
+      <p>Σε κατηγορίες με Portal = YES, ο πελάτης με Portal flag παίρνει απάντηση να το κάνει από το Portal, εκτός αν αναφέρει τεχνικό πρόβλημα. Τότε ανοίγει κανονικά το αίτημα Qualco.</p></div>
+  </div>
+
+  <h2>Σε ποιον λογαριασμό ανοίγει το αίτημα</h2>
+  <div class="grid3"><div class="panel card"><h3>Ανά SPV</h3><p>Ένα αίτημα σε κάθε χαρτοφυλάκιο (SPV) του πελάτη, σε έναν λογαριασμό του. Αν το email αναφέρει λογαριασμό, σε αυτόν.</p><p class="muted">GDPR, Αιτήματα Ν.3869, Αντιλογισμοί, Ασφαλιστήρια, Βεβαιώσεις εξόφλησης, Βεβαιώσεις οφειλής, Ηχογραφημένες κλήσεις, Πλειστηριασμοί, Πόθεν έσχες</p></div><div class="panel card"><h3>Ο λογαριασμός</h3><p>Πρέπει να ταυτοποιηθεί ο λογαριασμός: από το email, ή ο μοναδικός του πελάτη, ή όλοι όταν ζητά για όλες τις οφειλές. Αλλιώς Need more Info.</p><p class="muted">Αιτήματα που αφορούν στον εξωδικαστικό 4605, Αιτήματα που αφορούν στον εξωδικαστικό 4738, Αμφισβήτηση οφειλής, Αντίγραφα συμβάσεων, Βεβαίωση άρσης προσημείωσης, Βεβαίωση_Καταβολών_Βεβαίωση_Τόκων, Διαμεσολάβηση - ρύθμιση, Δοσολόγιο, Κίνηση λογαριασμού</p></div><div class="panel card"><h3>Το SPV</h3><p>Ένα αίτημα σε έναν λογαριασμό του SPV που ταυτοποιείται: από λογαριασμό του email, ή το μοναδικό SPV, ή κάθε SPV για όλες τις οφειλές. Αλλιώς Need more Info.</p><p class="muted">Εθελοντική εκποίηση, Εξασφαλίσεις, Εξουσιοδοτήσεις, Επικαιροποίηση στοιχείων με επισύναψη υπεύθυνης δήλωσης, Νομιμοποίηση κληρονόμων με επισύναψη εγγράφων, Ρύθμιση</p></div></div>
+  <p class="muted">Αίτημα για ανοιχτή υπόθεση: ο κωδικός χωρίς _Cust. Ο κωδικός _Cust (κλειστή υπόθεση) θα επιλέγεται ανά λογαριασμό μόλις το μητρώο έχει την ένδειξη ανοιχτού/κλειστού· μέχρι τότε χρησιμοποιείται πάντα ο κωδικός ανοιχτής υπόθεσης.</p>
+
+  <h2>Αυτόματα ή προς έλεγχο</h2>
+  <div class="two">
+    <div class="panel card"><div class="k">Αυτόματα</div><h3>Όταν δεν ισχύει κανένας λόγος ελέγχου</h3>
+      <p>Βεβαιότητα 90% ή περισσότερο, ο πελάτης ταυτοποιήθηκε με ΑΦΜ ή λογαριασμό (ή καμία ενέργεια δεν χρειάζεται πελάτη, π.χ. προώθηση ή φάκελος Outlook), και ο λογαριασμός βρέθηκε.</p></div>
+    <div class="panel card"><div class="k">Προς έλεγχο</div><h3>Αν ισχύει έστω ένα</h3><ul class="plain"><li>Βεβαιότητα κάτω από το όριο (σήμερα 90%)</li><li>Καμία κατηγορία δεν ταιριάζει, ή η ταξινόμηση απέτυχε</li><li>Χρειάζεται πελάτης (αίτημα Qualco) αλλά δεν βρέθηκε με ΑΦΜ ή λογαριασμό</li><li>Δεν ταυτοποιήθηκε ο λογαριασμός ή το SPV του αιτήματος</li><li>Παράπονο μαζί με άλλο αίτημα</li><li>Αυτοτραυματισμός ή απειλή νομικών μέτρων</li><li>Οι ΑΦΜ του email οδηγούν σε διαφορετικές κατηγορίες</li><li>Ένα συνημμένο δεν διαβάστηκε</li></ul></div>
+  </div>
+
+  <h2>Ανά κατηγορία</h2>
+  <div class="tools"><label for="q" class="muted">Αναζήτηση</label><input id="q" type="search" placeholder="π.χ. οφειλής, 3869, Portal…" autocomplete="off"><span id="count" class="muted"></span></div>
+  <div class="panel table-box">
+    <table>
+      <thead><tr><th>Κατηγορία</th><th>Προτ.</th><th>Απάντηση</th><th>Portal</th><th>Λογαριασμός</th><th>Αν … → ενέργεια</th></tr></thead>
+      <tbody id="rows">
+<tr data-search="gdpr"><th scope="row">GDPR</th><td class="num">1</td><td>Λήψη αιτήματος</td><td>—</td><td>Ανά SPV</td><td><ul class="rules"><li><span class="when">Πάντα</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act act-request">Αίτημα Qualco</span> <span class="code"><b>62</b> Αίτημα προσωπικών δεδομένων</span><span class="cust">κλειστή: <span class="code"><b>132</b> Αίτημα_προσωπικών_δεδομένων_Cust</span></span> </span></li></ul></td></tr>
+<tr data-search="αγωγές"><th scope="row">Αγωγές</th><td class="num">1</td><td>—</td><td>—</td><td>—</td><td><ul class="rules"><li><span class="when">Πάντα</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act">Προώθηση</span> <span class="mono">spdallas@dovaluegreece.gr, agoges@dovaluegreece.gr, OpRISK@dovaluegreece.gr, Complaints@dovaluegreece.gr</span></span></li></ul></td></tr>
+<tr data-search="αιτήματα ν.3869"><th scope="row">Αιτήματα Ν.3869</th><td class="num">1</td><td>Λήψη αιτήματος</td><td>Ναι</td><td>Ανά SPV</td><td><ul class="rules"><li><span class="when">Το email επισυνάπτει την απόφαση του Ν.3869</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act act-request">Αίτημα Qualco</span> <span class="code"><b>161</b> Προσκόμιση απόφασης Ν.3869</span> <span class="tag">και με Portal</span></span></li><li><span class="when">Ο αποστολέας ρωτά ποια δόση πρέπει να πληρώσει</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act act-request">Αίτημα Qualco</span> <span class="code"><b>113</b> N.3869/2010_Πληροφορίες δόσης_λογαριασμού</span><span class="cust">κλειστή: <span class="code"><b>114</b> N.3869/2010_Πληροφορίες δόσης_λογαριασμού_cust</span></span> </span></li><li><span class="when">Ζητά βεβαίωση καταβολών ή τήρησης της δικαστικής ρύθμισης</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act act-request">Αίτημα Qualco</span> <span class="code"><b>103</b> N.3869/2010_Βεβαίωση_Καταβολών</span><span class="cust">κλειστή: <span class="code"><b>104</b> N.3869/2010_Βεβαίωση Καταβολών_cust</span></span> </span></li><li><span class="when">Ζητά βεβαίωση οφειλής</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act act-request">Αίτημα Qualco</span> <span class="code"><b>105</b> N.3869/2010_Βεβαίωση_Οφειλής</span> </span></li><li><span class="when">Ζητά αντιλογισμό πληρωμής</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act act-request">Αίτημα Qualco</span> <span class="code"><b>108</b> N.3869/2010_Αντιλογισμός</span> </span></li><li><span class="when">Αμφισβητεί την οφειλή ή τις χρεώσεις</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act act-request">Αίτημα Qualco</span> <span class="code"><b>112</b> N.3869/2010_Αμφισβήτηση_οφειλής</span> </span></li><li><span class="when">Αφορά απόφαση του Αρείου Πάγου</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act act-request">Αίτημα Qualco</span> <span class="code"><b>184</b> Απόφαση Αρείου Πάγου</span> </span></li><li><span class="when">Ζητά βεβαίωση για το πόθεν έσχες</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act act-request">Αίτημα Qualco</span> <span class="code"><b>109</b> N.3869/2010_Βεβαίωση Πόθεν έσχες</span> </span></li><li><span class="when">Σε κάθε άλλη περίπτωση</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act">Χειρισμός από το προσωπικό</span></span></li></ul></td></tr>
+<tr data-search="αιτήματα που αφορούν στον εξωδικαστικό 4605"><th scope="row">Αιτήματα που αφορούν στον εξωδικαστικό 4605</th><td class="num">1</td><td>Λήψη αιτήματος</td><td>—</td><td>Ο λογαριασμός</td><td><ul class="rules"><li><span class="when">Αμφισβητεί την οφειλή ή τις χρεώσεις</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act act-request">Αίτημα Qualco</span> <span class="code"><b>158</b> Ν.4605_Αμφισβήτηση Οφειλής</span> </span></li><li><span class="when">Σε κάθε άλλη περίπτωση</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act act-request">Αίτημα Qualco</span> <span class="code"><b>78</b> N4605</span><span class="cust">κλειστή: <span class="code"><b>127</b> Ν4605_Cust</span></span> </span></li></ul></td></tr>
+<tr data-search="αιτήματα που αφορούν στον εξωδικαστικό 4738"><th scope="row">Αιτήματα που αφορούν στον εξωδικαστικό 4738</th><td class="num">1</td><td>Λήψη αιτήματος</td><td>—</td><td>Ο λογαριασμός</td><td><ul class="rules"><li><span class="when">Αμφισβητεί την οφειλή ή τις χρεώσεις</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act act-request">Αίτημα Qualco</span> <span class="code"><b>157</b> N.4738_Αμφισβήτηση Οφειλής</span><span class="cust">κλειστή: <span class="code"><b>159</b> N.4738_Αμφισβήτηση Οφειλής_cust</span></span> </span></li><li><span class="when">Ζητά το δοσολόγιο του Ν.4738</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act act-request">Αίτημα Qualco</span> <span class="code"><b>168</b> Δοσολόγιο OCW</span><span class="cust">κλειστή: <span class="code"><b>170</b> Δοσολόγιο OCW_cust</span></span> </span></li><li><span class="when">Σε κάθε άλλη περίπτωση</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act act-request">Αίτημα Qualco</span> <span class="code"><b>81</b> N4738</span><span class="cust">κλειστή: <span class="code"><b>129</b> Ν4738_Cust</span></span> </span></li></ul></td></tr>
+<tr data-search="αναβολές δικασίμων"><th scope="row">Αναβολές δικασίμων</th><td class="num">1</td><td>Σε επεξεργασία</td><td>—</td><td>—</td><td><ul class="rules"><li><span class="when">Πάντα</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act">Προώθηση</span> <span class="mono">Dikografa@dovaluegreece.gr</span></span></li><li><span class="when">Στο μητρώο ο πελάτης είναι στον Ν.3869</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act">Προώθηση</span> <span class="mono">law3869_finalcourtdecisions@dovaluegreece.gr</span></span></li></ul></td></tr>
+<tr data-search="διοίκηση"><th scope="row">Διοίκηση</th><td class="num">1</td><td>Σε επεξεργασία</td><td>—</td><td>—</td><td><ul class="rules"><li><span class="when">Πάντα</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act">Φάκελος Outlook</span> «ΦΟΡΕΙΣ»</span></li></ul></td></tr>
+<tr data-search="εξώδικα"><th scope="row">Εξώδικα</th><td class="num">1</td><td>Λήψη αιτήματος</td><td>—</td><td>—</td><td><ul class="rules"><li><span class="when">Πάντα</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act">Φάκελος Outlook</span> «NO MATCH FOUND»</span></li></ul></td></tr>
+<tr data-search="ηχογραφημένες κλήσεις"><th scope="row">Ηχογραφημένες κλήσεις</th><td class="num">1</td><td>Λήψη αιτήματος</td><td>—</td><td>Ανά SPV</td><td><ul class="rules"><li><span class="when">Ζητά να διατηρηθούν κλήσεις παλαιότερες του ενός έτους</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act act-request">Αίτημα Qualco</span> <span class="code"><b>ΔΙΑΤΗΡΗΣΗ ΚΛΗΣΕΩΝ</b> REQ ΔΙΑΤΗΡΗΣΗ ΚΛΗΣΕΩΝ</span> </span></li><li><span class="when">Σε κάθε άλλη περίπτωση</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act act-request">Αίτημα Qualco</span> <span class="code"><b>85</b> Αίτημα Παραλαβής Ηχογραφημένης Συνομιλίας</span><span class="cust">κλειστή: <span class="code"><b>148</b> Αίτημα_Παραλαβής_Ηχογραφημένης_Συνομιλίας_Cust</span></span> </span></li></ul></td></tr>
+<tr data-search="πλειστηριασμοί"><th scope="row">Πλειστηριασμοί</th><td class="num">1</td><td>Λήψη αιτήματος</td><td>—</td><td>Ανά SPV</td><td><ul class="rules"><li><span class="when">Ζητά να επικοινωνήσουμε μαζί του για διαπραγμάτευση</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act act-request">Αίτημα Qualco</span> <span class="code"><b>40</b> Νέα Ρύθμιση</span><span class="cust">κλειστή: <span class="code"><b>142</b> Νέα_Ρύθμιση_Cust</span></span> </span></li><li><span class="when">Στέλνει μαζί και εξουσιοδότηση</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act act-request">Αίτημα Qualco</span> <span class="code"><b>45</b> Προσκόμιση Εξουσιοδότησης Πληρεξουσίου Δικηγόρου</span><span class="cust">κλειστή: <span class="code"><b>124</b> Προσκόμιση_Εξουσιοδότησης_Πληρεξουσίου_Δικηγόρου_Cust</span></span> </span></li><li><span class="when">Ο πλειστηριασμός είναι επικείμενος, μέσα στην εβδομάδα</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act">Προώθηση</span> <span class="mono">auctions_proceeds_collections_acquisition@dovaluegreece.gr, legalretail@dovaluegreece.gr, support_special_cases@dovaluegreece.gr, client_branch_reques@dovaluegreece.gr</span></span></li><li><span class="when">Ζητά ακύρωση πλειστηριασμού λόγω Ν.4738</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act act-request">Αίτημα Qualco</span> <span class="code"><b>81</b> N4738</span> </span></li><li><span class="when">Ζητά ακύρωση πλειστηριασμού λόγω Ν.4738</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act">Προώθηση</span> <span class="mono">L4738_Support@dovaluegreece.gr, auctions_proceeds_collections_acquisition@dovaluegreece.gr, legalretail@dovaluegreece.gr, client_branch_reques@dovaluegreece.gr</span></span></li><li><span class="when">Σε κάθε άλλη περίπτωση</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act">Χειρισμός από το προσωπικό</span></span></li></ul></td></tr>
+<tr data-search="υας- διαμεσολάβηση"><th scope="row">ΥΑΣ- Διαμεσολάβηση</th><td class="num">1</td><td>—</td><td>—</td><td>—</td><td><ul class="rules"><li><span class="when">Πάντα</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act">Προώθηση</span> <span class="mono">mediation@dovaluegreece.gr</span></span></li></ul></td></tr>
+<tr data-search="φορείς"><th scope="row">Φορείς</th><td class="num">1</td><td>Σε επεξεργασία</td><td>—</td><td>—</td><td><ul class="rules"><li><span class="when">Πάντα</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act">Φάκελος Outlook</span> «ΦΟΡΕΙΣ»</span></li><li><span class="when">Πάντα</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act">Activity Qualco</span> <span class="code"><b>6691</b> ΚΑΤΑΧΩΡΗΣΗ ΠΑΡΑΠΟΝΟΥ</span> <span class="code"><b>2090</b> ΠΑΡΑΛΑΒΗ ΕΓΓΡΑΦΟΥ ΑΙΤΗΜΑΤΟΣ</span></span></li></ul></td></tr>
+<tr data-search="φόρμες παραπόνων"><th scope="row">φόρμες παραπόνων</th><td class="num">1</td><td>—</td><td>—</td><td>—</td><td><ul class="rules"><li><span class="when">Πάντα</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act">Φάκελος Outlook</span> «ΠΑΡΑΠΟΝΑ»</span></li></ul></td></tr>
+<tr data-search="follow -up"><th scope="row">Follow -up</th><td class="num">2</td><td>—</td><td>—</td><td>—</td><td><ul class="rules"><li><span class="when">Πάντα</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act">Activity Qualco</span> —</span></li></ul></td></tr>
+<tr data-search="αμφισβήτηση οφειλής"><th scope="row">Αμφισβήτηση οφειλής</th><td class="num">2</td><td>Λήψη αιτήματος</td><td>—</td><td>Ο λογαριασμός</td><td><ul class="rules"><li><span class="when">Στο μητρώο ο πελάτης είναι στον Ν.3869</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act act-request">Αίτημα Qualco</span> <span class="code"><b>112</b> N.3869/2010_Αμφισβήτηση_οφειλής</span> </span></li><li><span class="when">Σε κάθε άλλη περίπτωση</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act act-request">Αίτημα Qualco</span> <span class="code"><b>146</b> Αμφισβήτηση_Οφειλής</span><span class="cust">κλειστή: <span class="code"><b>147</b> Αμφισβήτηση_Οφειλής_Cust</span></span> </span></li></ul></td></tr>
+<tr data-search="αντίγραφα συμβάσεων"><th scope="row">Αντίγραφα συμβάσεων</th><td class="num">2</td><td>Λήψη αιτήματος</td><td>—</td><td>Ο λογαριασμός</td><td><ul class="rules"><li><span class="when">Πάντα</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act act-request">Αίτημα Qualco</span> <span class="code"><b>154</b> Χορήγηση_Συμβατικών Εγγράφων</span><span class="cust">κλειστή: <span class="code"><b>155</b> Χορήγηση_Συμβατικών Εγγράφων_cust</span></span> </span></li></ul></td></tr>
+<tr data-search="αντιλογισμοί"><th scope="row">Αντιλογισμοί</th><td class="num">2</td><td>Λήψη αιτήματος</td><td>—</td><td>Ανά SPV</td><td><ul class="rules"><li><span class="when">Δεν έχει επισυνάψει τη φόρμα αντιλογισμού, οπότε του τη στέλνουμε για συμπλήρωση</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act">Απάντηση</span> «Αποστολή φόρμας αντιλογισμού»</span></li><li><span class="when">Στο μητρώο ο πελάτης είναι στον Ν.3869 · Έχει επισυνάψει τη φόρμα αντιλογισμού</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act act-request">Αίτημα Qualco</span> <span class="code"><b>108</b> N.3869/2010_Αντιλογισμός</span> </span></li><li><span class="when">Στο μητρώο ο πελάτης δεν είναι στον Ν.3869 · Έχει επισυνάψει τη φόρμα αντιλογισμού</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act act-request">Αίτημα Qualco</span> <span class="code"><b>152</b> Αντιλογισμός</span><span class="cust">κλειστή: <span class="code"><b>153</b> Αντιλογισμός_cust</span></span> </span></li></ul></td></tr>
+<tr data-search="ασφαλιστήρια"><th scope="row">Ασφαλιστήρια</th><td class="num">2</td><td>Λήψη αιτήματος</td><td>—</td><td>Ανά SPV</td><td><ul class="rules"><li><span class="when">Στέλνει ασφαλιστήριο αντικατάστασης, όχι ανανέωση</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act act-request">Αίτημα Qualco</span> <span class="code"><b>61</b> Προσκόμιση Νέου Ασφαλιστηρίου/Αντικατάσταση</span><span class="cust">κλειστή: <span class="code"><b>137</b> Προσκόμιση_Νέου_Ασφαλιστηρίου/Αντικατάσταση_Cust</span></span> </span></li><li><span class="when">Ζητά πληροφορίες για ασφαλιστήριο πυρός ή σεισμού</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act act-request">Αίτημα Qualco</span> <span class="code"><b>162</b> Πληροφορίες Ασφαλιστηρίου Πυρός/Σεισμού</span><span class="cust">κλειστή: <span class="code"><b>163</b> Πληροφορίες Ασφαλιστηρίου Πυρός/Σεισμού_Cust</span></span> </span></li><li><span class="when">Αφορά ασφαλιστική αποζημίωση</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act act-request">Αίτημα Qualco</span> <span class="code"><b>164</b> Ασφαλιστικές αποζημιώσεις</span> </span></li><li><span class="when">Σε κάθε άλλη περίπτωση</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act act-request">Αίτημα Qualco</span> <span class="code"><b>60</b> Προσκόμιση Νέου Ασφαλιστηρίου/Ανανέωση</span><span class="cust">κλειστή: <span class="code"><b>136</b> Προσκόμιση_Νέου_Ασφαλιστηρίου/Ανανέωση_Cust</span></span> </span></li></ul></td></tr>
+<tr data-search="βεβαίωση άρσης προσημείωσης"><th scope="row">Βεβαίωση άρσης προσημείωσης</th><td class="num">2</td><td>Λήψη αιτήματος</td><td>—</td><td>Ο λογαριασμός</td><td><ul class="rules"><li><span class="when">Ζητά μερική άρση προσημείωσης</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act act-request">Αίτημα Qualco</span> <span class="code"><b>52</b> Αίτημα Μερικής Άρσης Προσημείωσης</span><span class="cust">κλειστή: <span class="code"><b>139</b> Αίτημα_Μερικής_Άρσης_Προσημείωσης_Cust</span></span> </span></li><li><span class="when">Σε κάθε άλλη περίπτωση</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act act-request">Αίτημα Qualco</span> <span class="code"><b>50</b> Αίτημα Πλήρους Άρσης Προσημείωσης</span><span class="cust">κλειστή: <span class="code"><b>100</b> Αίτημα Πλήρους Άρσης Προσημείωσης_cust</span></span> </span></li></ul></td></tr>
+<tr data-search="βεβαιώσεις εξόφλησης"><th scope="row">Βεβαιώσεις εξόφλησης</th><td class="num">2</td><td>Λήψη αιτήματος</td><td>—</td><td>Ανά SPV</td><td><ul class="rules"><li><span class="when">Πάντα</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act act-request">Αίτημα Qualco</span> <span class="code"><b>87</b> Βεβαίωση_Εξόφλησης</span><span class="cust">κλειστή: <span class="code"><b>99</b> Βεβαίωση_Εξόφλησης_cust</span></span> </span></li></ul></td></tr>
+<tr data-search="βεβαιώσεις οφειλής"><th scope="row">Βεβαιώσεις οφειλής</th><td class="num">2</td><td>Λήψη αιτήματος</td><td>Ναι</td><td>Ανά SPV</td><td><ul class="rules"><li><span class="when">Γράφει ως κληρονόμος αποβιώσαντος οφειλέτη</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act act-request">Αίτημα Qualco</span> <span class="code"><b>111</b> Ειδική βεβαίωση_int</span> <span class="tag">και με Portal</span></span></li><li><span class="when">Δεν γράφει ως κληρονόμος · Στο μητρώο ο πελάτης είναι στον Ν.3869</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act act-request">Αίτημα Qualco</span> <span class="code"><b>105</b> N.3869/2010_Βεβαίωση_Οφειλής</span> </span></li><li><span class="when">Δεν γράφει ως κληρονόμος · Στο μητρώο ο πελάτης δεν είναι στον Ν.3869 · Ζητά και ανάλυση της οφειλής</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act act-request">Αίτημα Qualco</span> <span class="code"><b>91</b> Βεβαίωση_Οφειλής_με_Ανάλυση</span><span class="cust">κλειστή: <span class="code"><b>118</b> Βεβαίωση_Οφειλής_με_Ανάλυση_Cust</span></span> </span></li><li><span class="when">Δεν γράφει ως κληρονόμος · Στο μητρώο ο πελάτης δεν είναι στον Ν.3869 · Δεν ζητά ανάλυση της οφειλής</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act act-request">Αίτημα Qualco</span> <span class="code"><b>89</b> Βεβαίωση_Οφειλής</span><span class="cust">κλειστή: <span class="code"><b>117</b> Βεβαίωση_Οφειλής_Cust</span></span> </span></li></ul></td></tr>
+<tr data-search="γνωστοποίησης κωδικού πληρωμής / δόσης"><th scope="row">Γνωστοποίησης κωδικού πληρωμής / δόσης</th><td class="num">2</td><td>Σε επεξεργασία</td><td>Ναι</td><td>—</td><td><ul class="rules"><li><span class="when">Πάντα</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act">Φάκελος Outlook</span> «NO MATCH FOUND» <span class="tag">ή Portal</span></span></li></ul></td></tr>
+<tr data-search="διαμεσολάβηση - ρύθμιση"><th scope="row">Διαμεσολάβηση - ρύθμιση</th><td class="num">2</td><td>Λήψη αιτήματος</td><td>—</td><td>Ο λογαριασμός</td><td><ul class="rules"><li><span class="when">Πάντα</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act act-request">Αίτημα Qualco</span> <span class="code"><b>41</b> Ρύθμιση με διαμεσολάβηση</span><span class="cust">κλειστή: <span class="code"><b>141</b> Ρύθμιση με διαμεσολάβηση_Cust</span></span> </span></li></ul></td></tr>
+<tr data-search="δοσολόγιο"><th scope="row">Δοσολόγιο</th><td class="num">2</td><td>Λήψη αιτήματος</td><td>Ναι</td><td>Ο λογαριασμός</td><td><ul class="rules"><li><span class="when">Πάντα</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act act-request">Αίτημα Qualco</span> <span class="code"><b>144</b> Πληροφορίες δόσης_λογαριασμού</span><span class="cust">κλειστή: <span class="code"><b>145</b> Πληροφορίες δόσης_λογαριασμού_Cust</span></span> </span></li></ul></td></tr>
+<tr data-search="εθελοντική εκποίηση"><th scope="row">Εθελοντική εκποίηση</th><td class="num">2</td><td>Λήψη αιτήματος</td><td>—</td><td>Το SPV</td><td><ul class="rules"><li><span class="when">Πάντα</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act act-request">Αίτημα Qualco</span> <span class="code"><b>42</b> Εθελοντική Εκποίηση ακινήτου</span><span class="cust">κλειστή: <span class="code"><b>143</b> Εθελοντική Εκποίηση ακινήτου_Cust</span></span> </span></li></ul></td></tr>
+<tr data-search="εξασφαλίσεις"><th scope="row">Εξασφαλίσεις</th><td class="num">2</td><td>Λήψη αιτήματος</td><td>—</td><td>Το SPV</td><td><ul class="rules"><li><span class="when">Πάντα</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act act-request">Αίτημα Qualco</span> <span class="code"><b>51</b> Αίτημα Αλλαγής Εξασφάλισης</span><span class="cust">κλειστή: <span class="code"><b>140</b> Αίτημα_Αλλαγής_Εξασφάλισης_Cust</span></span> </span></li></ul></td></tr>
+<tr data-search="εξουσιοδοτήσεις"><th scope="row">Εξουσιοδοτήσεις</th><td class="num">2</td><td>Λήψη αιτήματος</td><td>—</td><td>Το SPV</td><td><ul class="rules"><li><span class="when">Πάντα</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act act-request">Αίτημα Qualco</span> <span class="code"><b>45</b> Προσκόμιση Εξουσιοδότησης Πληρεξουσίου Δικηγόρου</span><span class="cust">κλειστή: <span class="code"><b>124</b> Προσκόμιση_Εξουσιοδότησης_Πληρεξουσίου_Δικηγόρου_Cust</span></span> </span></li></ul></td></tr>
+<tr data-search="επικαιροποίηση στοιχείων με επισύναψη υπεύθυνης δήλωσης"><th scope="row">Επικαιροποίηση στοιχείων με επισύναψη υπεύθυνης δήλωσης</th><td class="num">2</td><td>Λήψη αιτήματος</td><td>—</td><td>Το SPV</td><td><ul class="rules"><li><span class="when">Η υπόθεση ανήκει στην ERB, οπότε το χειρίζεται η τράπεζα</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act">Παραπομπή σε Eurobank</span></span></li><li><span class="when">Σε κάθε άλλη περίπτωση</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act act-request">Αίτημα Qualco</span> <span class="code"><b>64</b> Αίτημα για επικαιροποίηση στοιχείων πελάτη (KYC)</span><span class="cust">κλειστή: <span class="code"><b>131</b> Αίτημα_για_επικαιροποίηση_στοιχείων_πελάτη (KYC)_Cust</span></span> </span></li></ul></td></tr>
+<tr data-search="κίνηση λογαριασμού"><th scope="row">Κίνηση λογαριασμού</th><td class="num">2</td><td>Λήψη αιτήματος</td><td>Ναι</td><td>Ο λογαριασμός</td><td><ul class="rules"><li><span class="when">Πάντα</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act act-request">Αίτημα Qualco</span> <span class="code"><b>95</b> Εκτύπωση_Αναλυτικής_Κίνησης</span><span class="cust">κλειστή: <span class="code"><b>119</b> Εκτύπωση_Αναλυτικής_Κίνησης_Cust</span></span> </span></li></ul></td></tr>
+<tr data-search="κώδικας δεοντολογίας"><th scope="row">Κώδικας δεοντολογίας</th><td class="num">2</td><td>Σε επεξεργασία</td><td>—</td><td>—</td><td><ul class="rules"><li><span class="when">Πάντα</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act">Φάκελος Outlook</span> «NO MATCH FOUND»</span></li></ul></td></tr>
+<tr data-search="νομιμοποίηση κληρονόμων με επισύναψη εγγράφων"><th scope="row">Νομιμοποίηση κληρονόμων με επισύναψη εγγράφων</th><td class="num">2</td><td>Λήψη αιτήματος</td><td>—</td><td>Το SPV</td><td><ul class="rules"><li><span class="when">Η υπόθεση ανήκει στην ERB, οπότε το χειρίζεται η τράπεζα</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act">Παραπομπή σε Eurobank</span></span></li><li><span class="when">Η υπόθεση δεν ανήκει στην ERB</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act act-request">Αίτημα Qualco</span> <span class="code"><b>44</b> Προσκόμιση Δικαιολογητικών Νομιμοποίησης Κληρονόμου</span><span class="cust">κλειστή: <span class="code"><b>123</b> Προσκόμιση_Δικαιολογητικών_Νομιμοποίησης_Κληρονόμου_Cust</span></span> </span></li><li><span class="when">Η υπόθεση δεν ανήκει στην ERB · Στέλνει πιστοποιητικό εγγυτέρων συγγενών ή ληξιαρχική πράξη θανάτου (activity 5005)</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act">Activity Qualco</span> <span class="code"><b>5005</b> Πιστοποιητικό εγγυτέρων συγγενών / ληξιαρχική πράξη</span></span></li><li><span class="when">Η υπόθεση δεν ανήκει στην ERB · Στέλνει άλλα έγγραφα κληρονόμων (activity 5007)</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act">Activity Qualco</span> <span class="code"><b>5007</b> Λοιπά έγγραφα κληρονόμων</span></span></li></ul></td></tr>
+<tr data-search="παράπονα"><th scope="row">Παράπονα</th><td class="num">2</td><td>—</td><td>—</td><td>—</td><td><ul class="rules"><li><span class="when">Πάντα</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act">Φάκελος Outlook</span> «ΠΑΡΑΠΟΝΑ»</span></li></ul></td></tr>
+<tr data-search="πόθεν έσχες"><th scope="row">Πόθεν έσχες</th><td class="num">2</td><td>Λήψη αιτήματος</td><td>—</td><td>Ανά SPV</td><td><ul class="rules"><li><span class="when">Η υπόθεση ανήκει στην ERB, οπότε το χειρίζεται η τράπεζα</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act">Παραπομπή σε Eurobank</span></span></li><li><span class="when">Η υπόθεση δεν ανήκει στην ERB · Στο μητρώο ο πελάτης είναι στον Ν.3869</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act act-request">Αίτημα Qualco</span> <span class="code"><b>109</b> N.3869/2010_Βεβαίωση Πόθεν έσχες</span> </span></li><li><span class="when">Η υπόθεση δεν ανήκει στην ERB · Στο μητρώο ο πελάτης δεν είναι στον Ν.3869</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act act-request">Αίτημα Qualco</span> <span class="code"><b>111</b> Ειδική βεβαίωση_int</span><span class="cust">κλειστή: <span class="code"><b>122</b> Ειδική βεβαίωση_Cust</span></span> </span></li></ul></td></tr>
+<tr data-search="ρύθμιση"><th scope="row">Ρύθμιση</th><td class="num">2</td><td>Λήψη αιτήματος</td><td>—</td><td>Το SPV</td><td><ul class="rules"><li><span class="when">Το αίτημα στηρίζεται σε δεδομένα υγείας · Δεν συνοδεύεται από υπογεγραμμένη υπεύθυνη δήλωση, οπότε ζητούμε να τη στείλει</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act">Απάντηση</span> «Υπεύθυνη δήλωση για δεδομένα υγείας»</span></li><li><span class="when">Το αίτημα στηρίζεται σε δεδομένα υγείας · Συνοδεύεται από υπογεγραμμένη υπεύθυνη δήλωση</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act act-request">Αίτημα Qualco</span> <span class="code"><b>40</b> Νέα Ρύθμιση</span><span class="cust">κλειστή: <span class="code"><b>142</b> Νέα_Ρύθμιση_Cust</span></span> </span></li><li><span class="when">Το αίτημα δεν στηρίζεται σε δεδομένα υγείας</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act act-request">Αίτημα Qualco</span> <span class="code"><b>40</b> Νέα Ρύθμιση</span><span class="cust">κλειστή: <span class="code"><b>142</b> Νέα_Ρύθμιση_Cust</span></span> </span></li><li><span class="when">Πάντα</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act">Προώθηση</span> <span class="mono">support_special_cases@dovaluegreece.gr</span></span></li></ul></td></tr>
+<tr data-search="συμβάσεις αναδιαρθωσης από pqh"><th scope="row">Συμβάσεις αναδιαρθωσης από pqh</th><td class="num">2</td><td>—</td><td>—</td><td>—</td><td><ul class="rules"><li><span class="when">Πάντα</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act">Καμία ενέργεια</span></span></li></ul></td></tr>
+<tr data-search="φόρμες ενδιαφέροντος ρύθμισης"><th scope="row">φόρμες ενδιαφέροντος ρύθμισης</th><td class="num">2</td><td>—</td><td>—</td><td>—</td><td><ul class="rules"><li><span class="when">Πάντα</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act">Φάκελος Outlook</span> «ΦΟΡΜΑ ΕΚΔΗΛΩΣΗΣ ΕΝΔΙΑΦΕΡΟΝΤΟΣ ΓΙΑ ΡΥΘΜΙΣΗ»</span></li></ul></td></tr>
+<tr data-search="marketing-spam"><th scope="row">Marketing-SPAM</th><td class="num">3</td><td>—</td><td>—</td><td>—</td><td><ul class="rules"><li><span class="when">Πάντα</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act">Καμία ενέργεια</span></span></li></ul></td></tr>
+<tr data-search="αιτήματα πελατών για λογαριασμούς που δεν είναι στην διαχείριση μας"><th scope="row">Αιτήματα πελατών για λογαριασμούς που δεν είναι στην διαχείριση μας</th><td class="num">3</td><td>—</td><td>—</td><td>—</td><td><ul class="rules"><li><span class="when">Πάντα</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act">Φάκελος Outlook</span> «NO MATCH FOUND»</span></li></ul></td></tr>
+<tr data-search="αποδείξεις πληρωμών"><th scope="row">Αποδείξεις πληρωμών</th><td class="num">3</td><td>Σε επεξεργασία</td><td>Ναι</td><td>—</td><td><ul class="rules"><li><span class="when">Πάντα</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act">Φάκελος Outlook</span> «ΦΟΡΕΙΣ» <span class="tag">ή Portal</span></span></li></ul></td></tr>
+<tr data-search="βεβαίωση_καταβολών_βεβαίωση_τόκων"><th scope="row">Βεβαίωση_Καταβολών_Βεβαίωση_Τόκων</th><td class="num">3</td><td>Λήψη αιτήματος</td><td>—</td><td>Ο λογαριασμός</td><td><ul class="rules"><li><span class="when">Πάντα</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act act-request">Αίτημα Qualco</span> <span class="code"><b>98</b> Βεβαίωση_Τόκων</span><span class="cust">κλειστή: <span class="code"><b>120</b> Βεβαίωση_Τόκων_Cust</span></span> </span></li></ul></td></tr>
+<tr data-search="βιογραφικά με επισυναπτόμενα"><th scope="row">Βιογραφικά με επισυναπτόμενα</th><td class="num">3</td><td>—</td><td>—</td><td>—</td><td><ul class="rules"><li><span class="when">Πάντα</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act">Προώθηση</span> <span class="mono">peopleservices@dovaluegreece.gr</span></span></li></ul></td></tr>
+<tr data-search="διαφημιστικά- σεμινάρια"><th scope="row">Διαφημιστικά- σεμινάρια</th><td class="num">3</td><td>Σε επεξεργασία</td><td>—</td><td>—</td><td><ul class="rules"><li><span class="when">Πάντα</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act">Προώθηση</span> <span class="mono">marketing_dvg@dovaluegreece.gr</span></span></li></ul></td></tr>
+<tr data-search="τα απεσταλμένα από dovaluegreece και όσα είναι κοινοποιημένο από εσωτερικά κανάλια"><th scope="row">Τα απεσταλμένα από dovaluegreece και όσα είναι κοινοποιημένο από εσωτερικά κανάλια</th><td class="num">3</td><td>—</td><td>—</td><td>—</td><td><ul class="rules"><li><span class="when">Πάντα</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act">Φάκελος Outlook</span> «doValueGreece-noreply»</span></li></ul></td></tr>
+<tr data-search="τιμολόγια"><th scope="row">Τιμολόγια</th><td class="num">3</td><td>Σε επεξεργασία</td><td>—</td><td>—</td><td><ul class="rules"><li><span class="when">Πάντα</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act">Προώθηση</span> <span class="mono">accounting@dovaluegreece.gr, fincon_legal_payments@dovaluegreece.gr, FINCON-LEGAL@dovaluegreece.gr</span></span></li></ul></td></tr>
+<tr data-search="φόρμες επικοινωνίας επενδυτή"><th scope="row">φόρμες επικοινωνίας επενδυτή</th><td class="num">3</td><td>—</td><td>—</td><td>—</td><td><ul class="rules"><li><span class="when">Πάντα</span><span class="arrow" aria-hidden="true">→</span><span class="then"><span class="act">Χειρισμός από το προσωπικό</span></span></li></ul></td></tr>
+      </tbody>
+    </table>
+    <div id="none" class="none" hidden>Καμία κατηγορία δεν ταιριάζει με την αναζήτηση.</div>
+  </div>
+
+  <h2>Πρότυπα απάντησης</h2>
+  <div class="panel"><details class="tpl"><summary><b>Λήψη αιτήματος</b> <span class="muted">Received template</span></summary><pre>Αγαπητέ/ή πελάτη,
+
+Σας ευχαριστούμε για την επικοινωνία. Λάβαμε το αίτημά σας και έχει καταχωρηθεί για επεξεργασία από το αρμόδιο τμήμα. Θα σας ενημερώσουμε για την εξέλιξή του.
+
+Με εκτίμηση,
+Τμήμα Εξυπηρέτησης Πελατών
+doValue Greece</pre></details>
+<details class="tpl"><summary><b>Σε επεξεργασία</b> <span class="muted">In Progress template</span></summary><pre>Αγαπητέ/ή κύριε/κυρία,
+
+Σας ευχαριστούμε για το μήνυμά σας. Το θέμα σας έχει διαβιβαστεί στο αρμόδιο τμήμα και βρίσκεται σε επεξεργασία.
+
+Με εκτίμηση,
+Τμήμα Εξυπηρέτησης Πελατών
+doValue Greece</pre></details>
+<details class="tpl"><summary><b>Παραπομπή στο Portal</b> <span class="muted">Portal template</span></summary><pre>Αγαπητέ/ή πελάτη,
+
+Σας ευχαριστούμε για την επικοινωνία. Το αίτημά σας μπορεί να εξυπηρετηθεί άμεσα και χωρίς αναμονή μέσα από το Portal της doValue Greece:
+https://eservices.dovaluegreece.gr
+
+Αν αντιμετωπίζετε τεχνικό πρόβλημα με την πρόσβαση ή τη χρήση του Portal, απαντήστε σε αυτό το μήνυμα περιγράφοντας το πρόβλημα και θα καταχωρήσουμε εμείς το αίτημά σας.
+
+Με εκτίμηση,
+Τμήμα Εξυπηρέτησης Πελατών
+doValue Greece</pre></details>
+<details class="tpl"><summary><b>Χρειάζονται στοιχεία</b> <span class="muted">Need more Info</span></summary><pre>Αγαπητέ/ή πελάτη,
+
+Σας ευχαριστούμε για την επικοινωνία. Για να προχωρήσουμε στο αίτημά σας χρειαζόμαστε:
+• τον ΑΦΜ του δανειολήπτη
+• τον αριθμό του δανειακού λογαριασμού που αφορά το αίτημα (ή να μας γράψετε ότι αφορά όλες τις οφειλές σας)
+
+Παρακαλούμε απαντήστε σε αυτό το μήνυμα με τα παραπάνω στοιχεία.
+
+Με εκτίμηση,
+Τμήμα Εξυπηρέτησης Πελατών
+doValue Greece</pre></details>
+<details class="tpl"><summary><b>Παραπομπή σε κατάστημα Eurobank</b> <span class="muted">Go to ERB branch template</span></summary><pre>Αγαπητέ/ή πελάτη,
+
+Σας ευχαριστούμε για την επικοινωνία. Το αίτημά σας αφορά δάνειο που εξυπηρετείται από την Eurobank. Παρακαλούμε απευθυνθείτε σε οποιοδήποτε κατάστημα της Eurobank για την εξυπηρέτησή σας.
+
+Με εκτίμηση,
+Τμήμα Εξυπηρέτησης Πελατών
+doValue Greece</pre></details>
+<details class="tpl"><summary><b>Αποστολή φόρμας αντιλογισμού</b> <span class="muted">Reversal form</span></summary><pre>Αγαπητέ/ή πελάτη,
+
+Για να εξετάσουμε το αίτημα αντιλογισμού, παρακαλούμε συμπληρώστε και υπογράψτε τη συνημμένη φόρμα αντιλογισμού και αποστείλτε τη σε απάντηση αυτού του μηνύματος.
+
+Με εκτίμηση,
+Τμήμα Εξυπηρέτησης Πελατών
+doValue Greece</pre></details>
+<details class="tpl"><summary><b>Υπεύθυνη δήλωση για δεδομένα υγείας</b> <span class="muted">Health data declaration</span></summary><pre>Αγαπητέ/ή πελάτη,
+
+Για να εξετάσουμε το αίτημά σας που στηρίζεται σε δεδομένα υγείας, παρακαλούμε αποστείλτε υπογεγραμμένη υπεύθυνη δήλωση συναίνεσης για την επεξεργασία τους.
+
+Με εκτίμηση,
+Τμήμα Εξυπηρέτησης Πελατών
+doValue Greece</pre></details></div>
+
+  <h2>Προς επιβεβαίωση από την επιχείρηση</h2>
+  <p>Σημεία όπου το φύλλο δεν ήταν σαφές και επιλέχθηκε μια λύση. Παρακαλούμε επιβεβαιώστε ή διορθώστε.</p>
+  <ol class="questions"><li><b>Ανοιχτή / κλειστή υπόθεση.</b> Μέχρι να υπάρξει η ένδειξη στο μητρώο, κάθε αίτημα ανοίγει με τον κωδικό ανοιχτής υπόθεσης (χωρίς _Cust). Χρειαζόμαστε το όνομα της στήλης και τις τιμές που σημαίνουν «κλειστή»· τότε ο κωδικός _Cust επιλέγεται αυτόματα ανά λογαριασμό.</li><li><b>«Τυχαίος» λογαριασμός.</b> Για να δίνει το ίδιο email πάντα το ίδιο αποτέλεσμα, ο λογαριασμός επιλέγεται με σειρά: ανοιχτή υπόθεση πρώτα, λογαριασμός Ν.3869 για αιτήματα Ν.3869, μετά ο μικρότερος αριθμός λογαριασμού.</li><li><b>Κατηγορίες χωρίς κανόνα λογαριασμού.</b> Αντιλογισμοί, Ηχογραφημένες κλήσεις, Πλειστηριασμοί και Πόθεν έσχες δεν έχουν τιμή στη στήλη «REQ ανά SPV / λογαριασμό». Εφαρμόζεται «ανά SPV». Ο αντιλογισμός ίσως πρέπει να απαιτεί τον λογαριασμό.</li><li><b>Πελάτης χωρίς ΑΦΜ/λογαριασμό σε κατηγορία Portal.</b> Συνεχίζεται ο προηγούμενος κανόνας: απάντηση με το πρότυπο Portal (μπορεί να εξυπηρετηθεί μόνος του). Εναλλακτικά: Need more Info.</li><li><b>Need more Info: αυτόματα ή με έλεγχο;.</b> Σήμερα κάθε email που χρειάζεται στοιχεία πηγαίνει σε έλεγχο, ώστε ένας άνθρωπος να εγκρίνει την απάντηση. Μπορεί να γίνει αυτόματο αργότερα.</li><li><b>Όνομα που διαφέρει από τον κάτοχο.</b> Εμφανίζεται στον ελεγκτή, αλλά δεν στέλνει το email σε έλεγχο, αφού το όνομα είναι συμπληρωματικό στοιχείο.</li><li><b>Αυτοτραυματισμός ή απειλή μήνυσης.</b> Το email πηγαίνει πάντα σε έλεγχο, όποια κατηγορία κι αν πάρει.</li><li><b>Παράπονο μαζί με άλλο αίτημα.</b> Το άλλο αίτημα γίνεται κύριο και το email πηγαίνει σε έλεγχο, ώστε να καταγραφεί και το παράπονο.</li><li><b>Αποδείξεις πληρωμών.</b> Το φύλλο έχει Portal = YES αλλά ενέργεια «φάκελος ΦΟΡΕΙΣ». Πελάτης με Portal παίρνει το πρότυπο Portal, αλλιώς φάκελος ΦΟΡΕΙΣ. Σωστός ο φάκελος;</li><li><b>Ρύθμιση.</b> Η προώθηση στο support_special_cases γίνεται σε κάθε email ρύθμισης, μαζί με το αίτημα 40/142.</li><li><b>Βεβαιώσεις εξόφλησης.</b> Αφαιρέθηκε ο παλιός κανόνας «χρειάζεται αριθμός σύμβασης»· ισχύει ο κανόνας «ανά SPV» του φύλλου.</li><li><b>Κείμενα απαντήσεων και διεύθυνση Portal.</b> Τα κείμενα είναι προσχέδια. Η διεύθυνση Portal είναι https://eservices.dovaluegreece.gr: χρειάζεται επιβεβαίωση.</li><li><b>Φόρμες επικοινωνίας επενδυτή.</b> Το φύλλο δεν ορίζει ενέργεια· πηγαίνει στο προσωπικό.</li><li><b>96 Εκτύπωση_Αναλυτικής_Κίνησης_Int.</b> Ο εσωτερικός κωδικός δεν χρησιμοποιείται αυτόματα· ο ελεγκτής μπορεί να τον προσθέσει.</li></ol>
+</div>
+<script>
+(function () {
+  var q = document.getElementById("q"), rows = Array.prototype.slice.call(document.querySelectorAll("#rows tr"));
+  var count = document.getElementById("count"), none = document.getElementById("none");
+  function norm(s) { return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase(); }
+  rows.forEach(function (r) { r.dataset.text = norm(r.textContent); });
+  function paint() {
+    var v = norm(q.value.trim()), shown = 0;
+    rows.forEach(function (r) { var on = !v || r.dataset.text.indexOf(v) >= 0; r.hidden = !on; if (on) shown++; });
+    count.textContent = shown + " / " + rows.length;
+    none.hidden = shown > 0;
+  }
+  q.addEventListener("input", paint);
+  paint();
+})();
+</script>

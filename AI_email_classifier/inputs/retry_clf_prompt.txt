@@ -618,72 +618,30 @@ or email signatures.
 
 
 # ============================================================
-# 16. MANDATORY COMPLAINT RE-EVALUATION
+# 16. COMPLAINT RE-EVALUATION
 # ============================================================
 
-If the exact category:
+Return exactly "Παράπονα" ONLY when both hold:
 
-"Παράπονα" or "Φορείς"
+1. the customer-authored thread asks for nothing else: no certificate,
+   document, reversal, settlement, correction, information or any other
+   operational request; and
+2. the dissatisfaction with doValue's service or handling is clear and
+   strong: explicit complaint wording (παράπονο, επίσημο παράπονο,
+   καταγγελία, διαμαρτυρία, complaint, formal complaint, grievance), harsh
+   service criticism, repeated unanswered contact, a demand for
+   investigation, redress or escalation, or extremely negative content such
+   as a threat of legal action against doValue (μήνυση) or any mention of
+   self-harm or suicide (αυτοχειρία, αυτοκτονία).
 
-exists in both Allowed_Categories and Categories_JSON, re-evaluate the complete
-customer-authored thread for the complaint override before repairing or
-preserving another category.
+When the thread complains AND asks for something concrete, return the
+category of the concrete request (by Priority if there are several) and
+mention the complaint in Reasoning. A complaint never overrides an
+operational category such as Αμφισβήτηση οφειλής, Αντιλογισμοί, Ρύθμιση,
+Follow -up, or a payment or Portal request.
 
-Return exactly:
-
-"Παράπονα"
-
-when customer-authored evidence contains one or more of:
-
-- explicit complaint language;
-- explicit service criticism;
-- dissatisfaction with handling;
-- repeated unanswered or unresolved communication accompanied by
-  dissatisfaction;
-- request for formal investigation;
-- request for an official response;
-- request for corrective action or intervention;
-- request for escalation;
-- request to record or review a complaint;
-- intention to report the organisation's handling to a competent authority.
-
-Examples of supporting meanings include:
-
-- παράπονο;
-- υποβολή παραπόνου;
-- επίσημο παράπονο;
-- καταγγελία;
-- διαμαρτυρία;
-- απαράδεκτη εξυπηρέτηση;
-- κακή εξυπηρέτηση;
-- αδικαιολόγητη καθυστέρηση;
-- λανθασμένη διαχείριση;
-- επανειλημμένες επικοινωνίες χωρίς απάντηση;
-- ζητώ επίσημη διερεύνηση;
-- ζητώ επίσημη απάντηση;
-- ζητώ κλιμάκωση;
-- complaint;
-- formal complaint;
-- grievance;
-- unacceptable service;
-- repeated requests without resolution.
-
-When supported, the complaint override takes precedence over:
-
-- Αμφισβήτηση οφειλής;
-- Αντιλογισμοί;
-- Ρύθμιση;
-- Follow -up;
-- payment difficulty;
-- Portal difficulty;
-- and other operational categories.
-
-The corrected Matched_Rules must contain exact complaint evidence from the
-available customer-authored thread.
-
-The corrected Reasoning must briefly explain the explicit complaint,
-service criticism, unresolved repeated communication, redress request, or
-escalation.
+When "Παράπονα" is returned, Matched_Rules must contain exact complaint
+evidence and Reasoning must state that nothing else is asked.
 
 # ============================================================
 # 17. AUTHORITY OR BODY CORRESPONDENCE
@@ -766,9 +724,12 @@ When several categories appear relevant:
 
 4. Otherwise preserve a supported established category.
 
-5. Prefer the category requiring the recipient's principal new action.
+5. When the thread makes several distinct, actionable requests, prefer the
+   most important one: the lowest numeric Priority (1 = most important).
+   "Παράπονα" is never preferred when anything else is asked (section 16).
 
-6. Use lower numeric Priority only when an actual tie remains.
+6. Otherwise prefer the category requiring the recipient's principal new
+   action.
 
 7. Ignore missing, empty, or non-numeric Priority values.
 

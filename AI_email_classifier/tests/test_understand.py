@@ -48,25 +48,43 @@ def test_an_account_number_picks_out_one_of_the_namesakes(registry):
     out = find_customers(registry, RequestHistory.empty(), [], [{"value": "1000000000002", "where": {}}], [], NAME)
     first = out["customers"][0]
     assert first["taxId"] == "090000045" and first["status"] == "confirmed" and first["principal"]
-    assert out["facts"] == {"identified": True, "known": True, "portal": False, "erb": True, "is_3869": True}
+    facts = {k: out["facts"][k] for k in ("identified", "known", "portal", "erb", "is_3869", "named_accounts")}
+    assert facts == {"identified": True, "known": True, "portal": False, "erb": True, "is_3869": True,
+                     "named_accounts": ["1000000000002"]}
+    assert [(a["account"], a["spv"], a["state"], a["is3869"]) for a in out["facts"]["accounts"]] == [
+        ("1000000000002", "Portfolio B", "unknown", True)]
 
 
-def test_an_email_used_in_past_requests_plus_a_name_confirms(registry):
+def test_an_email_used_in_past_requests_plus_a_name_stays_possible(registry):
+    """Names and emails are complementary: together they still do not identify the customer."""
     history = RequestHistory(pd.DataFrame([{"AFM": "094014298", "EMAIL": "client@example.test",
                                             "REQUEST_TYPE_DSC": "Βεβαίωση οφειλής", "REQUEST_STATUS": "Closed",
                                             "REQUEST_CREATED": "2026-10-01", "CLOSED_REQUEST_FLAG": "Y",
                                             "ACC_ID": "", "CUST_FIRST_NM": "", "CUST_LAST_NM": ""}]))
     out = find_customers(registry, history, [], [], [{"value": "Client@Example.test", "where": {}}], NAME)
-    confirmed = [c for c in out["customers"] if c["status"] == "confirmed"]
-    assert [c["taxId"] for c in confirmed] == ["094014298"]
-    assert confirmed[0]["recentRequests"][0]["type"] == "Βεβαίωση οφειλής"
+    assert not [c for c in out["customers"] if c["status"] == "confirmed"]
+    ioannis = next(c for c in out["customers"] if c["taxId"] == "094014298")
+    assert ioannis["status"] == "possible" and {e["kind"] for e in ioannis["matchedOn"]} == {"email", "name"}
+    assert ioannis["recentRequests"][0]["type"] == "Βεβαίωση οφειλής"
+    assert out["facts"]["known"] is False and out["facts"]["identified"] is False
+
+
+def test_open_or_closed_comes_from_the_configured_column(registry, monkeypatch):
+    df = REGISTRY.assign(ACC_STATE=["Ανοιχτός", "Κλειστός", ""])
+    reg = Registry(df, "x")
+    assert {a["state"] for a in reg.accounts("094014298")} == {"unknown"}  # column not configured yet
+    monkeypatch.setenv("ACCOUNT_STATUS_COLUMN", "ACC_STATE")
+    assert [a["state"] for a in reg.accounts("094014298")] == ["open"]
+    assert [a["state"] for a in reg.accounts("090000045")] == ["closed"]
+    assert [a["state"] for a in reg.accounts("111111111")] == ["unknown"]
 
 
 def test_a_tax_id_whose_owner_has_another_name_is_flagged(registry):
     out = find_customers(registry, RequestHistory.empty(), [{"value": "111111111", "where": {}}], [], [], NAME)
     maria = next(c for c in out["customers"] if c["taxId"] == "111111111")
     assert maria["status"] == "confirmed" and maria.get("nameMismatch") is True
-    assert rc.understanding_reasons({"customers": out["customers"]})  # sends the case to review
+    # Shown to the reviewer, but a name is complementary: it does not send the case to review.
+    assert rc.understanding_reasons({"customers": out["customers"], "actions": [{"do": "request"}]}) == []
 
 
 def test_unknown_identifiers_are_reported_not_dropped(registry):
@@ -133,9 +151,26 @@ def test_understand_ties_every_value_to_its_source(registry):
     assert out["evidence"][0]["where"]["kind"] == "body" and out["evidence"][0]["flag"] == "asks_debt_certificate"
 
 
-def test_an_email_with_no_customer_goes_to_review():
-    assert rc.understanding_reasons({"customers": []}) == ["no customer found in the registry"]
-    assert rc.understanding_reasons({"customers": [{"status": "confirmed"}]}) == []
+def test_an_email_with_no_customer_goes_to_review_only_when_an_action_needs_one():
+    request = [{"do": "request"}]
+    assert rc.understanding_reasons({"customers": [], "actions": request}) == [
+        "no customer found in the registry by tax ID or account"]
+    assert rc.understanding_reasons({"customers": [{"status": "possible"}], "actions": request}) == [
+        "no customer found in the registry by tax ID or account"]  # a name match is not enough
+    assert rc.understanding_reasons({"customers": [{"status": "confirmed"}], "actions": request}) == []
+    assert rc.understanding_reasons({"customers": [], "actions": [{"do": "forward"}]}) == []
+    assert not rc.identification_waived({"customers": [], "actions": request})
+    assert rc.identification_waived({"customers": [{"status": "confirmed"}], "actions": request})
+    assert rc.identification_waived({"customers": [], "actions": [{"do": "outlook_folder"}]})
+
+
+def test_account_complaint_and_distress_reasons():
+    u = {"customers": [{"status": "confirmed"}], "actions": [{"do": "request", "caveat": "account_not_identified"}],
+         "complaintDemoted": True, "principalCategory": "GDPR", "flags": ["distress_or_threat"]}
+    assert rc.understanding_reasons(u) == [
+        "the account or portfolio (SPV) the request concerns is not identified",
+        "the complaint is not the main request: the email also asks for GDPR",
+        "the email mentions self-harm or threatens legal action"]
 
 
 def test_old_ingest_runs_are_skipped_but_imports_are_not():

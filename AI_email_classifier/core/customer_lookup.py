@@ -1,17 +1,23 @@
 """Find the customers an email is about: the registry (qualco_output) and past Qualco requests (request_output).
 
-Evidence has two strengths:
-- strong: a tax ID (ΑΦΜ) that passes its check digit, or an exact account number. Either one names a
-  customer on its own.
-- clue: a person's name, or an email address that earlier Qualco requests were filed under. A clue
-  becomes a match only when a strong identifier, or a clue of a different kind, points at the same person.
+Only a tax ID (ΑΦΜ) that passes its check digit and is in the registry, or an exact account number,
+identifies ("confirms") a customer. A person's name, or an email address that earlier Qualco requests
+were filed under, is complementary: it can only make a customer "possible", never confirmed, and it
+never decides whether a case can be handled automatically (business rule, Nov 2026). Names still help
+to say which confirmed customer the email is about, and a name that differs from the registry owner is
+shown to the reviewer.
 
 Several people with the same name are all listed and marked "possible"; one is never picked at random.
+
+Accounts carry their portfolio (SPV) and, once the registry has the column, whether the Qualco case is
+open or closed: set ACCOUNT_STATUS_COLUMN (and ACCOUNT_CLOSED_VALUES) when it arrives. Until then every
+account's state is "unknown" and the action rules use the open-case request.
 No I/O here except the one streaming pass over request_output in ``RequestHistory.scan``.
 """
 
 from __future__ import annotations
 
+import os
 import re
 import unicodedata
 from typing import Any, Iterable
@@ -60,6 +66,25 @@ class Registry:
 
     def rows_for_tax(self, tax_id: str) -> pd.DataFrame:
         return self.df[self.df["TAX_ID_NO"] == tax_id]
+
+    def accounts(self, tax_id: str) -> list[dict[str, Any]]:
+        """Every account of a customer: number, portfolio (SPV), open/closed state, Ν.3869, ERB."""
+        out, seen = [], set()
+        for row in self.rows_for_tax(tax_id).to_dict("records"):
+            number = str(row.get("ACC_UNQ_CD") or "").strip()
+            if not number or number in seen:
+                continue
+            seen.add(number)
+            out.append({
+                "account": number,
+                "otherNumbers": _unique(str(row.get(c) or "") for c in ACCOUNT_COLUMNS[1:]),
+                "spv": str(row.get("PRTFL_NM") or row.get("PRTFL_CD") or "").strip() or "—",
+                "state": account_state(row),
+                "is3869": "3869" in str(row.get("CST_STS_NM") or ""),
+                "erb": str(row.get("SOURCE") or "").strip() == "Datamart",
+                "taxId": tax_id,
+            })
+        return out
 
     def owners_of_account(self, number: str) -> list[str]:
         mask = pd.Series(False, index=self.df.index)
@@ -116,6 +141,18 @@ class Registry:
             "accounts": accounts,
             "accountsTotal": len(rows),
         }
+
+
+def account_state(row: dict) -> str:
+    """'open' or 'closed' Qualco case, from ACCOUNT_STATUS_COLUMN; 'unknown' while the column is not there."""
+    column = os.getenv("ACCOUNT_STATUS_COLUMN", "").strip()
+    if not column or column not in row:
+        return "unknown"
+    closed = {v.strip().upper() for v in os.getenv("ACCOUNT_CLOSED_VALUES", "CLOSED,C,Κλειστός,ΚΛΕΙΣΤΟΣ").split(",")}
+    value = str(row.get(column) or "").strip().upper()
+    if not value:
+        return "unknown"
+    return "closed" if value in closed else "open"
 
 
 class RequestHistory:
@@ -217,12 +254,12 @@ def find_customers(
 
     customers = []
     for tax_id, evidence in clues.items():
-        kinds = {e["kind"] for e in evidence}
         same_name = max((len(g) for value, g in name_groups.items() if tax_id in g), default=0)
         card = registry.card(tax_id)
         card.update(
             {
-                "status": "confirmed" if any(e["strong"] for e in evidence) or len(kinds) >= 2 else "possible",
+                # Only a tax ID or an account confirms; names and emails stay complementary.
+                "status": "confirmed" if any(e["strong"] for e in evidence) else "possible",
                 "matchedOn": evidence,
                 "sameNameCount": same_name,
                 "principal": any(e["kind"] == "name" and e["value"] in principal_names for e in evidence),
@@ -242,15 +279,22 @@ def find_customers(
     confirmed = [c for c in customers if c["status"] == "confirmed"]
     facts_from = [c for c in confirmed if c["principal"]] or confirmed
     rows = [registry.rows_for_tax(c["taxId"]) for c in facts_from]
+    customer_accounts = [a for c in facts_from for a in registry.accounts(c["taxId"])]
+    # Account numbers written in the email that belong to these customers (any of the three numbers).
+    written = {str(item["value"]).strip() for item in accounts}
+    named = [a["account"] for a in customer_accounts if a["account"] in written or set(a["otherNumbers"]) & written]
     return {
         "customers": customers,
         "unmatched": unmatched,
         "notes": notes,
         "facts": {
-            "identified": bool(confirmed) or bool(tax_ids),
+            # Identified = the email gives a tax ID or an account number; known = it is in the registry.
+            "identified": bool(confirmed) or bool(tax_ids) or bool(accounts),
             "known": bool(confirmed),
             "portal": any(c["portal"] for c in facts_from),
             "erb": any((r["SOURCE"] == "Datamart").any() for r in rows if "SOURCE" in r.columns),
             "is_3869": any(r["CST_STS_NM"].str.contains("3869").any() for r in rows if "CST_STS_NM" in r.columns),
+            "accounts": customer_accounts,
+            "named_accounts": list(dict.fromkeys(named)),
         },
     }

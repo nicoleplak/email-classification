@@ -413,8 +413,27 @@ def ingest_info() -> dict:
 
 
 ACTION_KINDS = {"request", "portal_referral", "ask_identification", "manual", "forward", "reply", "bank_referral",
-                "activity", "no_action"}
-GENERIC_ACTIONS = [{"do": d} for d in ("manual", "ask_identification", "portal_referral", "reply", "no_action")]
+                "activity", "no_action", "outlook_folder"}
+GENERIC_ACTIONS = [
+    {"do": "reply", "template": "received"},
+    {"do": "reply", "template": "in_progress"},
+    {"do": "portal_referral", "template": "portal"},
+    {"do": "ask_identification", "template": "need_more_info", "missing": ["afm", "account"]},
+    {"do": "bank_referral", "template": "erb_branch"},
+    {"do": "manual"},
+    {"do": "no_action"},
+]
+
+
+def _option(rule: dict) -> dict:
+    """One pickable action from a rule: a request carries its open-case code (the _cust one only for closed cases)."""
+    from core.action_rules import code_name
+
+    if rule["do"] != "request":
+        return {k: rule[k] for k in ("do", "codes", "to", "folder", "template") if rule.get(k)}
+    code = (rule.get("codes") or [rule.get("open")])[0]
+    return {"do": "request", "code": code, "codes": [code], "openCode": code, "closedCode": rule.get("closed"),
+            "codeName": code_name(code)}
 
 
 def action_catalog() -> dict:
@@ -425,9 +444,11 @@ def action_catalog() -> dict:
     for category, spec in RULES.items():
         seen, options = set(), []
         for rule in (spec or {}).get("rules", []) if isinstance(spec, dict) else []:
-            option = {k: rule[k] for k in ("do", "codes", "open", "closed", "to") if rule.get(k)}
+            if rule.get("do") not in ACTION_KINDS:
+                continue
+            option = _option(rule)
             key = json.dumps(option, sort_keys=True, ensure_ascii=False)
-            if option.get("do") in ACTION_KINDS and key not in seen:
+            if key not in seen:
                 seen.add(key)
                 options.append(option)
         if options:
@@ -435,24 +456,40 @@ def action_catalog() -> dict:
     return {"byCategory": catalog, "general": GENERIC_ACTIONS}
 
 
+def reply_templates() -> dict:
+    """Template labels and texts for the page (inputs/reply_templates.json)."""
+    from core.action_rules import REPLIES, render_reply
+
+    return {key: {"label": spec["label"], "name": spec["name"], "text": render_reply(key, ["afm", "account"])}
+            for key, spec in REPLIES["templates"].items()}
+
+
 def clean_actions(raw) -> tuple[list[dict], str | None]:
     """The reviewer's chosen actions, kept to known kinds and short plain values."""
+    from core.action_rules import REPLIES
+
     if raw is None:
         return [], None
-    if not isinstance(raw, list) or len(raw) > 12:
+    if not isinstance(raw, list) or len(raw) > 20:
         return [], "actions"
     out = []
+    text = lambda v: str(v)[:120]  # noqa: E731
     for item in raw:
         if not isinstance(item, dict) or item.get("do") not in ACTION_KINDS:
             return [], "actions"
-        text = lambda v: str(v)[:120]  # noqa: E731
         out.append({
             "do": item["do"],
             "category": item.get("category") if item.get("category") in CATEGORIES else None,
             "codes": [text(c) for c in (item.get("codes") or [])][:10],
+            "code": text(item["code"]) if item.get("code") else None,
             "open": text(item["open"]) if item.get("open") else None,
             "closed": text(item["closed"]) if item.get("closed") else None,
             "to": [text(t) for t in ([item["to"]] if isinstance(item.get("to"), str) else item.get("to") or [])][:5],
+            "account": text(item["account"]) if item.get("account") else None,
+            "spv": text(item["spv"]) if item.get("spv") else None,
+            "accountState": item.get("accountState") if item.get("accountState") in ("open", "closed", "unknown") else None,
+            "folder": text(item["folder"]) if item.get("folder") else None,
+            "template": item.get("template") if item.get("template") in REPLIES["templates"] else None,
             "source": "suggested" if item.get("source") == "suggested" else "added",
         })
     return out, None
@@ -731,8 +768,11 @@ class Handler(BaseHTTPRequestHandler):
     def api(self, method: str, path: str, query: dict, user: dict) -> None:
         parts = path.strip("/").split("/")  # api, cases, <id>, ...
         if path == "/api/meta" and method == "GET":
-            return self.json(200, {"categories": CATEGORIES, "actions": action_catalog(), "user": public_user(user),
-                                   "mode": AUTH})
+            from core.action_rules import QUALCO
+
+            return self.json(200, {"categories": CATEGORIES, "actions": action_catalog(), "templates": reply_templates(),
+                                   "codeNames": {**QUALCO["requests"], **QUALCO["activities"]},
+                                   "user": public_user(user), "mode": AUTH})
         if path == "/api/cases" and method == "GET":
             return self.json(200, {"items": CASES.get(), "classifier": classifier_info(), "serverTime": now()})
         if path == "/api/metrics" and method == "GET":

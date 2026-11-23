@@ -19,7 +19,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-from core.action_rules import FLAGS, decide, explain
+from core.action_rules import FLAGS, decide, explain, order_requests
 from core.customer_lookup import Registry, RequestHistory, find_customers
 from core.identifiers import find_candidates, merge_candidates
 from utils.afm_utils import afm_checksum_valid
@@ -71,7 +71,11 @@ none if unclear. evidence: a short quote (max 15 words) showing who they are; so
 3. flags: set each true only if the email or its attachments clearly say so:
 {flags}
 
-4. other_requests: categories of FURTHER distinct requests beyond the principal one; usually empty.
+4. other_requests: categories of FURTHER distinct requests beyond the principal one; usually empty. If the
+principal is "Παράπονα" (a complaint) but the email also asks for something concrete (a certificate, a
+reversal, a settlement...), list that request here: a complaint is only the main request when nothing else
+is asked. If the principal is another category and the email also contains a clear complaint about
+doValue's service, list "Παράπονα" here. Never list the principal itself.
 
 5. evidence: up to 8 quotes copied EXACTLY, character for character, from the email or attachment text
 (each 3 to 20 words, never paraphrased). supports = "category" for text showing why the email belongs to
@@ -335,8 +339,11 @@ def understand(
         names=names,
     )
     other_requests = [c for c in answer["other_requests"] if c != principal]
+    # Most important request first; a complaint is first only when nothing else is asked.
+    ordered, complaint_demoted = order_requests(principal, other_requests)
+    principal, other_requests = ordered[0], ordered[1:]
     actions = decide(
-        [principal, *other_requests],
+        ordered,
         answer["flags"],
         lookup["facts"],
         has_contract=any(e["type"] in ("contract", "account") for e in extracted),
@@ -348,6 +355,7 @@ def understand(
     return {
         "principalCategory": principal,
         "otherRequests": other_requests,
+        "complaintDemoted": complaint_demoted,
         "extracted": extracted + emails,
         "candidatesDropped": dropped,
         "people": people,

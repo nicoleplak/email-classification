@@ -5,17 +5,25 @@ from pathlib import Path
 
 import pytest
 
-from core.action_rules import FLAGS, REASONS, RULES, decide, explain
+from core.action_rules import FLAGS, REASONS, REPLIES, RULES, code_name, decide, explain, order_requests
 from evaluation.email_chain import split_chain
 from core.identifiers import find_candidates, merge_candidates, mod97_valid
 from utils.afm_utils import afm_checksum_valid
 from utils.html_text import html_to_text
 
-PORTAL_CUSTOMER = {"identified": True, "known": True, "portal": True}
-NO_PORTAL_CUSTOMER = {"identified": True, "known": True, "portal": False}
-DEBT = "Βεβαιώσεις οφειλής"
-AUTH = "Εξουσιοδοτήσεις"
-SCHEDULE = "Δοσολόγιο"
+def acct(number, spv="SPV A", state="unknown", is3869=False):
+    return {"account": number, "otherNumbers": [], "spv": spv, "state": state, "is3869": is3869, "erb": False}
+
+
+ONE = [acct("4000000000001")]
+TWO_SPVS = [acct("4000000000001", "SPV A"), acct("4000000000002", "SPV A"), acct("4000000000009", "SPV B")]
+NO_PORTAL_CUSTOMER = {"identified": True, "known": True, "portal": False, "accounts": TWO_SPVS}
+PORTAL_CUSTOMER = {**NO_PORTAL_CUSTOMER, "portal": True}
+DEBT = "Βεβαιώσεις οφειλής"          # Portal = YES, request per SPV
+AUTH = "Εξουσιοδοτήσεις"             # request on one account of the identified SPV
+SCHEDULE = "Δοσολόγιο"               # Portal = YES, the account must be identified
+COPIES = "Αντίγραφα συμβάσεων"       # the account must be identified
+GDPR = "GDPR"                        # request per SPV
 
 
 def make_afm(prefix: str = "12345678") -> str:
@@ -24,45 +32,54 @@ def make_afm(prefix: str = "12345678") -> str:
     return prefix + str((total % 11) % 10)
 
 
-def only(actions):
-    assert len(actions) == 1, actions
-    return actions[0]
+def of(actions, do):
+    return [a for a in actions if a["do"] == do]
 
 
-# The six outcomes the spec lists for one category (Notes.md, step 2).
-def test_debt_certificate_portal_customer_is_referred():
-    assert only(decide([DEBT], {}, PORTAL_CUSTOMER))["do"] == "portal_referral"
+def only(actions, do="request"):
+    found = of(actions, do)
+    assert len(found) == 1, actions
+    return found[0]
 
 
-def test_debt_certificate_cannot_login_opens_a_request():
-    action = only(decide([DEBT], {"cannot_use_online": True}, PORTAL_CUSTOMER))
-    assert (action["do"], action["open"], action["closed"]) == ("request", "89", "117")
+def reply(actions):
+    replies = [a for a in actions if a.get("template")]
+    assert len(replies) == 1, actions
+    return replies[0]["template"]
+
+
+# Portal first: the Portal flag means "go to the Portal", unless the Portal has a technical problem.
+def test_debt_certificate_portal_customer_gets_the_portal_reply():
+    actions = decide([DEBT], {}, PORTAL_CUSTOMER)
+    assert [a["do"] for a in actions] == ["portal_referral"] and reply(actions) == "portal"
+    assert "has_portal" in actions[0]["because"] and "Portal" in actions[0]["text"]
+
+
+def test_technical_issue_with_the_portal_opens_the_request_instead():
+    actions = decide([DEBT], {"cannot_use_online": True}, PORTAL_CUSTOMER)
+    assert {a["code"] for a in of(actions, "request")} == {"89"} and reply(actions) == "received"
+    assert "cannot_use_online" in of(actions, "request")[0]["because"]
 
 
 def test_debt_certificate_heir_opens_111_even_with_portal():
-    action = only(decide([DEBT], {"is_heir": True}, PORTAL_CUSTOMER))
-    assert (action["do"], action["codes"]) == ("request", ["111"])
+    assert {a["code"] for a in of(decide([DEBT], {"is_heir": True}, PORTAL_CUSTOMER), "request")} == {"111"}
 
 
-def test_debt_certificate_breakdown_without_portal():
-    action = only(decide([DEBT], {"wants_breakdown": True}, NO_PORTAL_CUSTOMER))
-    assert (action["open"], action["closed"]) == ("91", "118")
-
-
-def test_debt_certificate_ordinary_without_portal():
-    action = only(decide([DEBT], {}, NO_PORTAL_CUSTOMER))
-    assert (action["open"], action["closed"]) == ("89", "117")
-
-
-def test_debt_certificate_3869_customer_gets_105():
+def test_breakdown_and_3869_codes():
+    assert {a["code"] for a in of(decide([DEBT], {"wants_breakdown": True}, NO_PORTAL_CUSTOMER), "request")} == {"91"}
     customer = {**NO_PORTAL_CUSTOMER, "is_3869": True}
-    assert only(decide([DEBT], {}, customer))["codes"] == ["105"]
+    assert {a["code"] for a in of(decide([DEBT], {}, customer), "request")} == {"105"}
+
+
+def test_3869_decision_is_registered_despite_the_portal_flag():
+    action = of(decide(["Αιτήματα Ν.3869"], {"decision_3869_attached": True}, PORTAL_CUSTOMER), "request")[0]
+    assert action["code"] == "161" and action["codeName"] == "Προσκόμιση απόφασης Ν.3869"
 
 
 def test_one_non_online_request_cancels_every_referral():
-    actions = decide([DEBT, "Αντίγραφα συμβάσεων"], {}, PORTAL_CUSTOMER)
-    assert [a["do"] for a in actions] == ["request", "request"]
-    assert "other_request_offline" in actions[0]["because"]
+    actions = decide([DEBT, GDPR], {}, PORTAL_CUSTOMER)
+    assert not of(actions, "portal_referral") and {a["category"] for a in of(actions, "request")} == {DEBT, GDPR}
+    assert "other_request_offline" in of(actions, "request")[0]["because"]
 
 
 def test_all_online_requests_are_referred():
@@ -70,17 +87,132 @@ def test_all_online_requests_are_referred():
     assert {a["do"] for a in actions} == {"portal_referral"}
 
 
-def test_unidentified_online_request_goes_to_the_website():
-    assert only(decide([DEBT], {}, {}))["do"] == "portal_referral"
+def test_unidentified_online_request_goes_to_the_portal():
+    assert [a["do"] for a in decide([DEBT], {}, {})] == ["portal_referral"]
 
 
-def test_unidentified_offline_request_asks_for_identification():
-    assert only(decide(["Αντίγραφα συμβάσεων"], {}, {}))["do"] == "ask_identification"
+# Open-case codes only (no _cust) until the registry says an account is closed.
+def test_open_case_code_without_cust_while_the_state_is_unknown():
+    action = of(decide([COPIES], {"all_debts": True}, NO_PORTAL_CUSTOMER), "request")[0]
+    assert (action["code"], action["closedCode"], action["accountState"]) == ("154", "155", "unknown")
+    assert "account_state_unknown" in action["because"] and "_cust" not in action["codeName"].lower()
 
 
-def test_former_wizard_requests_are_registered_or_need_identification():
-    assert only(decide([AUTH], {}, NO_PORTAL_CUSTOMER))["do"] == "request"
-    assert only(decide([AUTH], {}, {}))["do"] == "ask_identification"
+def test_closed_account_gets_the_cust_code():
+    customer = {**NO_PORTAL_CUSTOMER, "accounts": [acct("4000000000001", state="closed")]}
+    action = only(decide([COPIES], {}, customer))
+    assert (action["code"], action["codeName"]) == ("155", "Χορήγηση_Συμβατικών Εγγράφων_cust")
+    assert "account_closed" in action["because"]
+
+
+# Which account: per SPV, the account itself, or one account of the SPV.
+def test_per_spv_opens_one_request_per_portfolio():
+    actions = of(decide([GDPR], {}, NO_PORTAL_CUSTOMER), "request")
+    assert [(a["spv"], a["account"]) for a in actions] == [("SPV A", "4000000000001"), ("SPV B", "4000000000009")]
+    assert all("per_spv" in a["because"] for a in actions)
+
+
+def test_per_spv_uses_the_account_the_email_names():
+    customer = {**NO_PORTAL_CUSTOMER, "named_accounts": ["4000000000002"]}
+    assert [a["account"] for a in of(decide([GDPR], {}, customer), "request")] == ["4000000000002"]
+
+
+def test_open_cases_and_3869_accounts_come_first_when_picking_one():
+    customer = {**NO_PORTAL_CUSTOMER, "accounts": [acct("1", state="closed"), acct("3", is3869=True), acct("2")]}
+    assert only(decide([GDPR], {}, customer))["account"] == "2"  # open case, then lowest number
+    assert only(decide(["Αιτήματα Ν.3869"], {"asks_instalment": True}, customer))["account"] == "3"  # Ν.3869 account
+
+
+def test_account_mode_needs_the_account():
+    actions = decide([COPIES], {}, NO_PORTAL_CUSTOMER)
+    assert not of(actions, "request") and reply(actions) == "need_more_info"
+    ask = only(actions, "ask_identification")
+    assert ask["missing"] == ["account"] and "account_not_identified" in ask["because"]
+    assert "δανειακού λογαριασμού" in ask["text"]
+
+
+def test_account_mode_named_single_or_all_debts():
+    named = {**NO_PORTAL_CUSTOMER, "named_accounts": ["4000000000009"]}
+    assert [a["account"] for a in of(decide([COPIES], {}, named), "request")] == ["4000000000009"]
+    single = {**NO_PORTAL_CUSTOMER, "accounts": ONE}
+    assert "single_account" in only(decide([COPIES], {}, single))["because"]
+    every = of(decide([COPIES], {"all_debts": True}, NO_PORTAL_CUSTOMER), "request")
+    assert len(every) == 3 and reply(decide([COPIES], {"all_debts": True}, NO_PORTAL_CUSTOMER)) == "received"
+
+
+def test_spv_mode_needs_the_portfolio():
+    actions = decide([AUTH], {}, NO_PORTAL_CUSTOMER)
+    assert only(actions, "ask_identification")["missing"] == ["spv"]
+    one_spv = {**NO_PORTAL_CUSTOMER, "accounts": TWO_SPVS[:2]}
+    assert "single_spv" in only(decide([AUTH], {}, one_spv))["because"]
+    named = {**NO_PORTAL_CUSTOMER, "named_accounts": ["4000000000002", "4000000000001"]}
+    assert [a["account"] for a in of(decide([AUTH], {}, named), "request")] == ["4000000000001"]  # one per SPV
+    assert len(of(decide([AUTH], {"all_debts": True}, NO_PORTAL_CUSTOMER), "request")) == 2
+
+
+# Identification: a tax ID or an account; otherwise "Need more Info".
+def test_unidentified_request_asks_for_the_tax_id():
+    actions = decide([COPIES], {}, {})
+    assert [a["do"] for a in actions] == ["ask_identification"] and actions[0]["missing"] == ["afm"]
+
+
+def test_not_in_registry_goes_to_staff():
+    actions = decide([COPIES], {}, {"identified": True})
+    assert (only(actions, "manual")["note"], reply(actions)) == ("not in registry", "received")
+
+
+def test_best_guess_keeps_the_request_with_a_caveat_and_asks():
+    guess = decide([COPIES], {}, {}, best_guess=True)
+    assert (only(guess)["code"], only(guess)["caveat"]) == ("154", "not_identified")
+    assert reply(guess) == "need_more_info"
+    guess = decide([COPIES], {}, NO_PORTAL_CUSTOMER, best_guess=True)
+    assert only(guess)["caveat"] == "account_not_identified" and "account" not in only(guess)
+    ask = only(guess, "ask_identification")
+    assert (ask["missing"], ask["because"]) == (["account"], ["account_not_identified"])
+    assert only(decide([COPIES], {}, {"identified": True}, best_guess=True))["caveat"] == "not_in_registry"
+
+
+# One reply per email, from the spreadsheet's Outgoing Emails column.
+@pytest.mark.parametrize("category, expected", [
+    ("Διοίκηση", "in_progress"), ("Τιμολόγια", "in_progress"), ("Εξώδικα", "received"),
+    ("Αγωγές", None), ("Βιογραφικά με επισυναπτόμενα", None), ("Παράπονα", None), ("Marketing-SPAM", None),
+])
+def test_reply_template_per_category(category, expected):
+    templates = [a["template"] for a in decide([category], {}, {}) if a.get("template")]
+    assert templates == ([expected] if expected else [])
+
+
+def test_erb_case_goes_to_the_branch():
+    actions = decide(["Πόθεν έσχες"], {}, {**NO_PORTAL_CUSTOMER, "erb": True})
+    assert [a["do"] for a in actions] == ["bank_referral"] and reply(actions) == "erb_branch"
+
+
+def test_heir_documents_open_the_request_and_the_right_activity():
+    actions = decide(["Νομιμοποίηση κληρονόμων με επισύναψη εγγράφων"], {"heir_certificates_attached": True},
+                     {**NO_PORTAL_CUSTOMER, "accounts": ONE})
+    assert only(actions)["code"] == "44" and only(actions, "activity")["codes"] == ["5005"]
+
+
+def test_folders_forwards_and_activities_need_no_identification():
+    assert only(decide(["Αγωγές"], {}, {}), "forward")["to"][0] == "spdallas@dovaluegreece.gr"
+    authority = decide(["Φορείς"], {}, {})
+    assert only(authority, "outlook_folder")["folder"] == "ΦΟΡΕΙΣ"
+    assert only(authority, "activity")["codes"] == ["6691", "2090"]
+    hearing = decide(["Αναβολές δικασίμων"], {}, {"is_3869": True})
+    assert [a["to"][0] for a in of(hearing, "forward")] == ["Dikografa@dovaluegreece.gr",
+                                                            "law3869_finalcourtdecisions@dovaluegreece.gr"]
+
+
+def test_imminent_auction_request_and_forward_both_fire():
+    actions = decide(["Πλειστηριασμοί"], {"asks_negotiation": True, "auction_imminent": True}, NO_PORTAL_CUSTOMER)
+    assert {a["do"] for a in actions} == {"request", "forward", "reply"}
+
+
+# Priority: the most important request first; a complaint only when nothing else is asked.
+def test_complaint_is_not_first_when_something_else_is_asked():
+    assert order_requests("Παράπονα", [COPIES, "GDPR"]) == (["GDPR", COPIES, "Παράπονα"], True)
+    assert order_requests("Παράπονα", []) == (["Παράπονα"], False)
+    assert order_requests(COPIES, ["Παράπονα", "GDPR"]) == ([COPIES, "GDPR", "Παράπονα"], False)
 
 
 def test_no_wizard_anywhere_in_the_rules():
@@ -88,33 +220,13 @@ def test_no_wizard_anywhere_in_the_rules():
     assert "wizard" not in json.dumps(FLAGS).lower()
 
 
-@pytest.mark.parametrize(
-    "category, flags, customer, expected",
-    [
-        (DEBT, {"cannot_use_online": True}, PORTAL_CUSTOMER, "cannot_use_online"),
-        (DEBT, {"is_heir": True}, PORTAL_CUSTOMER, "is_heir=true"),
-        (DEBT, {}, NO_PORTAL_CUSTOMER, "no_portal"),
-        (DEBT, {}, PORTAL_CUSTOMER, "has_portal"),
-        (DEBT, {}, NO_PORTAL_CUSTOMER, "open_or_closed"),
-        ("Αντίγραφα συμβάσεων", {}, {}, "not_identified"),
-        ("Αντίγραφα συμβάσεων", {}, {"identified": True}, "not_in_registry"),
-        ("Βεβαιώσεις εξόφλησης", {}, NO_PORTAL_CUSTOMER, "missing_contract"),
-        ("Εξουσιοδοτήσεις", {}, NO_PORTAL_CUSTOMER, "open_or_closed"),
-        ("Βεβαίωση άρσης προσημείωσης", {}, NO_PORTAL_CUSTOMER, "else"),
-    ],
-)
-def test_every_action_says_why(category, flags, customer, expected):
-    action = only(decide([category], flags, customer))
-    assert expected in action["because"]
-    assert all(explain(action))
-
-
 def test_every_category_gives_a_reason_for_every_customer():
-    customers = ({}, {"identified": True}, NO_PORTAL_CUSTOMER, PORTAL_CUSTOMER)
+    customers = ({}, {"identified": True}, NO_PORTAL_CUSTOMER, PORTAL_CUSTOMER, {**NO_PORTAL_CUSTOMER, "accounts": []})
     for category in RULES:
         for customer in customers:
-            for action in decide([category], {}, customer):
-                assert explain(action), category
+            for best_guess in (False, True):
+                for action in decide([category], {}, customer, best_guess=best_guess):
+                    assert explain(action), category
 
 
 def test_every_rule_condition_has_a_written_reason():
@@ -124,30 +236,15 @@ def test_every_rule_condition_has_a_written_reason():
                 assert f"{key}={str(value).lower()}" in REASONS
 
 
-def test_identified_but_not_in_registry_is_an_exception():
-    action = only(decide(["Αντίγραφα συμβάσεων"], {}, {"identified": True}))
-    assert (action["do"], action["note"]) == ("manual", "not in registry")
-
-
-def test_3869_decision_is_registered_despite_the_portal_flag():
-    action = only(
-        decide(["Αιτήματα Ν.3869"], {"decision_3869_attached": True}, PORTAL_CUSTOMER)
-    )
-    assert (action["do"], action["codes"]) == ("request", ["161"])
-
-
-def test_imminent_auction_request_and_forward_both_fire():
-    actions = decide(
-        ["Πλειστηριασμοί"],
-        {"asks_negotiation": True, "auction_imminent": True},
-        NO_PORTAL_CUSTOMER,
-    )
-    assert {a["do"] for a in actions} == {"request", "forward"}
-
-
-def test_forward_and_manual_need_no_identification():
-    assert only(decide(["Αγωγές"], {}, {}))["do"] == "forward"
-    assert only(decide(["Φορείς"], {}, {}))["do"] == "manual"
+def test_every_code_and_template_is_named():
+    for spec in RULES.values():
+        assert spec.get("reply") in (None, *REPLIES["templates"])
+        assert spec.get("accounts") in (None, "per_spv", "account", "spv")
+        for rule in spec["rules"]:
+            for code in [rule.get("open"), rule.get("closed"), *(rule.get("codes") or [])]:
+                if code:
+                    assert code_name(code), code
+            assert rule.get("template") in (None, *REPLIES["templates"])
 
 
 def test_every_configured_category_has_a_rule():
@@ -376,18 +473,3 @@ def test_merge_keeps_one_entry_per_value_and_drops_lowest_rank():
     assert merged[0]["id"] == "c1"
     assert len(merged[0]["sightings"]) == 2
     assert dropped == 1
-
-
-def test_best_guess_keeps_the_request_codes_with_a_caveat():
-    unknown = {"identified": True, "known": False}
-    guess = only(decide(["Αντίγραφα συμβάσεων"], {}, {}, best_guess=True))
-    assert (guess["do"], guess["open"], guess["caveat"]) == (
-        "request",
-        "154",
-        "not_identified",
-    )
-    guess = only(decide(["Αντίγραφα συμβάσεων"], {}, unknown, best_guess=True))
-    assert (guess["do"], guess["caveat"]) == ("request", "not_in_registry")
-    assert (
-        only(decide(["Αντίγραφα συμβάσεων"], {}, unknown))["do"] == "manual"
-    )  # production unchanged

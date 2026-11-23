@@ -1,26 +1,58 @@
 """Turn what an email asks plus who the customer is into actions, using inputs/action_rules.json.
 
-Rule of thumb: the model answers questions about the email (FLAGS), the registry
-answers questions about the customer (customer). This module only combines them.
-Every rule whose `when` holds fires; `else` fires when none of the others did.
-Each action records why it was chosen in `because`; `explain` turns that into Greek.
+Rule of thumb: the model answers questions about the email (FLAGS), the registry answers questions
+about the customer (customer). This module only combines them, in this order (business rules, Nov 2026):
+
+1. Requests: the principal request first, then the others by category Priority (1 = most important).
+   A complaint ("Παράπονα") is never first when the email also asks for something else
+   (``order_requests``).
+2. Rules: every rule of the category whose ``when`` holds fires; a rule without ``when`` always fires;
+   ``else`` fires when none of the others did.
+3. Portal: for a Portal category (Παραπομπές portal = YES) the customer with the Portal flag gets the
+   Portal reply instead of a request, unless they report a technical problem with the Portal.
+4. Identification: only a tax ID or an account number identifies the customer (core.customer_lookup).
+5. Account: the category says how the Qualco account is chosen (``select_accounts``):
+   - per_spv  one request per portfolio (SPV) of the customer, on one of its accounts, unless the
+              email names specific accounts;
+   - account  the account must be identified: named in the email, the customer's only account, or
+              every account when the email concerns all debts; otherwise "Need more Info";
+   - spv      one request on one account of the identified SPV: from a named account, the only SPV,
+              or every SPV when the email concerns all debts; otherwise "Need more Info".
+6. Code: the open-case request (without _cust); the closed-case _cust request only for an account the
+   registry marks closed (that column is not delivered yet, see core.customer_lookup.account_state).
+7. Reply: one template per email (inputs/reply_templates.json): Need more Info, Portal, ERB branch, or
+   the category's Received / In Progress template once something was done.
+
+Each action records why it was chosen in ``because``; ``explain`` turns that into Greek.
 """
 
 from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
-RULES = json.loads(
-    (Path(__file__).resolve().parents[1] / "inputs" / "action_rules.json").read_text(
-        encoding="utf-8"
-    )
-)
+INPUTS = Path(__file__).resolve().parents[1] / "inputs"
+
+
+def _load(name: str) -> dict:
+    return json.loads((INPUTS / name).read_text(encoding="utf-8"))
+
+
+RULES = {k: v for k, v in _load("action_rules.json").items() if not k.startswith("_")}
+QUALCO = _load("qualco_requests.json")
+REPLIES = _load("reply_templates.json")
+PRIORITY = {
+    c["Categories"].strip(): float(c["Priority"]) if c.get("Priority") not in (None, "") else 3.0
+    for c in _load("categories.json")
+}
+COMPLAINTS = ("Παράπονα",)  # never the principal request when the email asks for something else
+REPLY_KINDS = ("reply", "portal_referral", "bank_referral", "ask_identification")
 
 # What the model reports about the email. Definitions live next to the values so
 # the prompt and the rule table cannot drift apart.
 FLAGS = {
-    "cannot_use_online": "States they cannot log in to or submit via the portal, reports a technical problem there, or returns saying the referral did not work",
+    "cannot_use_online": "Reports a technical problem with the Portal: cannot log in, cannot submit or download there, or returns saying the Portal referral did not work",
     "is_heir": "Writes as heir of a deceased debtor",
     "wants_breakdown": "Asks for a debt certificate WITH an analysis/breakdown of the debt",
     "decision_3869_attached": "Sends the court decision of law 3869",
@@ -44,10 +76,13 @@ FLAGS = {
     "health_doc_attached": "A signed solemn declaration (Υ/Δ) accompanies the health data",
     "reversal_form_attached": "The completed reversal form is attached",
     "call_preservation": "Asks to PRESERVE recorded calls older than a year (not to receive copies)",
+    "all_debts": "The request concerns ALL of the customer's loans or debts (όλες τις οφειλές / όλα τα δάνεια), not one account",
+    "heir_certificates_attached": "Sends a certificate of closest relatives (πιστοποιητικό εγγυτέρων συγγενών) or a death certificate (ληξιαρχική πράξη θανάτου)",
+    "distress_or_threat": "Mentions self-harm or suicide (αυτοχειρία, αυτοκτονία), or threatens legal action against doValue (μήνυση)",
 }
 
 # Why an action fired, in words a reviewer can check against the email.
-# Conditions read "<fact>=true" or "<fact>=false"; the rest are routing steps.
+# Conditions read "<fact>=true" or "<fact>=false"; the rest are decision steps.
 REASONS = {
     "decision_3869_attached=true": "Το email επισυνάπτει την απόφαση του Ν.3869.",
     "asks_instalment=true": "Ο αποστολέας ρωτά ποια δόση πρέπει να πληρώσει.",
@@ -81,25 +116,69 @@ REASONS = {
     "health_data=false": "Το αίτημα δεν στηρίζεται σε δεδομένα υγείας.",
     "health_doc_attached=true": "Συνοδεύεται από υπογεγραμμένη υπεύθυνη δήλωση.",
     "health_doc_attached=false": "Δεν συνοδεύεται από υπογεγραμμένη υπεύθυνη δήλωση, οπότε ζητούμε να τη στείλει.",
+    "heir_certificates_attached=true": "Στέλνει πιστοποιητικό εγγυτέρων συγγενών ή ληξιαρχική πράξη θανάτου (activity 5005).",
+    "heir_certificates_attached=false": "Στέλνει άλλα έγγραφα κληρονόμων (activity 5007).",
     "else": "Δεν ισχύει καμία από τις ειδικές περιπτώσεις της κατηγορίας, οπότε εφαρμόζεται ο γενικός κανόνας.",
     "category_rule": "Για αυτή την κατηγορία η προδιαγραφή ορίζει πάντα αυτή την ενέργεια.",
-    "has_portal": "Ο πελάτης έχει πρόσβαση στο Portal και αυτό το αίτημα γίνεται εκεί.",
+    "has_portal": "Ο πελάτης έχει πρόσβαση στο Portal και αυτό το αίτημα γίνεται εκεί, οπότε του απαντάμε να το κάνει από το Portal.",
     "no_portal": "Ο πελάτης δεν έχει πρόσβαση στο Portal, οπότε το αίτημα το καταχωρούμε εμείς.",
     "unidentified_online": "Το email δεν ταυτοποιεί τον πελάτη, αλλά το αίτημα γίνεται online, οπότε τον παραπέμπουμε στο Portal.",
-    "cannot_use_online": "Ο αποστολέας αναφέρει ότι δεν μπορεί να χρησιμοποιήσει το Portal, οπότε το αίτημα το καταχωρούμε εμείς.",
+    "cannot_use_online": "Ο αποστολέας αναφέρει τεχνικό πρόβλημα με το Portal, οπότε το αίτημα το καταχωρούμε εμείς.",
     "other_request_offline": "Το ίδιο email έχει κι άλλο αίτημα που δεν γίνεται στο Portal, οπότε δεν κάνουμε παραπομπή για κανένα.",
-    "not_identified": "Το email δεν έχει στοιχεία που να ταυτοποιούν τον πελάτη, οπότε πρέπει πρώτα να τα ζητήσουμε.",
-    "not_in_registry": "Τα στοιχεία του email δεν αντιστοιχούν σε πελάτη του μητρώου, οπότε το εξετάζει το προσωπικό.",
-    "missing_contract": "Λείπει ο αριθμός σύμβασης, που είναι υποχρεωτικός για αυτό το αίτημα.",
-    "open_or_closed": "Δεν φαίνεται ακόμη αν η υπόθεση είναι ανοιχτή ή κλειστή, γι' αυτό δείχνουμε και τους δύο κωδικούς.",
-    "guess_not_identified": "Το email δεν ταυτοποιεί τον πελάτη. Η ενέργεια είναι η καλύτερη εκτίμηση: πριν την καταχώρηση χρειάζεται ταυτοποίηση.",
-    "guess_not_in_registry": "Τα στοιχεία του email δεν βρέθηκαν στο μητρώο. Η ενέργεια είναι η καλύτερη εκτίμηση: πριν την καταχώρηση πρέπει να βρεθεί ο πελάτης.",
+    "not_identified": "Το email δεν έχει ΑΦΜ ή αριθμό λογαριασμού, οπότε πρώτα ζητάμε στοιχεία ταυτοποίησης.",
+    "not_in_registry": "Ο ΑΦΜ ή ο λογαριασμός του email δεν υπάρχει στο μητρώο, οπότε το εξετάζει το προσωπικό.",
+    "guess_not_identified": "Το email δεν έχει ΑΦΜ ή αριθμό λογαριασμού. Η ενέργεια είναι η καλύτερη εκτίμηση: πριν την καταχώρηση χρειάζεται ταυτοποίηση.",
+    "guess_not_in_registry": "Ο ΑΦΜ ή ο λογαριασμός του email δεν βρέθηκε στο μητρώο. Η ενέργεια είναι η καλύτερη εκτίμηση: πριν την καταχώρηση πρέπει να βρεθεί ο πελάτης.",
+    "named_account": "Το email αναφέρει συγκεκριμένο δανειακό λογαριασμό, οπότε το αίτημα καταχωρείται σε αυτόν.",
+    "per_spv": "Για αυτή την κατηγορία καταχωρείται ένα αίτημα ανά χαρτοφυλάκιο (SPV) του πελάτη, σε έναν από τους λογαριασμούς του.",
+    "all_debts_accounts": "Το αίτημα αφορά όλες τις οφειλές, οπότε καταχωρείται σε κάθε λογαριασμό του πελάτη.",
+    "all_debts_spv": "Το αίτημα αφορά όλες τις οφειλές, οπότε καταχωρείται ένα αίτημα σε κάθε χαρτοφυλάκιο (SPV).",
+    "single_account": "Ο πελάτης έχει έναν μόνο λογαριασμό, οπότε το αίτημα καταχωρείται σε αυτόν.",
+    "single_spv": "Ο πελάτης έχει λογαριασμούς σε ένα μόνο χαρτοφυλάκιο (SPV), οπότε το αίτημα καταχωρείται σε έναν από αυτούς.",
+    "account_not_identified": "Η κατηγορία απαιτεί ταυτοποίηση λογαριασμού, αλλά το email δεν αναφέρει λογαριασμό και ο πελάτης έχει περισσότερους, οπότε ζητάμε τον αριθμό λογαριασμού.",
+    "spv_not_identified": "Η κατηγορία απαιτεί ταυτοποίηση χαρτοφυλακίου (SPV), αλλά το email δεν αναφέρει λογαριασμό και ο πελάτης έχει λογαριασμούς σε περισσότερα, οπότε ζητάμε τον αριθμό λογαριασμού.",
+    "guess_account_not_identified": "Ο λογαριασμός δεν ταυτοποιείται από το email. Πριν την καταχώρηση χρειάζεται ο αριθμός λογαριασμού.",
+    "no_accounts": "Δεν βρέθηκαν λογαριασμοί του πελάτη στο μητρώο.",
+    "account_open": "Ο λογαριασμός είναι ανοιχτή υπόθεση στο Qualco, οπότε χρησιμοποιείται ο κωδικός ανοιχτής υπόθεσης.",
+    "account_closed": "Ο λογαριασμός είναι κλειστή υπόθεση στο Qualco, οπότε χρησιμοποιείται ο κωδικός _Cust.",
+    "account_state_unknown": "Δεν υπάρχει ακόμη η ένδειξη ανοιχτής/κλειστής υπόθεσης, οπότε χρησιμοποιείται ο κωδικός ανοιχτής υπόθεσης (χωρίς _Cust).",
+    "category_reply": "Η κατηγορία ορίζει αυτό το πρότυπο απάντησης.",
 }
 
 
 def explain(action: dict) -> list[str]:
     """The action's reasons as Greek sentences, in the order they were applied."""
     return [REASONS[key] for key in action["because"]]
+
+
+def priority(category: str) -> float:
+    return PRIORITY.get(category, 3.0)
+
+
+def order_requests(principal: str | None, others: list[str]) -> tuple[list[str], bool]:
+    """The email's requests, principal first, the rest by Priority. Returns (ordered, complaint_demoted).
+
+    A complaint is the principal request only when nothing else is asked; otherwise the most important
+    other request takes its place and the complaint follows.
+    """
+    found = list(dict.fromkeys(c for c in [principal, *others] if c))
+    if not found:
+        return [], False
+    first, rest = found[0], sorted(found[1:], key=priority)
+    if first in COMPLAINTS and rest:
+        return [rest[0], *rest[1:], first], True
+    return [first, *rest], False
+
+
+def code_name(code: str) -> str:
+    return QUALCO["requests"].get(code) or QUALCO["activities"].get(code) or ""
+
+
+def render_reply(template: str, missing: list[str] | None = None) -> str:
+    settings = REPLIES["settings"]
+    lines = "\n".join(REPLIES["missing"][m] for m in missing or [] if m in REPLIES["missing"])
+    return REPLIES["templates"][template]["text"].format(
+        signature=settings["signature"], portal_url=settings["portal_url"], missing=lines)
 
 
 def _holds(when: dict, facts: dict) -> bool:
@@ -116,9 +195,54 @@ def _rule_reasons(rule: dict) -> list[str]:
     if rule.get("else"):
         return ["else"]
     conditions = rule.get("when", {})
-    return [f"{key}={str(value).lower()}" for key, value in conditions.items()] or [
-        "category_rule"
-    ]
+    return [f"{key}={str(value).lower()}" for key, value in conditions.items()] or ["category_rule"]
+
+
+def select_accounts(
+    mode: str | None, accounts: list[dict], named: list[str], all_debts: bool, prefer_3869: bool = False
+) -> tuple[list[dict] | None, list[str], str | None]:
+    """Which accounts get the request. Returns (accounts or None, reasons, what to ask for when None).
+
+    "One of its accounts" is not random: open cases first, then Ν.3869 accounts for Ν.3869 requests,
+    then the lowest account number, so the same email always gives the same account.
+    """
+    mode = mode or "per_spv"
+    if not accounts:
+        return None, ["no_accounts"], "account"
+    ordered = sorted(accounts, key=lambda a: (a["state"] == "closed", not (prefer_3869 and a["is3869"]), a["account"]))
+    by_spv: dict[str, list[dict]] = {}
+    for account in ordered:
+        by_spv.setdefault(account["spv"], []).append(account)
+    one_per_spv = [group[0] for group in by_spv.values()]
+    chosen = [a for a in ordered if a["account"] in set(named)]
+    if chosen:
+        if mode == "spv":
+            return list({a["spv"]: a for a in reversed(chosen)}.values())[::-1], ["named_account"], None
+        return chosen, ["named_account"], None
+    if mode == "per_spv":
+        return one_per_spv, ["per_spv"], None
+    if mode == "account":
+        if all_debts:
+            return ordered, ["all_debts_accounts"], None
+        if len(ordered) == 1:
+            return ordered, ["single_account"], None
+        return None, ["account_not_identified"], "account"
+    if all_debts:  # spv
+        return one_per_spv, ["all_debts_spv"], None
+    if len(by_spv) == 1:
+        return one_per_spv, ["single_spv"], None
+    return None, ["spv_not_identified"], "spv"
+
+
+def _code_for(rule: dict, account: dict | None) -> tuple[str, list[str]]:
+    """The request code for one account: the open-case code, or _cust for a closed case."""
+    if rule.get("codes"):
+        return rule["codes"][0], []
+    if account is None:
+        return rule["open"], []
+    if account["state"] == "closed" and rule.get("closed"):
+        return rule["closed"], ["account_closed"]
+    return rule["open"], ["account_open" if account["state"] == "open" else "account_state_unknown"]
 
 
 def decide(
@@ -128,52 +252,33 @@ def decide(
     has_contract: bool = False,
     best_guess: bool = False,
 ) -> list[dict]:
-    """Actions for an email. categories: every request found, principal one first.
+    """Actions for an email. categories: every request found, in order (``order_requests``).
 
-    customer: {identified, known, portal, erb, is_3869}.
-    best_guess: for review, keep the request and its codes when the customer is not
-    identified or not in the registry, and record that as a caveat, instead of
-    switching to identification or manual handling.
-    Open-or-closed case is not resolved: no registry column is confirmed to mean it,
-    so request actions carry both codes.
+    customer: {identified, known, portal, erb, is_3869, accounts, named_accounts} (core.customer_lookup).
+    best_guess: for review, keep the request and its code when the customer or the account is not
+    identified, with a caveat and a "Need more Info" reply, instead of only asking for the details.
+    has_contract is kept for callers; no rule needs it any more.
     """
-    facts = {
-        **flags,
-        "registry_3869": customer.get("is_3869", False),
-        "erb": customer.get("erb", False),
-    }
-    fired = [
-        (category, rule)
-        for category in dict.fromkeys(categories)
-        for rule in _fired(category, facts)
-    ]
+    facts = {**flags, "registry_3869": customer.get("is_3869", False), "erb": customer.get("erb", False)}
+    fired = [(category, rule) for category in dict.fromkeys(categories) for rule in _fired(category, facts)]
     cannot_use_online = bool(flags.get("cannot_use_online"))
     # Spec: one request that cannot be done online means no referral for any of them.
     other_request_offline = any(
-        rule["do"] == "request"
-        and not RULES.get(category, {}).get("online")
-        and not rule.get("bypass_online")
+        rule["do"] == "request" and not RULES.get(category, {}).get("portal") and not rule.get("bypass_online")
         for category, rule in fired
     )
-    actions = []
+    actions: list[dict] = []
+    missing: list[str] = []
     for category, rule in fired:
-        action = {
-            "category": category,
-            "do": rule["do"],
-            "because": _rule_reasons(rule),
-        }
+        spec = RULES.get(category, {})
+        action: dict[str, Any] = {"category": category, "do": rule["do"], "because": _rule_reasons(rule)}
         because = action["because"]
-        if (
-            RULES.get(category, {}).get("online")
-            and (rule["do"] == "request" or rule.get("online_gated"))
-            and not rule.get("bypass_online")
-        ):
+        if spec.get("portal") and (rule["do"] == "request" or rule.get("online_gated")) and not rule.get("bypass_online"):
             if cannot_use_online:
                 because.append("cannot_use_online")
             elif other_request_offline:
                 because.append("other_request_offline")
             elif not customer.get("identified"):
-                # Spec: unidentified + online-eligible + no stated inability -> website.
                 action["do"] = "portal_referral"
                 because.append("unidentified_online")
             elif customer.get("portal"):
@@ -181,32 +286,77 @@ def decide(
                 because.append("has_portal")
             else:
                 because.append("no_portal")
-        if action["do"] == "request":
-            if not customer.get("identified"):
-                if best_guess:
-                    action["caveat"] = "not_identified"
-                    because.append("guess_not_identified")
-                else:
-                    action["do"] = "ask_identification"
-                    because.append("not_identified")
-            elif not customer.get("known"):
-                if best_guess:
-                    action["caveat"] = "not_in_registry"
-                    because.append("guess_not_in_registry")
-                else:
-                    action["do"] = "manual"
-                    action["note"] = "not in registry"
-                    because.append("not_in_registry")
-        if action["do"] == "request":
-            action["open"] = rule.get("open")
-            action["closed"] = rule.get("closed")
-            action["codes"] = rule.get("codes", [])
-            if action["open"] and action["closed"]:
-                because.append("open_or_closed")
-            if rule.get("requires_contract") and not has_contract:
-                action["missing"] = "contract number"
-                because.append("missing_contract")
-        if rule.get("to"):
-            action["to"] = rule["to"]
-        actions.append(action)
+        for key in ("to", "folder", "template"):
+            if rule.get(key):
+                action[key] = rule[key]
+        if action["do"] == "activity" and rule.get("codes"):
+            action["codes"] = list(rule["codes"])
+        if action["do"] != "request":
+            actions.append(action)
+            continue
+        # A Qualco request: who, which account, which code.
+        code, _ = _code_for(rule, None)
+        action.update(codes=[code], code=code, openCode=code, closedCode=rule.get("closed"))
+        if not customer.get("identified"):
+            missing.append("afm")
+            if best_guess:
+                action["caveat"] = "not_identified"
+                because.append("guess_not_identified")
+            else:
+                action = {"category": category, "do": "ask_identification", "because": [*because, "not_identified"]}
+            actions.append(action)
+            continue
+        if not customer.get("known"):
+            if best_guess:
+                action["caveat"] = "not_in_registry"
+                because.append("guess_not_in_registry")
+            else:
+                action = {"category": category, "do": "manual", "note": "not in registry",
+                          "because": [*because, "not_in_registry"]}
+            actions.append(action)
+            continue
+        targets, why, ask = select_accounts(spec.get("accounts"), customer.get("accounts") or [],
+                                            customer.get("named_accounts") or [], bool(flags.get("all_debts")),
+                                            bool(spec.get("prefer_3869")))
+        if targets is None:
+            missing.append(ask)
+            if best_guess:
+                action["caveat"] = "account_not_identified"
+                because.extend([*why, "guess_account_not_identified"])
+            else:
+                action = {"category": category, "do": "ask_identification", "because": [*because, *why]}
+            actions.append(action)
+            continue
+        for account in targets:
+            code, code_why = _code_for(rule, account)
+            actions.append({
+                **action, "because": [*because, *why, *code_why], "code": code, "codes": [code],
+                "account": account["account"], "spv": account["spv"], "accountState": account["state"],
+            })
+
+    # One reply per email.
+    asks = [a for a in actions if a["do"] == "ask_identification"]
+    if missing or asks:
+        actions = [a for a in actions if a["do"] != "ask_identification"]
+        why = [k for a in [*asks, *actions] for k in a["because"]
+               if k in ("not_identified", "account_not_identified", "spv_not_identified", "guess_not_identified")]
+        why = [{"guess_not_identified": "not_identified"}.get(k, k) for k in why]
+        actions.append({"category": (asks or actions or [{"category": None}])[0]["category"], "do": "ask_identification",
+                        "template": "need_more_info", "missing": list(dict.fromkeys(missing or ["afm"])),
+                        "because": list(dict.fromkeys(why or ["not_identified"]))})
+    elif not any(a["do"] in REPLY_KINDS for a in actions) or any(a["do"] not in REPLY_KINDS for a in actions):
+        done = [a for a in actions if a["do"] not in REPLY_KINDS and a["do"] != "no_action"]
+        reply_category = next((c for c in dict.fromkeys(categories) if RULES.get(c, {}).get("reply")), None)
+        if done and reply_category:
+            actions.append({"category": reply_category, "do": "reply", "template": RULES[reply_category]["reply"],
+                            "because": ["category_reply"]})
+    for action in actions:
+        if action["do"] == "portal_referral":
+            action["template"] = "portal"
+        elif action["do"] == "bank_referral":
+            action["template"] = "erb_branch"
+        if action.get("template"):
+            action["text"] = render_reply(action["template"], action.get("missing"))
+        if action.get("code"):
+            action["codeName"] = code_name(action["code"])
     return actions
