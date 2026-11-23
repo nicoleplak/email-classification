@@ -168,11 +168,11 @@ async function behaviour(browser) {
   ok("attachment text shows highlights", Object.values(textMarks).reduce((a, b) => a + b, 0) > 0, textMarks);
   ok("evidence quotes are listed on cases", quotes > 0, { quotes });
 
-  // Review steps: actions can be ticked, unticked and added; the save bar follows (nothing is saved).
+  // Review steps: actions can be ticked, unticked, changed and added; Save stays on top (nothing is saved).
   const unreviewed = await page.$$eval("#list .item", (items) => items.filter((i) => !/Ελέγχθηκε|Reviewed/.test(i.textContent)).map((i) => i.dataset.id));
   if (unreviewed.length) {
     await page.click(`#list .item[data-id="${unreviewed[0]}"]`);
-    await page.waitForFunction((x) => document.querySelector("#case").dataset.caseId === x && !!document.querySelector(".savebar"), unreviewed[0]);
+    await page.waitForFunction((x) => document.querySelector("#case").dataset.caseId === x && !!document.querySelector(".savetop"), unreviewed[0]);
     const before = await page.locator(".action.pickable").count();
     if (before) {
       await page.locator(".action.pickable input[type=checkbox]").first().uncheck();
@@ -182,8 +182,26 @@ async function behaviour(browser) {
     await page.locator("details.adder .picker-opt").first().click();
     const after = await page.locator(".action.pickable").count();
     ok("an action can be added from the rule table", after === before + 1, { before, after });
-    const bar = await page.$eval(".savebar", (b) => ({ sticky: getComputedStyle(b).position, text: /\d/.test(b.querySelector(".savebar-head").textContent) }));
-    ok("save bar stays visible with a summary", bar.sticky === "sticky" && bar.text, bar);
+    // Change the first action for another one from the list: same count, the row becomes the reviewer's own.
+    const firstText = await page.locator(".action.pickable .what").first().textContent();
+    await page.locator(".action.pickable .change").first().click();
+    await page.locator(".action.changing .picker-opt").nth(1).click();
+    const changedCount = await page.locator(".action.pickable").count();
+    const changedText = await page.locator(".action.pickable .what").first().textContent();
+    ok("an action can be changed from the list", changedCount === after && changedText !== firstText
+      && (await page.locator(".action.pickable").first().locator(".pill").count()) === 1, { changedCount, after });
+    const bar = await page.$eval(".savetop", (b) => ({ sticky: getComputedStyle(b).position, top: b.getBoundingClientRect().top,
+      text: /\d/.test(b.textContent), save: !!b.querySelector("button.primary") }));
+    await page.$eval("#case", (c) => { c.scrollTop = c.scrollHeight; });
+    await page.waitForTimeout(100);
+    const caseTop = await page.$eval("#case", (c) => c.getBoundingClientRect().top);
+    const barAfter = await page.$eval(".savetop", (b) => b.getBoundingClientRect().top);
+    ok("Save is on top and stays visible while scrolling", bar.sticky === "sticky" && bar.text && bar.save
+      && Math.abs(barAfter - caseTop) <= 2, { ...bar, barAfter, caseTop });
+    const comments = await page.$eval("#rv-comment", (el) => ({ inCard: !!el.closest(".card"), sticky: getComputedStyle(el.closest(".card")).position }));
+    ok("step 3 is comments, in the page flow (not pinned)", comments.inCard && comments.sticky !== "sticky", comments);
+    const found = await page.$$eval(".found-scroll", (els) => els.map((e) => ({ max: getComputedStyle(e).maxHeight, h: e.clientHeight })));
+    ok("details found sit in a short scrolling window", found.every((f) => f.max !== "none" && f.h <= 212), { found: found.length });
   } else ok("an unreviewed email exists to test actions", false);
 
   // Clock: hovering shows how and when emails arrive.

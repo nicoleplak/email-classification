@@ -40,7 +40,7 @@ const T = {
     taxId: "ΑΦΜ", custCode: "Κωδ. πελάτη", portfolio: "Χαρτοφυλάκιο", status: "Κατάσταση", source: "Πηγή",
     portal: "Portal", yes: "Ναι", no: "Όχι", accounts: "Λογαριασμοί ({n})", recent: "Πρόσφατα αιτήματα Qualco",
     account: "Λογαριασμός", type: "Τύπος", settlement: "Ρύθμιση", created: "Δημιουργία",
-    found: "Στοιχεία που βρέθηκαν", foundNone: "Δεν βρέθηκαν αναγνωριστικά.", value: "Τιμή", belongs: "Ανήκει σε",
+    found: "Στοιχεία που βρέθηκαν", foundCount: "{n} στοιχεία", foundNone: "Δεν βρέθηκαν αναγνωριστικά.", value: "Τιμή", belongs: "Ανήκει σε",
     where: "Πού βρέθηκε", checked: "έλεγχος ψηφίου", history: "Ιστορικό", readError: "Τα στοιχεία πελάτη δεν διαβάστηκαν: {e}",
     email: "Email", showImages: "Εμφάνιση εικόνων", hideImages: "Απόκρυψη εικόνων", download: "Λήψη",
     downloadEmail: "Λήψη email ({x})", downloadAll: "Λήψη όλων (.zip)", openTab: "Άνοιγμα σε νέα καρτέλα",
@@ -66,7 +66,7 @@ const T = {
     highlights: "Επισημάνσεις", lgClass: "Κατηγορία", lgAction: "Ενέργεια", lgId: "Στοιχεία πελάτη",
     viewOriginal: "Πρωτότυπο", viewText: "Κείμενο με επισημάνσεις", evidence: "Τεκμήρια από το email",
     noTextView: "Δεν υπάρχει κείμενο για επισημάνσεις σε αυτό το αρχείο.",
-    stepCategory: "1 · Κατηγορία", stepActions: "2 · Ενέργειες", stepSave: "3 · Αποθήκευση",
+    stepCategory: "1 · Κατηγορία", stepActions: "2 · Ενέργειες", stepSave: "3 · Σχόλια", changeTo: "Αντικατάσταση με:",
     tickActions: "Τσεκάρετε όσες θα γίνουν", chosenActions: "Επιλέχθηκαν στον έλεγχο",
     proposedOnly: "Προτάσεις συστήματος — δεν έχουν επιλεγεί ακόμη",
     actionsForOther: "Οι προτεινόμενες ενέργειες αφορούν την αρχική κατηγορία «{c}». Ελέγξτε αν ισχύουν ή προσθέστε άλλες.",
@@ -135,7 +135,7 @@ const T = {
     taxId: "Tax ID", custCode: "Customer code", portfolio: "Portfolio", status: "Status", source: "Source",
     portal: "Portal", yes: "Yes", no: "No", accounts: "Accounts ({n})", recent: "Recent Qualco requests",
     account: "Account", type: "Type", settlement: "Settlement", created: "Created",
-    found: "Details found", foundNone: "No identifiers found.", value: "Value", belongs: "Belongs to",
+    found: "Details found", foundCount: "{n} items", foundNone: "No identifiers found.", value: "Value", belongs: "Belongs to",
     where: "Found in", checked: "check digit", history: "History", readError: "Customer details could not be read: {e}",
     email: "Email", showImages: "Show images", hideImages: "Hide images", download: "Download",
     downloadEmail: "Download email ({x})", downloadAll: "Download all (.zip)", openTab: "Open in new tab",
@@ -161,7 +161,7 @@ const T = {
     highlights: "Highlights", lgClass: "Category", lgAction: "Action", lgId: "Customer details",
     viewOriginal: "Original", viewText: "Text with highlights", evidence: "Evidence from the email",
     noTextView: "No text with highlights for this file.",
-    stepCategory: "1 · Category", stepActions: "2 · Actions", stepSave: "3 · Save",
+    stepCategory: "1 · Category", stepActions: "2 · Actions", stepSave: "3 · Comments", changeTo: "Replace with:",
     tickActions: "Tick the ones to carry out", chosenActions: "Chosen in the review",
     proposedOnly: "System proposals — none chosen yet",
     actionsForOther: "The proposed actions were made for the original category “{c}”. Check they still apply or add others.",
@@ -484,6 +484,7 @@ async function openCase(id, keepViewer) {
   S.forceEdit = false;
   S.comment = undefined;
   S.addOpen = false;
+  S.changing = null;
   S.enter = true; // animate this render only, not re-renders while reviewing
   if (!keepViewer) S.viewer = { tab: "email", page: null, images: false };
   api(`/api/cases/${encodeURIComponent(id)}/open`, { json: {} });
@@ -498,7 +499,8 @@ function card(title, sub, ...body) {
 
 function reasonText(r) {
   if (lang !== "el") return r;
-  for (const [re, out] of REASONS_EL) if (re.test(r)) return r.replace(re, out);
+  // The whole English sentence is replaced, not just the part the pattern names.
+  for (const [re, out] of REASONS_EL) if (re.test(r)) return r.replace(new RegExp(`${re.source}[\\s\\S]*`), out);
   return r;
 }
 function certaintyWord(c) {
@@ -691,16 +693,27 @@ function actionRow(a, u, editable) {
     ...quotes.map(quoteRow),
   ];
   if (!editable) return h("div", { class: "action" }, head, ...body);
-  return h("div", { class: `action pickable${a.on === false ? " off" : ""}` },
+  const changing = S.changing === a;
+  return h("div", { class: `action pickable${a.on === false ? " off" : ""}${changing ? " changing" : ""}` },
+    h("div", { class: "action-tools" },
+      h("button", { class: "link change", type: "button", "aria-expanded": String(changing), text: changing ? t("cancel") : t("change"),
+        onclick: () => { S.changing = changing ? null : a; renderCase(); } }),
+      a.source === "added" ? h("button", { class: "link remove", type: "button", text: t("remove"),
+        onclick: () => { S.acts = S.acts.filter((x) => x !== a); S.changing = null; renderCase(); } }) : ""),
     h("label", { class: "action-check" },
       h("input", { type: "checkbox", checked: a.on !== false, onchange: (e) => { a.on = e.target.checked; renderCase(); } }), head),
-    a.source === "added" ? h("button", { class: "link remove", type: "button", text: t("remove"),
-      onclick: () => { S.acts = S.acts.filter((x) => x !== a); renderCase(); } }) : "",
+    changing ? h("div", { class: "change-to" }, h("div", { class: "small muted", text: t("changeTo") }),
+      actionPicker(a.category || finalCategoryNow(S.detail.case) || S.detail.case.modelCategory, (o, cat) => {
+        // A replaced proposal counts as removed + added (Metrics), so the new one is the reviewer's own.
+        S.acts[S.acts.indexOf(a)] = asChoice({ ...o, category: cat }, "added");
+        S.changing = null;
+        renderCase();
+      }, true)) : "",
     ...body);
 }
 
-/* "Add an action": the rule table's actions for the chosen category first, then general ones; typing searches all. */
-function actionAdder(category) {
+/* Actions to pick from: the rule table's actions for the category first, then general ones; typing searches all. */
+function actionPicker(category, onPick, focus) {
   const catalog = S.catalog || { byCategory: {}, general: [] };
   const input = h("input", { type: "search", class: "picker-search", placeholder: t("findAction"), autocomplete: "off" });
   const list = h("div", { class: "picker-list" });
@@ -713,18 +726,22 @@ function actionAdder(category) {
     if (q) for (const [cat, options] of Object.entries(catalog.byCategory)) if (cat !== category) groups.push([catLabel(cat), options.map((o) => [o, cat])]);
     const shown = groups.map(([title, items]) => [title, items.filter(([o, cat]) => !q || label(o, cat).includes(q))]).filter(([, items]) => items.length);
     list.replaceChildren(...shown.flatMap(([title, items]) => [h("div", { class: "picker-group", text: title }),
-      ...items.map(([o, cat]) => h("button", { type: "button", class: "picker-opt", onclick: () => {
-        S.acts.push(asChoice({ ...o, category: cat }, "added"));
-        S.addOpen = true;
-        renderCase();
-      } }, actionText(o), codesOf(o).length ? h("span", { class: "muted small", text: `  ${codesOf(o).join(" · ")}` }) : ""))]),
+      ...items.map(([o, cat]) => h("button", { type: "button", class: "picker-opt", onclick: () => onPick(o, cat) },
+        actionText(o), codesOf(o).length ? h("span", { class: "muted small", text: `  ${codesOf(o).join(" · ")}` }) : ""))]),
     shown.length ? "" : h("div", { class: "picker-none", text: t("noMatchCats") }));
   };
   input.addEventListener("input", paint);
   paint();
+  if (focus) requestAnimationFrame(() => input.focus({ preventScroll: true }));
+  return h("div", { class: "picker" }, input, list);
+}
+
+/* "Add an action" under the list. */
+function actionAdder(category) {
   return h("details", { class: "more extra adder", open: S.addOpen ? true : null,
     ontoggle: (e) => { S.addOpen = e.target.open; } },
-  h("summary", { text: t("addAction") }), h("div", { class: "picker" }, input, list));
+  h("summary", { text: t("addAction") }),
+  actionPicker(category, (o, cat) => { S.acts.push(asChoice({ ...o, category: cat }, "added")); S.addOpen = true; renderCase(); }));
 }
 
 function actionsCard(u, c) {
@@ -743,16 +760,14 @@ function actionsCard(u, c) {
     actionAdder(finalCat || c.modelCategory));
 }
 
-function saveBar(c) {
+// Save: always visible at the top of the case while reviewing; the comment is step 3, at the bottom.
+function saveTop(c) {
   if (!editing(c)) return "";
-  const comment = h("textarea", { id: "rv-comment", placeholder: t("comment"), rows: 2 });
-  comment.value = S.comment ?? c.reviewComment ?? "";
-  comment.addEventListener("input", () => { S.comment = comment.value; });
   const err = h("p", { class: "error", role: "alert" });
   const next = h("input", { type: "checkbox", id: "rv-next", checked: store("next") !== "0" });
   const chosen = S.acts.filter((a) => a.on !== false);
   const save = h("button", { class: "primary", type: "button", text: t("save"), onclick: async () => {
-    const body = { _etag: c._etag, comment: comment.value, otherCategories: S.pickExtra ? [S.pickExtra] : [],
+    const body = { _etag: c._etag, comment: S.comment ?? c.reviewComment ?? "", otherCategories: S.pickExtra ? [S.pickExtra] : [],
       finalActions: chosen.map(({ do: d, category, codes, open, closed, to, source }) => ({ do: d, category, codes, open, closed, to, source })) };
     if (S.choice === "none") body.noMatch = true;
     else body.finalCategory = S.choice === "accept" ? c.modelCategory : S.pick;
@@ -771,14 +786,25 @@ function saveBar(c) {
     }
     openCase(c.id, true);
   } });
-  const summary = `${S.choice === "none" ? t("noneFits") : catLabel(finalCategoryNow(c) || "—")} · ${t("actionsCount", { n: chosen.length })}`;
-  return h("section", { class: "savebar" },
-    h("div", { class: "savebar-head" }, h("strong", { text: t("stepSave") }), h("span", { class: "muted small", text: summary })),
-    comment, err,
-    h("div", { class: "row" }, save,
+  const category = S.choice === "none" ? t("noneFits") : catLabel(finalCategoryNow(c) || "—");
+  return h("div", { class: "savetop" },
+    h("div", { class: "savetop-row" },
+      h("span", { class: "savetop-summary", title: category },
+        h("span", { class: "savetop-cat", text: category }),
+        h("span", { class: "savetop-count", text: ` · ${t("actionsCount", { n: chosen.length })}` })),
+      h("label", { class: "small muted next" }, next, " ", t("next")),
       S.forceEdit ? h("button", { class: "link", type: "button", text: t("cancel"),
-        onclick: () => { S.forceEdit = false; S.choice = null; S.comment = undefined; renderCase(); } }) : "",
-      h("label", { class: "small muted" }, next, " ", t("next"))));
+        onclick: () => { S.forceEdit = false; S.choice = null; S.comment = undefined; S.changing = null; renderCase(); } }) : "",
+      save),
+    err);
+}
+
+function commentCard(c) {
+  if (!editing(c)) return "";
+  const comment = h("textarea", { id: "rv-comment", placeholder: t("comment"), rows: 3 });
+  comment.value = S.comment ?? c.reviewComment ?? "";
+  comment.addEventListener("input", () => { S.comment = comment.value; });
+  return card(t("stepSave"), null, comment);
 }
 
 function customerCard(u) {
@@ -827,13 +853,13 @@ function customerCard(u) {
 function foundCard(u) {
   const rows = (u.extracted || []);
   if (!rows.length) return card(t("found"), null, h("p", { class: "muted", text: t("foundNone") }));
-  return card(t("found"), null, h("table", { class: "mini" },
+  return card(t("found"), t("foundCount", { n: rows.length }), h("div", { class: "found-scroll", tabindex: "0", role: "region", "aria-label": t("found") }, h("table", { class: "mini" },
     h("tr", {}, ...[lang === "el" ? "Στοιχείο" : "Item", t("value"), t("belongs"), t("where")].map((x) => h("th", { text: x }))),
     ...rows.map((e) => h("tr", {},
       h("td", { text: FIELD[lang][e.type] || e.type }),
       h("td", {}, h("strong", { text: e.value }), e.checked ? h("div", { class: "ok", text: `✓ ${t("checked")}` }) : null),
       h("td", { text: e.role ? ROLE[lang][e.role] || e.role : "—" }),
-      h("td", {}, ...(e.sources || []).map((s) => h("div", {}, sourceChip(s), snippet(s.snippet, e.value))))))));
+      h("td", {}, ...(e.sources || []).map((s) => h("div", {}, sourceChip(s), snippet(s.snippet, e.value)))))))));
 }
 
 /* One audit entry as a timeline row: when, who, what changed. Used per case and in the activity log. */
@@ -905,7 +931,7 @@ function renderCase() {
   pane.dataset.caseId = c.id;
   pane.classList.remove("enter");
   if (S.enter) { void pane.offsetWidth; pane.classList.add("enter"); pane.scrollTop = 0; S.enter = false; }
-  pane.replaceChildren(
+  const body = [
     h("div", { class: "case-head" },
       h("h2", { text: c.subject || "—" }),
       h("div", { class: "meta" },
@@ -918,8 +944,10 @@ function renderCase() {
     actionsCard(u, c),
     ...(c.understanding && !u.error ? [customerCard(u), foundCard(u)] : []),
     u.analysis ? h("p", { class: "muted small", text: `${t("analysis")}: ${u.analysis}` }) : "",
-    historyCard(d.events || []),
-    saveBar(c));
+    commentCard(c),
+    historyCard(d.events || [])];
+  // Built last: the review form above sets up the chosen category and actions it summarises.
+  pane.replaceChildren(saveTop(c), ...body);
 }
 
 // ------------------------------------------------------------------ viewer

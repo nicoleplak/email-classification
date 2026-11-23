@@ -217,11 +217,28 @@ table.mini td strong { background: var(--ev-id-wash); box-shadow: inset 0 -2px v
 .adder { margin-top: 10px; }
 .adder .picker-opt { display: flex; justify-content: space-between; gap: 8px; }
 
-/* review step 3: save bar stays at the bottom of the case while scrolling */
-.savebar { position: sticky; bottom: 0; z-index: 3; margin-top: 16px; background: #fff; border: 1px solid var(--blue);
-  border-radius: 8px; padding: 12px 14px; display: grid; gap: 8px; box-shadow: 0 -6px 18px rgba(16, 24, 40, .08); animation: rise .22s ease-out; }
-.savebar-head { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; flex-wrap: wrap; }
-.savebar textarea { min-height: 44px; }
+/* Save stays at the top of the case while scrolling; the comment (step 3) sits in the flow at the bottom. */
+.savetop { position: sticky; top: 0; z-index: 3; margin: 0 -20px; padding: 10px 20px; background: rgba(245, 247, 250, .96);
+  border-bottom: 1px solid var(--line); backdrop-filter: blur(4px); }
+.savetop-row { display: flex; align-items: center; gap: 8px 14px; flex-wrap: wrap; }
+.savetop-summary { flex: 1 1 200px; min-width: 0; display: flex; font-weight: 600; color: var(--ink-2); white-space: nowrap; }
+.savetop-cat { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.savetop-count { flex: none; }
+.savetop .next { display: flex; align-items: center; gap: 4px; }
+.savetop .error:empty { display: none; }
+#rv-comment { min-height: 64px; }
+
+/* changing an action for another from the list */
+.action-tools { float: right; display: flex; gap: 2px; margin-left: 8px; }
+.action-tools .link { font-size: 12.5px; padding: 2px 4px; }
+.action .remove { float: none; }
+.change-to { clear: both; margin: 8px 0 4px; display: grid; gap: 4px; }
+.action.changing { border-color: var(--blue); background: #fff; }
+
+/* "Details found": a short window that scrolls, header kept in view */
+.found-scroll { max-height: 210px; overflow-y: auto; border: 1px solid var(--line); border-radius: 6px; margin-top: 6px; }
+.found-scroll table.mini { margin-top: 0; }
+.found-scroll table.mini th { position: sticky; top: 0; background: #f7f9fb; z-index: 1; }
 
 /* loading states */
 .splash { position: fixed; inset: 0; display: grid; place-items: center; background: var(--bg); z-index: 40; }
@@ -422,3 +439,18 @@ details.more[open] > :not(summary) { animation: drop .2s ease-out; }
   .tile-value { font-size: 22px; }
 }
 .more-cats { margin: 6px 4px 10px; font-size: 13px; }
+/* The pane's top padding moves to the heading, so the pinned Save bar sits flush with the top edge. */
+.casepane { padding-top: 0; }
+.case-head { padding-top: 18px; }
+/* Narrower screens scroll the whole page (case, then the email): pin Save to the window instead. */
+@media (max-width: 1280px) {
+  .savetop { position: fixed; top: 52px; left: 320px; right: 0; margin: 0; box-shadow: 0 4px 12px rgba(16, 24, 40, .06); }
+  .casepane:has(.savetop) .case-head { padding-top: 76px; }
+}
+@media (max-width: 800px) {
+  .savetop { top: auto; bottom: 0; left: 0; border-top: 1px solid var(--line); border-bottom: 0; padding: 8px 12px;
+    box-shadow: 0 -4px 12px rgba(16, 24, 40, .08); }
+  .casepane:has(.savetop) .case-head { padding-top: 18px; }
+  .layout:has(.savetop) { padding-bottom: 84px; }
+  .savetop .next { display: none; }
+}
