@@ -77,6 +77,8 @@ const T = {
     cv_not_identified: "Ο πελάτης δεν ταυτοποιήθηκε με ΑΦΜ ή λογαριασμό· πριν την καταχώρηση χρειάζονται στοιχεία.",
     cv_not_in_registry: "Ο ΑΦΜ ή ο λογαριασμός δεν βρέθηκε στο μητρώο.",
     cv_account_not_identified: "Ο λογαριασμός δεν ταυτοποιήθηκε από το email· επιλέξτε λογαριασμό ή στείλτε «Χρειάζονται στοιχεία».",
+    autoExtras: "Οι κατηγορίες με βεβαιότητα 80% ή περισσότερο προστέθηκαν αυτόματα, μαζί με τις ενέργειές τους.",
+    autoExtraTip: "Προστέθηκε αυτόματα (βεβαιότητα 80%+)",
     extraCount: "{n} επιλεγμένα", extraNone: "κανένα", addCategory: "Προσθήκη κατηγορίας…",
     toLabel: "Προς", ccLabel: "Κοιν.", evCategory: "Κατηγορία", evActions: "Ενέργειες", evOthers: "Επιπλέον κατηγορίες",
     evComment: "Σχόλιο", evUnchanged: "χωρίς αλλαγή", evSystem: "πρόταση συστήματος", evAdded: "προστέθηκε", evRemoved: "αφαιρέθηκε",
@@ -189,6 +191,8 @@ const T = {
     cv_not_identified: "The customer is not identified by tax ID or account; details are needed before filing.",
     cv_not_in_registry: "The tax ID or account is not in the registry.",
     cv_account_not_identified: "The email does not identify the account; pick one or send “Need more Info”.",
+    autoExtras: "Categories with 80% certainty or more were added automatically, with their actions.",
+    autoExtraTip: "Added automatically (80%+ certainty)",
     extraCount: "{n} chosen", extraNone: "none", addCategory: "Add a category…",
     toLabel: "To", ccLabel: "Cc", evCategory: "Category", evActions: "Actions", evOthers: "Further categories",
     evComment: "Comment", evUnchanged: "unchanged", evSystem: "system suggestion", evAdded: "added", evRemoved: "removed",
@@ -779,7 +783,9 @@ function reviewForm(c) {
     S.choice = reviewed ? (c.noMatch ? "none" : c.finalCategory === c.modelCategory ? "accept" : "other")
       : c.modelCategory && c.route !== "EXCEPTION" ? "accept" : "other";
     S.pick = reviewed ? c.finalCategory || "" : "";
-    S.pickExtras = [...(c.otherCategories || [])];
+    // Not reviewed yet: start from the categories added automatically (certainty 80%+).
+    S.pickExtras = (c.otherCategories || []).length || reviewed ? [...(c.otherCategories || [])]
+      : (c.autoCategories || []).map((a) => a.category);
     const u = c.understanding || {};
     S.acts = (c.finalActions || []).length ? c.finalActions.map((a) => ({ ...a, on: true }))
       : (u.actions || []).map((a) => asChoice(a, "suggested"));
@@ -803,15 +809,22 @@ function extraCategories(c, u, suggested) {
   const main = finalCategoryNow(c);
   const chosen = (S.pickExtras || []).filter((x) => x !== main);
   const add = (x) => { if (!chosen.includes(x) && chosen.length < 5) S.pickExtras = [...chosen, x]; S.extraOpen = true; renderCase(); };
-  const ideas = [...new Set(suggested)].filter((x) => x && x !== main && x !== NO_MATCH && !chosen.includes(x) && S.categories.includes(x));
+  const certainty = { ...(((c.payload || {}).records || [])[0] || {}).model_other_categories };
+  (c.autoCategories || []).forEach((a) => { certainty[a.category] = a.confidence; });
+  const pct = (x) => certainty[x] != null ? ` · ${Math.round(certainty[x] * 100)}%` : "";
+  const auto = new Set((c.autoCategories || []).map((a) => a.category));
+  const ideas = [...new Set([...Object.keys(certainty), ...suggested])]
+    .filter((x) => x && x !== main && x !== NO_MATCH && !chosen.includes(x) && S.categories.includes(x));
   return h("section", { class: "extras" },
     h("div", { class: "extras-head" }, h("span", { text: t("extra") }),
       h("span", { class: "muted small", text: chosen.length ? t("extraCount", { n: chosen.length }) : t("extraNone") })),
-    chosen.length ? h("div", { class: "chips" }, ...chosen.map((x) => h("span", { class: "chip" }, catLabel(x),
+    auto.size ? h("div", { class: "muted small", text: t("autoExtras") }) : "",
+    chosen.length ? h("div", { class: "chips" }, ...chosen.map((x) => h("span", { class: auto.has(x) ? "chip auto-chip" : "chip",
+      title: auto.has(x) ? t("autoExtraTip") : null }, `${catLabel(x)}${pct(x)}`,
       h("button", { type: "button", class: "chip-x", "aria-label": `${t("remove")}: ${catLabel(x)}`, text: "×",
         onclick: () => { S.pickExtras = chosen.filter((y) => y !== x); renderCase(); } })))) : "",
     ideas.length ? h("div", { class: "chips ideas" }, h("span", { class: "muted small", text: `${t("suggestedCats")}:` }),
-      ...ideas.map((x) => h("button", { type: "button", class: "chip add", onclick: () => add(x) }, `+ ${catLabel(x)}`))) : "",
+      ...ideas.map((x) => h("button", { type: "button", class: "chip add", onclick: () => add(x) }, `+ ${catLabel(x)}${pct(x)}`))) : "",
     chosen.length < 5 ? h("details", { class: "more extra", open: S.extraOpen ? true : null, ontoggle: (e) => { S.extraOpen = e.target.open; } },
       h("summary", { text: t("addCategory") }),
       categoryPicker({ id: "rv-extra", value: "", suggested: ideas, onPick: (x) => { if (x) add(x); } })) : "");

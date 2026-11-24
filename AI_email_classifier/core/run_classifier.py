@@ -31,6 +31,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
 
+from core.action_rules import extra_categories
 from core.processor import EmailProcessor
 from data.case_store import Conflict
 
@@ -363,6 +364,8 @@ def _classify_one(store, blob, processor, understand_fn, threshold, now_fn, clf_
     category = records[0].get("category") if records else None
     if understanding and understanding.get("complaintDemoted") and understanding.get("principalCategory"):
         category = understanding["principalCategory"]  # the request, not the complaint, leads (it goes to review)
+    # Second and third categories found with 80%+ certainty: part of the case, final when it is automatic.
+    auto = extra_categories((records[0] if records else {}).get("model_other_categories") or {}, category)
     now = now_fn()
     updated = {
         **case,
@@ -373,6 +376,8 @@ def _classify_one(store, blob, processor, understand_fn, threshold, now_fn, clf_
         "confidence": confidence,
         "votes": records[0].get("model_votes", {}) if records else {},
         "finalCategory": category if route == "AUTO" else None,
+        "autoCategories": auto,
+        "otherCategories": [a["category"] for a in auto] if route == "AUTO" else [],
         "classifiedAt": now,
         "classifierRun": clf_run,
         "error": error,

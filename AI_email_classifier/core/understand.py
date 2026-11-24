@@ -19,7 +19,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-from core.action_rules import FLAGS, decide, explain, order_requests
+from core.action_rules import FLAGS, decide, explain, extra_categories, order_requests
 from core.customer_lookup import Registry, RequestHistory, find_customers
 from core.identifiers import find_candidates, merge_candidates
 from utils.afm_utils import afm_checksum_valid
@@ -339,6 +339,9 @@ def understand(
         names=names,
     )
     other_requests = [c for c in answer["other_requests"] if c != principal]
+    # Second and third categories the classifier is sure of (80%+) are added with their actions.
+    auto = extra_categories((records[0] if records else {}).get("model_other_categories") or {}, principal)
+    other_requests = list(dict.fromkeys([*other_requests, *(a["category"] for a in auto)]))
     # Most important request first; a complaint is first only when nothing else is asked.
     ordered, complaint_demoted = order_requests(principal, other_requests)
     principal, other_requests = ordered[0], ordered[1:]
@@ -356,6 +359,7 @@ def understand(
         "principalCategory": principal,
         "otherRequests": other_requests,
         "complaintDemoted": complaint_demoted,
+        "autoCategories": auto,
         "extracted": extracted + emails,
         "candidatesDropped": dropped,
         "people": people,

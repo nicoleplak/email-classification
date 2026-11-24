@@ -85,11 +85,11 @@ def test_local_demo_fills_every_queue(tmp_path):
     env = {k: v for k, v in os.environ.items() if k not in ("LOCAL_BLOB_DIR", "LOCAL_STORE_DIR", "CASE_STORE")}
     env["PYTHONIOENCODING"] = "utf-8"
     done = subprocess.run([sys.executable, str(ROOT / "tools" / "local_demo.py"), "--folder", str(folder),
-                           "--emails", "8"], capture_output=True, text=True, env=env, timeout=120)
+                           "--emails", "12"], capture_output=True, text=True, env=env, timeout=120)
     assert done.returncode == 0, done.stderr[-2000:]
 
     cases = [json.loads(p.read_text(encoding="utf-8")) for p in (folder / "case_store" / "cases").glob("*.json")]
-    assert len(cases) == 10
+    assert len(cases) == 14
     routes = {c["route"] for c in cases}
     assert {"AUTO", "REVIEW", "EXCEPTION", None} <= routes  # None: the two left waiting
     assert sum(c["status"] == "RECEIVED" for c in cases) == 2

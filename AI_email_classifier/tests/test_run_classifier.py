@@ -299,3 +299,24 @@ def test_a_demoted_complaint_hands_the_category_to_the_request(store):
                         understand_factory=lambda p, m: (lambda message, records, tmp: understanding))
     case = store.get("cases", rc.email_id(msg(1)))
     assert (case["modelCategory"], case["route"]) == ("Βεβαιώσεις οφειλής", "REVIEW")
+
+
+def test_confident_second_category_is_added_to_an_automatic_case(store):
+    blob = FakeBlob()
+    blob.put_run("r1", [msg(1)])
+    rc.register_runs(store, blob, T0)
+    sure = record(model_other_categories={"GDPR": 0.8, "Αγωγές": 0.4})
+    rc.classify_waiting(store, blob, lambda: FakeProcessor({"Αίτημα βεβαίωσης": [sure]}), lambda: T0, 0.95)
+    case = store.get("cases", rc.email_id(msg(1)))
+    assert case["route"] == "AUTO"
+    assert (case["autoCategories"], case["otherCategories"]) == ([{"category": "GDPR", "confidence": 0.8}], ["GDPR"])
+
+
+def test_unsure_second_category_is_only_suggested(store):
+    blob = FakeBlob()
+    blob.put_run("r1", [msg(1)])
+    rc.register_runs(store, blob, T0)
+    unsure = record(model_other_categories={"GDPR": 0.6})
+    rc.classify_waiting(store, blob, lambda: FakeProcessor({"Αίτημα βεβαίωσης": [unsure]}), lambda: T0, 0.95)
+    case = store.get("cases", rc.email_id(msg(1)))
+    assert (case["autoCategories"], case["otherCategories"]) == ([], [])

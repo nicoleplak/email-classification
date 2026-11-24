@@ -23,12 +23,16 @@ about the customer (customer). This module only combines them, in this order (bu
 7. Reply: one template per email (inputs/reply_templates.json): Need more Info, Portal, ERB branch, or
    the category's Received / In Progress template once something was done.
 
+Further requests: a second or third category the classifier finds with 80% certainty or more
+(``extra_categories``) is added on its own, with its actions, like a request the reader found.
+
 Each action records why it was chosen in ``because``; ``explain`` turns that into Greek.
 """
 
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from typing import Any
 
@@ -168,6 +172,26 @@ def order_requests(principal: str | None, others: list[str]) -> tuple[list[str],
     if first in COMPLAINTS and rest:
         return [rest[0], *rest[1:], first], True
     return [first, *rest], False
+
+
+def extra_threshold() -> float:
+    """Certainty from which a further request is added on its own (EXTRA_CATEGORY_THRESHOLD, default 0.80)."""
+    try:
+        return float(os.getenv("EXTRA_CATEGORY_THRESHOLD", "0.80"))
+    except ValueError:
+        return 0.80
+
+
+def extra_categories(confidence: dict, principal: str | None, threshold: float | None = None) -> list[dict]:
+    """The second and third categories the classifier is sure enough of: at most two, most certain first.
+
+    confidence: {category: share of classifier samples that found that request in the email}.
+    """
+    limit = extra_threshold() if threshold is None else threshold
+    found = [(c, float(v)) for c, v in (confidence or {}).items()
+             if c and c != principal and c in RULES and c != "No Match Found" and float(v) >= limit]
+    found.sort(key=lambda cv: (-cv[1], priority(cv[0])))
+    return [{"category": c, "confidence": round(v, 4)} for c, v in found[:2]]
 
 
 def code_name(code: str) -> str:

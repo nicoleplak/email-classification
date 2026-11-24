@@ -574,6 +574,21 @@ class EmailClassifier:
         winner = max(votes.values(), key=lambda v: (len(v), sum(p for p, _ in v)))
         _, best = max(winner, key=lambda item: item[0])
         best["Confidence"] = round(sum(p for p, _ in winner) / len(response.choices), 4)
+        # Further requests: the share of samples that found each one in the email, as their main
+        # Category or in Other_Categories. Independent of the main category's share, so a second
+        # request can be as certain as the first.
+        main = str(best.get("Category"))
+        found: Dict[str, int] = {}
+        for sample in (parsed for v in votes.values() for _, parsed in v):
+            seen = {str(sample.get("Category"))} | {
+                str(c) for c in (sample.get("Other_Categories") or []) if isinstance(c, str)
+            }
+            for category in seen - {main, self.NO_MATCH_CATEGORY, "None"}:
+                found[category] = found.get(category, 0) + 1
+        best["Other_Category_Confidence"] = {
+            c: round(n / len(response.choices), 4)
+            for c, n in sorted(found.items(), key=lambda kv: -kv[1])
+        }
         # Same measure for every category the samples proposed, for reviewers.
         mass = {
             c: sum(p for p, _ in v) / len(response.choices) for c, v in votes.items()
@@ -599,12 +614,17 @@ class EmailClassifier:
                             "enum": sorted(self.ALLOWED_THREAD_RELATIONS),
                         },
                         "Matched_Rules": {"type": "array", "items": {"type": "string"}},
+                        "Other_Categories": {
+                            "type": "array",
+                            "items": {"type": "string", "enum": allowed_categories},
+                        },
                     },
                     "required": [
                         "Reasoning",
                         "Category",
                         "Thread_Relation",
                         "Matched_Rules",
+                        "Other_Categories",
                     ],
                     "additionalProperties": False,
                 },
@@ -775,6 +795,11 @@ class EmailClassifier:
             "Category_Votes": (
                 parsed.get("Category_Votes")
                 if isinstance(parsed.get("Category_Votes"), dict)
+                else {}
+            ),
+            "Other_Category_Confidence": (
+                parsed.get("Other_Category_Confidence")
+                if isinstance(parsed.get("Other_Category_Confidence"), dict)
                 else {}
             ),
             "_Field_Presence": field_presence,
@@ -1051,6 +1076,7 @@ class EmailClassifier:
             "Needs_Review": bool(result.get("Needs_Review", True)),
             "Context_Used": bool(result.get("Context_Used", False)),
             "Category_Votes": dict(result.get("Category_Votes") or {}),
+            "Other_Category_Confidence": dict(result.get("Other_Category_Confidence") or {}),
         }
 
     # -----------------------------------------------------------
@@ -1443,6 +1469,7 @@ class EmailClassifier:
                 "Needs_Review": True,
                 "Context_Used": context_used,
                 "Category_Votes": dict(last_result.get("Category_Votes") or {}),
+                "Other_Category_Confidence": dict(last_result.get("Other_Category_Confidence") or {}),
                 "Validation_Errors": normalized_errors,
             }
 

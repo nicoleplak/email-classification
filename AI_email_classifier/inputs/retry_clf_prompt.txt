@@ -197,8 +197,15 @@ Return exactly:
     "exact phrase copied from the available thread"
   ],
   "Reasoning": "brief corrected thread-level explanation",
-"Thread_Relation": "standalone | new_request | continuation | clarification | confirmation | correction | follow_up | same_request | new_independent_request | acknowledgement | closure | unknown"
+"Thread_Relation": "standalone | new_request | continuation | clarification | confirmation | correction | follow_up | same_request | new_independent_request | acknowledgement | closure | unknown",
+  "Other_Categories": ["at most two further allowed categories, most important first; [] when there is one request"]
 }
+
+Other_Categories lists further distinct, actionable requests in the same
+thread that need their own handling (for example a debt certificate AND a
+copy of the contract). Never repeat Category; never list "No Match Found";
+do not list a category for an incidental mention. A complaint that comes
+with another request goes here as "Παράπονα" (section 16).
 
 ============================================================
 7. OUTPUT FIELD REQUIREMENTS

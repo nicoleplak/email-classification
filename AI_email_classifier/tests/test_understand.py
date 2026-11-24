@@ -199,3 +199,18 @@ def test_older_emails_that_only_changed_are_not_new_work():
         store = LocalStore(tmp)
         totals = rc.register_runs(store, Blob(), "2026-11-19T13:05:00Z", "20261119T125515Z")
         assert totals["new_cases"] == 1 and totals["older"] == 1
+
+
+def test_a_confident_second_category_brings_its_actions(registry):
+    message = {
+        "id": "m1", "subject": "Βεβαίωση οφειλής και σύμβαση",
+        "from": {"emailAddress": {"address": "lawyer@example.test", "name": "Δικηγόρος"}},
+        "body": {"body_clean": "Παρακαλώ βεβαίωση οφειλής και αντίγραφο σύμβασης, ΑΦΜ 094014298."},
+    }
+    records = [{"category": "Βεβαιώσεις οφειλής", "model_other_categories": {"Αντίγραφα συμβάσεων": 0.8, "GDPR": 0.4}}]
+    out = understand(client=FakeClient(), model="m", message=message, records=records, text_dir=None,
+                     categories=["Βεβαιώσεις οφειλής", "Αντίγραφα συμβάσεων", "GDPR"], registry=registry,
+                     history=RequestHistory.empty())
+    assert out["autoCategories"] == [{"category": "Αντίγραφα συμβάσεων", "confidence": 0.8}]
+    assert "Αντίγραφα συμβάσεων" in out["otherRequests"] and "GDPR" not in out["otherRequests"]
+    assert any(a["category"] == "Αντίγραφα συμβάσεων" and a["do"] == "request" for a in out["actions"])

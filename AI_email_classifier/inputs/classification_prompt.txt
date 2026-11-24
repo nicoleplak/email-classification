@@ -438,6 +438,14 @@ Reason:
 - Matched_Rules: up to three short phrases copied exactly from the thread or
   attachment evidence that support the category; empty if none.
 - Thread_Relation and Reasoning as described above.
+- Other_Categories: at most two further categories, copied exactly from
+  Categories_JSON, for further distinct, actionable requests in the same
+  email that need their own handling (for example a debt certificate AND a
+  copy of the contract), most important first by Priority. Use [] when the
+  email makes one request. Never repeat Category, never list
+  "No Match Found", and do not list a category for an incidental mention.
+  A complaint that comes with another request goes here as "Παράπονα"
+  (section 13.1).
 
 ============================================================
 6. CATEGORIES

@@ -655,7 +655,7 @@ def export_xlsx(ids: list[str]) -> bytes:
             case.get("modelCategory") or "",
             None if case.get("confidence") is None else round(float(case["confidence"]), 2),
             (metrics.NO_MATCH if case.get("noMatch") else case.get("finalCategory") or "") if reviewed else "",
-            ", ".join(case.get("otherCategories") or []),
+            ", ".join(case.get("otherCategories") or [a["category"] for a in case.get("autoCategories") or []]),
             OUTCOME_TEXT.get(metrics.outcome(case) or "", ""),
             "\n".join(action_line(a) for a in proposed),
             "\n".join(action_line(a) for a in case.get("finalActions") or []) if reviewed else "",

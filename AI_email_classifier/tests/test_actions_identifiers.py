@@ -473,3 +473,14 @@ def test_merge_keeps_one_entry_per_value_and_drops_lowest_rank():
     assert merged[0]["id"] == "c1"
     assert len(merged[0]["sightings"]) == 2
     assert dropped == 1
+
+
+def test_second_and_third_category_from_80_percent():
+    from core.action_rules import extra_categories
+
+    found = {"GDPR": 0.8, COPIES: 0.95, "Αγωγές": 0.85, "Παράπονα": 0.6, "No Match Found": 1.0, "nope": 0.9}
+    assert extra_categories(found, "Ρύθμιση") == [
+        {"category": COPIES, "confidence": 0.95}, {"category": "Αγωγές", "confidence": 0.85}]  # at most two
+    assert extra_categories({"GDPR": 0.79}, "Ρύθμιση") == []
+    assert extra_categories({"GDPR": 0.9}, "GDPR") == []  # never the main category again
+    assert extra_categories({"GDPR": 0.7}, "Ρύθμιση", threshold=0.6) == [{"category": "GDPR", "confidence": 0.7}]

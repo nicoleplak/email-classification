@@ -215,6 +215,9 @@ class FakeProcessor:
             "category": category, "confidence": f"{confidence:.0%}",
             "status": "needs_identification" if n % 5 == 4 else "verified",
             "model_votes": {category: confidence, runner_up: round(1 - confidence, 2)},
+            # Further requests: a sure one (added on its own) on every 4th email, an unsure one on others.
+            "model_other_categories": {runner_up: 0.8 + 0.05 * (n % 3)} if n % 4 == 0
+            else {runner_up: 0.4, self.categories[(n + 2) % len(self.categories)]: 0.6} if n % 4 == 2 else {},
             "reasoning": "Invented classification from tools/local_demo.py (no model was called).",
             "attachment_records": self._save_texts(email),
         }]

@@ -321,9 +321,11 @@ class EmailProcessor:
     ) -> list[dict[str, Any]]:
         """Carry the vote split and the model's own review flag onto every record."""
         votes = dict(classification.get("Category_Votes") or {})
+        others = dict(classification.get("Other_Category_Confidence") or {})
         needs_review = bool(classification.get("Needs_Review", False))
         for record in records:
             record["model_votes"] = votes
+            record["model_other_categories"] = others
             record["model_needs_review"] = needs_review
         return records
 

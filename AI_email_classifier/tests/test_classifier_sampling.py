@@ -69,3 +69,32 @@ def test_low_confidence_flags_review_instead_of_failing_validation():
     assert valid, errors
     assert normalized["Needs_Review"] is True
     assert normalized["Matched_Rules"] == []
+
+
+def _choice_with_others(category, others, logprob=0.0):
+    choice = _choice(category, logprob)
+    content = json.loads(choice.message.content)
+    content["Other_Categories"] = others
+    choice.message.content = json.dumps(content, ensure_ascii=False)
+    return choice
+
+
+def test_further_requests_get_their_own_certainty():
+    """4 of 5 samples find a second request: 80%, however the main category's share is split."""
+    choices = [
+        _choice_with_others("Ρύθμιση", ["GDPR"]),
+        _choice_with_others("Ρύθμιση", ["GDPR", "Αγωγές"]),
+        _choice_with_others("Ρύθμιση", ["GDPR"]),
+        _choice_with_others("GDPR", ["Ρύθμιση"]),   # main and further swapped: GDPR still found
+        _choice_with_others("Ρύθμιση", ["No Match Found"]),
+    ]
+    result = json.loads(_classifier(choices)._call_llm([], ["Ρύθμιση", "GDPR", "Αγωγές", "No Match Found"]))
+    assert result["Category"] == "Ρύθμιση"
+    assert result["Other_Category_Confidence"] == {"GDPR": 0.8, "Αγωγές": 0.2}
+    assert result["Category_Votes"]["GDPR"] == 0.2  # the old vote share could never reach 80%
+
+
+def test_schema_asks_for_further_categories():
+    schema = _classifier([])._response_schema(["GDPR", "No Match Found"])["json_schema"]["schema"]
+    assert "Other_Categories" in schema["required"]
+    assert schema["properties"]["Other_Categories"]["items"]["enum"] == ["GDPR", "No Match Found"]

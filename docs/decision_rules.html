@@ -46,7 +46,7 @@ figcaption { color: var(--ink-2); font-size: 14px; margin-top: 12px; max-width: 
 .node.end text { fill: #fff; }
 .lbl text { fill: var(--muted); font: 500 12px var(--body); }
 .feed { color: var(--tpl); }
-.grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+.grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
 .card { padding: 16px 18px; min-width: 0; }
 .card .k { font: 600 12px var(--display); color: var(--muted); letter-spacing: .06em; text-transform: uppercase; }
 .two { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; }
@@ -173,6 +173,8 @@ ol.questions b { font-family: var(--display); }
       <p>Ο πελάτης ταυτοποιείται μόνο με ΑΦΜ (με σωστό ψηφίο ελέγχου) ή αριθμό λογαριασμού που υπάρχουν στο μητρώο. Όνομα και email είναι συμπληρωματικά: εμφανίζονται ως «πιθανός» πελάτης, αλλά δεν αρκούν για αυτόματη επεξεργασία.</p></div>
     <div class="panel card"><div class="k">Προτεραιότητα</div><h3>Το πιο σημαντικό αίτημα πρώτο</h3>
       <p>Όταν ένα email έχει πολλά αιτήματα, κύριο είναι αυτό με τη μικρότερη προτεραιότητα (1 = πιο σημαντικό). Το «Παράπονα» είναι κύριο μόνο όταν το email δεν ζητά τίποτε άλλο και η δυσαρέσκεια είναι έντονη.</p></div>
+    <div class="panel card"><div class="k">Επιπλέον αιτήματα</div><h3>Δεύτερη και τρίτη κατηγορία από 80%</h3>
+      <p>Όταν το email ζητά και κάτι άλλο και ο ταξινομητής το βρίσκει με βεβαιότητα 80% ή περισσότερο (τουλάχιστον 4 στα 5 δείγματα), η κατηγορία προστίθεται αυτόματα, έως δύο, μαζί με τις ενέργειές της. Κάτω από 80% εμφανίζεται μόνο ως πρόταση στον ελεγκτή.</p></div>
     <div class="panel card"><div class="k">Portal</div><h3>Portal πρώτα</h3>
       <p>Σε κατηγορίες με Portal = YES, ο πελάτης με Portal flag παίρνει απάντηση να το κάνει από το Portal, εκτός αν αναφέρει τεχνικό πρόβλημα. Τότε ανοίγει κανονικά το αίτημα Qualco.</p></div>
   </div>

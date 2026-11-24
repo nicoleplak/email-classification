@@ -90,6 +90,7 @@ regenerated with `python tools/rules_report.py` after any change, together with 
 | Variable | Meaning |
 |---|---|
 | `ACCOUNT_STATUS_COLUMN` | registry column with the Qualco case state per account. Unset (today): every request uses the open-case code, without `_Cust` |
+| `EXTRA_CATEGORY_THRESHOLD` | certainty (share of classifier samples) from which a second or third category is added automatically, with its actions (default `0.80`; at most two) |
 | `ACCOUNT_CLOSED_VALUES` | values of that column meaning "closed" (default `CLOSED,C,Κλειστός,ΚΛΕΙΣΤΟΣ`); a closed account gets the `_Cust` code |
 
 Identification is by tax ID or account number only; a name or email match is shown to the reviewer but
