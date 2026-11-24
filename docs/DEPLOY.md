@@ -121,6 +121,8 @@ Then run the job (or `python -m main` locally) to classify them.
 
 ## Running locally
 
+Step by step for a laptop, including real emails copied from Azure with `tools/fetch_sample.py`: `docs/LOCAL_TESTING.md`.
+
 ### Without Azure (invented emails)
 
 `LOCAL_BLOB_DIR` makes every blob read and write (classifier, review app, Graph ingest, `tools/import_msg.py`)

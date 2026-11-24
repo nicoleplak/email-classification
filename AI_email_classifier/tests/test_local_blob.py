@@ -101,3 +101,53 @@ def test_local_demo_fills_every_queue(tmp_path):
     assert list(blob.glob("silver/*/*/text/*.txt"))  # attachment text the review app shows
     with_files = [c for c in cases if c["sourceRefs"]["attachments"]]
     assert all((blob / name).is_file() for c in with_files for name in c["sourceRefs"]["attachments"])
+
+
+def _fetch_sample():
+    spec = importlib.util.spec_from_file_location("fetch_sample", ROOT / "tools" / "fetch_sample.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+class FakeContainer:
+    """Stands in for the Azure container: list and download only (the script must never write)."""
+
+    def __init__(self, files):
+        self.files = files
+
+    def list_blobs(self, name_starts_with=""):
+        from types import SimpleNamespace
+
+        return [SimpleNamespace(name=n) for n in sorted(self.files) if n.startswith(name_starts_with)]
+
+    def download_blob(self, name):
+        from types import SimpleNamespace
+
+        if name not in self.files:
+            raise KeyError(name)
+        return SimpleNamespace(readall=lambda: self.files[name])
+
+
+def test_fetch_sample_copies_runs_and_what_their_emails_point_to(tmp_path):
+    message = lambda n, att: {"id": f"m{n}", "eml_blob_path": f"messages/aa/m{n}/message.eml",  # noqa: E731
+                              "attachments": [{"blob_name": att}] if att else []}
+    files = {
+        "bronze/20261101T000000Z/emails.json": json.dumps([message(0, None)]).encode(),
+        "bronze/20261120T000000Z/emails.json": json.dumps(
+            {"messages": [message(1, "attachments/x/1.pdf"), message(2, "attachments/x/gone.pdf"), message(3, None)],
+             "removed": []}).encode(),
+        "messages/aa/m0/message.eml": b"0", "messages/aa/m1/message.eml": b"1", "messages/aa/m2/message.eml": b"2",
+        "messages/aa/m3/message.eml": b"3", "attachments/x/1.pdf": b"%PDF",
+        "in/qualco_output_20261101.csv": b"old", "in/qualco_output_20261120.csv": b"new",
+    }
+    dest = tmp_path / "blob"
+    totals = _fetch_sample().fetch(FakeContainer(files), dest, limit=2, registry=True, log=lambda *_: None)
+    assert totals == {"runs": 1, "emails": 2, "files": 4, "missing": 1}  # newest run only, 2 emails, 1 attachment gone
+    kept = json.loads((dest / "bronze/20261120T000000Z/emails.json").read_text())
+    assert [m["id"] for m in kept["messages"]] == ["m1", "m2"]
+    assert (dest / "attachments/x/1.pdf").read_bytes() == b"%PDF"
+    assert (dest / "in/qualco_output_20261120.csv").read_bytes() == b"new"
+    assert not (dest / "messages/aa/m3/message.eml").exists() and not (dest / "bronze/20261101T000000Z").exists()
+    # The copy is a container the classifier reads as is.
+

@@ -241,6 +241,8 @@ python tools\eml_to_html.py <file.eml or folder>   # no arguments: run its self-
 
 ### Running everything locally, without Azure
 
+Step-by-step guide, from unit tests to real emails copied from Azure: `docs/LOCAL_TESTING.md`.
+
 Set `LOCAL_BLOB_DIR` to a folder and the classifier, the review app and the Graph ingest read and write it
 instead of the blob container. `python tools/local_demo.py` fills `local_data/` with invented emails, an
 invented registry and classified cases, and prints the command that starts the review app on them. See
