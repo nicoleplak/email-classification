@@ -307,3 +307,23 @@ def test_excel_export_lists_the_requested_emails(app):
     row = dict(zip(header, [c.value for c in sheet[2]]))
     assert (row["ID"], row["Κατάσταση"], row["Κατηγορία συστήματος"]) == (case_id, "Προς έλεγχο", "Βεβαίωση Οφειλής")
     assert call(f"{base}/api/export", {"ids": [case_id]})[0] == 401  # signed-in users only
+
+
+def test_page_files_have_fixed_types_even_when_windows_says_otherwise(app, monkeypatch):
+    import mimetypes
+
+    _, base, _ = app
+    monkeypatch.setattr(mimetypes, "guess_type", lambda *a, **k: ("text/plain", None))  # a Windows registry
+    assert call(f"{base}/app.js")[1]["Content-Type"] == "application/javascript; charset=utf-8"
+    assert call(f"{base}/app.css")[1]["Content-Type"] == "text/css; charset=utf-8"
+    assert call(f"{base}/")[1]["Content-Type"] == "text/html; charset=utf-8"
+
+
+def test_startup_report_explains_an_empty_case_folder(app, tmp_path, monkeypatch):
+    server, _, _ = app
+    monkeypatch.setenv("LOCAL_STORE_DIR", str(tmp_path / "nothing"))
+    monkeypatch.delenv("LOCAL_BLOB_DIR", raising=False)
+    monkeypatch.delenv("AZURE_STORAGE_CONNECTION_STRING", raising=False)
+    monkeypatch.delenv("RESULT_STORAGE_ACCOUNT", raising=False)
+    report = "\n".join(server.startup_report())
+    assert "(0 emails)" in report and "No emails there" in report and "LOCAL_BLOB_DIR" in report

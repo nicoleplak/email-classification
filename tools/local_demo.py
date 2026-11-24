@@ -5,6 +5,8 @@
     python tools/local_demo.py --no-reviews        # classified, but nobody has reviewed anything yet
     python tools/local_demo.py --unclassified      # leave them waiting, for the real classifier to classify
     python tools/local_demo.py --folder other_dir  # default: local_data/ (git-ignored)
+    python tools/local_demo.py --serve             # and start the review app on it (Ctrl+C to stop)
+    python tools/local_demo.py --serve-only        # start the review app on the data already there
 
 Writes, under <folder>/blob/ (the stand-in for the blob container, LOCAL_BLOB_DIR):
   bronze/import-demo-<UTC>/emails.json        Graph-shaped emails, as the ingest writes them
@@ -301,13 +303,37 @@ def invented_reviews(store, categories: list[str], now: datetime) -> int:
     return done
 
 
+def serve(folder: Path, blob_dir: Path | None = None, store_dir: Path | None = None) -> int:
+    """Run review_app/server.py on the demo folders, with the settings it needs (stop with Ctrl+C)."""
+    import subprocess
+
+    blob_dir = blob_dir or folder / "blob"
+    store_dir = store_dir or folder / "case_store"
+    if not (store_dir / "cases").is_dir():
+        print(f"No demo data in {store_dir}: run python tools/local_demo.py first.")
+        return 1
+    env = {**os.environ, "LOCAL_BLOB_DIR": str(blob_dir), "LOCAL_STORE_DIR": str(store_dir), "REVIEW_AUTH": "dev",
+           "CASE_STORE": "local"}
+    for key in ("CI", "AZURE_STORAGE_CONNECTION_STRING"):  # never the shared container from here
+        env.pop(key, None)
+    print("\nReview app on http://127.0.0.1:8765 (Ctrl+C to stop)\n", flush=True)
+    try:
+        return subprocess.call([sys.executable, str(ROOT / "review_app" / "server.py")], env=env)
+    except KeyboardInterrupt:
+        return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--folder", default=str(ROOT / "local_data"), help="default: local_data/ in the repo")
     parser.add_argument("--emails", type=int, default=40)
     parser.add_argument("--no-reviews", action="store_true", help="classify, but add no invented reviews")
     parser.add_argument("--unclassified", action="store_true", help="register only; classify later")
+    parser.add_argument("--serve", action="store_true", help="then start the review app on these folders")
+    parser.add_argument("--serve-only", action="store_true", help="start the review app on the existing folders, add nothing")
     args = parser.parse_args()
+    if args.serve_only:
+        return serve(Path(args.folder).resolve())
 
     folder = Path(args.folder).resolve()
     os.environ.setdefault("LOCAL_BLOB_DIR", str(folder / "blob"))
@@ -369,7 +395,11 @@ def main() -> int:
         if not args.no_reviews:
             print(f"Invented reviews: {invented_reviews(store, categories, now)}")
 
+    if args.serve:
+        return serve(folder, Path(blob_dir), Path(store_dir))
     print("\nStart the review app on these folders (http://127.0.0.1:8765):\n")
+    print("  python tools/local_demo.py --serve-only\n")
+    print("or by hand:\n")
     print(f'  LOCAL_BLOB_DIR="{blob_dir}" LOCAL_STORE_DIR="{store_dir}" REVIEW_AUTH=dev python review_app/server.py')
     print("\nPowerShell:\n")
     print(f'  $env:LOCAL_BLOB_DIR="{blob_dir}"; $env:LOCAL_STORE_DIR="{store_dir}"; $env:REVIEW_AUTH="dev"')

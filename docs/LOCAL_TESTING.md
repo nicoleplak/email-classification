@@ -35,14 +35,33 @@ $env:CI = "1"; python -m pytest; Remove-Item Env:CI
 ## 2. Review app on invented emails (no Azure, no keys)
 
 ```powershell
-python tools\local_demo.py                 # 40 invented emails, classified, some reviewed
-$env:LOCAL_BLOB_DIR = "local_data\blob"; $env:LOCAL_STORE_DIR = "local_data\case_store"; $env:REVIEW_AUTH = "dev"
-python review_app\server.py                # open http://127.0.0.1:8765, sign in with any name
+python tools\local_demo.py --serve          # 40 invented emails, classified, some reviewed; then starts the app
 ```
 
-`python tools\local_demo.py --no-reviews` leaves everything to review. Optional browser test (needs Node.js):
-`npm install -g @playwright/test`, `npx playwright install chromium`, then, with the server running,
-`node tests\browser\review_ui_test.cjs http://127.0.0.1:8765` in a second window.
+Open http://127.0.0.1:8765 and sign in with any name. Stop with Ctrl+C. Next time, without adding emails:
+`python tools\local_demo.py --serve-only`. `--no-reviews` leaves everything to review; delete `local_data\`
+to start over.
+
+Starting the app by hand instead: the settings must be in the **same** PowerShell window as the server.
+
+```powershell
+$env:LOCAL_BLOB_DIR = "local_data\blob"; $env:LOCAL_STORE_DIR = "local_data\case_store"; $env:REVIEW_AUTH = "dev"
+python review_app\server.py
+```
+
+On start the server prints where it reads emails from and how many it found, for example
+`Cases: C:\...\local_data\case_store (42 emails)`. With `(0 emails)` it says what to set.
+
+Optional browser test (needs Node.js): `npm install -g @playwright/test`, `npx playwright install chromium`,
+then, with the server running, `node tests\browser\review_ui_test.cjs http://127.0.0.1:8765` in a second window.
+
+### If the app shows no emails
+
+| What you see | Cause | Fix |
+|---|---|---|
+| Server prints `(0 emails)` | the settings were typed in another window, or the server runs from another folder | use `python tools\local_demo.py --serve-only` |
+| Blank page or a spinner that never stops | the browser blocked the page script (versions before this fix, on Windows) | use the latest `dev`; then Ctrl+F5 in the browser |
+| "Δεν υπάρχουν email εδώ" | the selected queue or filter is empty | click «Όλα», set «Ημέρα» to «Όλες οι μέρες», clear the category filter |
 
 ## 3. Real emails copied from Azure
 

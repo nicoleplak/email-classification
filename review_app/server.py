@@ -807,6 +807,8 @@ def export_zip(case: dict) -> tuple[str, bytes]:
 
 
 # ---------------------------------------------------------------- HTTP
+STATIC_TYPES = {".html": "text/html", ".js": "application/javascript", ".css": "text/css", ".svg": "image/svg+xml",
+                ".png": "image/png", ".ico": "image/x-icon", ".json": "application/json"}
 PAGE_CSP = ("default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; "
             "frame-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'")
 
@@ -903,8 +905,10 @@ class Handler(BaseHTTPRequestHandler):
         target = (STATIC / name).resolve()
         if STATIC.resolve() not in target.parents or not target.is_file():
             return self.send(404, b"not found", "text/plain")
-        kind = mimetypes.guess_type(str(target))[0] or "application/octet-stream"
-        if kind.startswith("text/") or kind in ("application/javascript",):
+        # Fixed types for the page's own files: Windows often maps .js to text/plain in its registry, and
+        # with nosniff the browser then refuses to run the script (an empty page).
+        kind = STATIC_TYPES.get(target.suffix.lower()) or mimetypes.guess_type(str(target))[0] or "application/octet-stream"
+        if kind.startswith("text/") or kind in ("application/javascript", "image/svg+xml"):
             kind += "; charset=utf-8"
         self.send(200, target.read_bytes(), kind, {"Content-Security-Policy": PAGE_CSP})
 
@@ -1022,7 +1026,33 @@ def make_server() -> ThreadingHTTPServer:
     return ThreadingHTTPServer((host, port), Handler)
 
 
+def startup_report() -> list[str]:
+    """Where the app reads from and what it found, so an empty page has an explanation in the console."""
+    lines = []
+    if os.getenv("CASE_STORE", "local").strip().lower() == "cosmos":
+        lines.append(f"Cases: Cosmos {os.getenv('COSMOS_ENDPOINT', '?')}")
+    else:
+        folder = Path(os.getenv("LOCAL_STORE_DIR", "case_store")).resolve()
+        count = len(list((folder / "cases").glob("*.json"))) if (folder / "cases").is_dir() else 0
+        lines.append(f"Cases: {folder} ({count} emails)")
+        if not count:
+            demo = HERE.parent / "local_data" / "case_store"
+            hint = (f"set LOCAL_STORE_DIR={demo} (and LOCAL_BLOB_DIR={demo.parent / 'blob'}) in THIS window"
+                    if (demo / "cases").is_dir() else "run python tools/local_demo.py first")
+            lines.append(f"  No emails there: {hint}. See docs/LOCAL_TESTING.md.")
+    blob_dir = os.getenv("LOCAL_BLOB_DIR", "").strip()
+    if blob_dir:
+        lines.append(f"Files: {Path(blob_dir).resolve()}" + ("" if Path(blob_dir).is_dir() else "  (folder not found)"))
+    elif os.getenv("AZURE_STORAGE_CONNECTION_STRING") or os.getenv("RESULT_STORAGE_ACCOUNT"):
+        lines.append(f"Files: Azure container {os.getenv('RESULT_CONTAINER', '?')}")
+    else:
+        lines.append("Files: none configured; opening an email will fail. Set LOCAL_BLOB_DIR (see docs/LOCAL_TESTING.md).")
+    return lines
+
+
 if __name__ == "__main__":
     server = make_server()
     print(f"Review app ({AUTH}) on http://{server.server_address[0]}:{server.server_address[1]}", flush=True)
+    for line in startup_report():
+        print(line, flush=True)
     server.serve_forever()
