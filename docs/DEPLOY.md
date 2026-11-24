@@ -84,7 +84,8 @@ The business rules (rules_for_prompt.xlsx, Nov 2026) live in `AI_email_classifie
 activities, Portal, reply template, how the account is chosen), `qualco_requests.json` (code names),
 `reply_templates.json` (automatic replies) and `categories.json` (keywords and Priority for the model).
 `core/action_rules.py` applies them; `docs/decision_rules.html` shows them for business review and is
-regenerated with `python tools/rules_report.py` after any change (a test fails when it is out of date).
+regenerated with `python tools/rules_report.py` after any change, together with the editable draw.io version
+`docs/decision_rules.drawio` (`python tools/rules_drawio.py`); a test fails when either is out of date.
 
 | Variable | Meaning |
 |---|---|

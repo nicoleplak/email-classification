@@ -11,3 +11,9 @@ def test_decision_rules_page_is_up_to_date():
     done = subprocess.run([sys.executable, str(ROOT / "tools" / "rules_report.py"), "--check"],
                           capture_output=True, text=True, timeout=60)
     assert done.returncode == 0, done.stderr or done.stdout
+
+
+def test_drawio_file_is_up_to_date():
+    done = subprocess.run([sys.executable, str(ROOT / "tools" / "rules_drawio.py"), "--check"],
+                          capture_output=True, text=True, timeout=60)
+    assert done.returncode == 0, done.stderr or done.stdout
