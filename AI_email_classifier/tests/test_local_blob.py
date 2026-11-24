@@ -151,3 +151,15 @@ def test_fetch_sample_copies_runs_and_what_their_emails_point_to(tmp_path):
     assert not (dest / "messages/aa/m3/message.eml").exists() and not (dest / "bronze/20261101T000000Z").exists()
     # The copy is a container the classifier reads as is.
 
+
+
+def test_fetch_sample_explains_a_missing_data_role(monkeypatch):
+    module = _fetch_sample()
+    refused = Exception("This request is not authorized to perform this operation using this permission.")
+    refused.error_code = "AuthorizationPermissionMismatch"
+    for key in ("STG_KEY", "AZURE_STORAGE_CONNECTION_STRING"):
+        monkeypatch.delenv(key, raising=False)
+    assert "Storage Blob Data Reader" in module.explain(refused) and "STG_KEY" in module.explain(refused)
+    monkeypatch.setenv("STG_KEY", "x")
+    assert "account key" in module.explain(refused)
+    assert module.explain(ValueError("something else")) is None

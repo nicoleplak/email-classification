@@ -77,6 +77,10 @@ $env:STG_KEY = "<account key>"                              # or: the account ke
 $env:AZURE_STORAGE_CONNECTION_STRING = "<connection string>"  # or: a connection string
 ```
 
+If the copy stops with `AuthorizationPermissionMismatch` ("not authorized to perform this operation using
+this permission"): your login reaches Azure but has no data role on the container. Use the account key
+(`STG_KEY` in `.env`) until IT grants **Storage Blob Data Reader** on the container.
+
 **b. Copy a sample** into an empty `local_data` (delete the folder first if level 2 left invented emails
 in it, or the classifier will send those to the model too):
 

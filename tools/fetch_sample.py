@@ -43,6 +43,14 @@ def _load_env(root: Path) -> None:
 _load_env(ROOT)
 
 
+def access_method() -> str:
+    if os.getenv("AZURE_STORAGE_CONNECTION_STRING"):
+        return "connection string (AZURE_STORAGE_CONNECTION_STRING)"
+    if os.getenv("STG_KEY"):
+        return "account key (STG_KEY)"
+    return "your az login"
+
+
 def container_client():
     from azure.storage.blob import ContainerClient
 
@@ -55,6 +63,28 @@ def container_client():
     from azure.identity import AzureCliCredential
 
     return ContainerClient(url, name, credential=AzureCliCredential(tenant_id=os.getenv("AZURE_TENANT_ID")))
+
+
+def explain(exc: Exception) -> str | None:
+    """A plain explanation for the usual access errors, or None to show the error as it is."""
+    code = str(getattr(exc, "error_code", "") or "")
+    text = str(exc)
+    name = type(exc).__name__
+    if code in ("AuthorizationPermissionMismatch", "AuthorizationFailure") or "not authorized" in text:
+        if access_method() == "your az login":
+            return ("Azure knows who you are, but your login may not read the files in this container: it needs the\n"
+                    "role 'Storage Blob Data Reader' on the container (ask IT). Meanwhile use the account key:\n"
+                    "Azure portal > storage account > Access keys > key1, then STG_KEY=<key1> in .env.")
+        return (f"Access refused with the {access_method()}. Check that the key or connection string belongs to the\n"
+                f"storage account {os.getenv('RESULT_STORAGE_ACCOUNT', 'datallmdev')} and is current (keys can be rotated).")
+    if code == "AuthenticationFailed" or "Server failed to authenticate" in text:
+        return f"The {access_method()} was not accepted: copy key1 again from Access keys, without spaces or quotes."
+    if name in ("CredentialUnavailableError", "ClientAuthenticationError"):
+        return "No az login found: run 'az login' (or set STG_KEY in .env)."
+    if code == "ContainerNotFound" or code == "BlobNotFound":
+        return (f"Not found ({code}). Check RESULT_CONTAINER (now {os.getenv('RESULT_CONTAINER', 'email-classification')})"
+                " and the run name: runs are the folders under bronze/ in the container.")
+    return None
 
 
 def referenced(message: dict) -> list[str]:
@@ -118,7 +148,16 @@ def main() -> int:
     parser.add_argument("--requests", action="store_true", help="also the newest request_output CSV (~570 MB)")
     args = parser.parse_args()
     dest = Path(os.getenv("LOCAL_BLOB_DIR") or ROOT / "local_data" / "blob")
-    totals = fetch(container_client(), dest, args.run, args.runs, args.limit, args.registry, args.requests)
+    print(f"Copying from {os.getenv('RESULT_STORAGE_ACCOUNT', 'datallmdev')}/{os.getenv('RESULT_CONTAINER', 'email-classification')}"
+          f" with {access_method()} into {dest}")
+    try:
+        totals = fetch(container_client(), dest, args.run, args.runs, args.limit, args.registry, args.requests)
+    except Exception as exc:  # noqa: BLE001 - access problems get a plain explanation instead of a traceback
+        reason = explain(exc)
+        if reason is None:
+            raise
+        print(f"\nCould not copy: {reason}", file=sys.stderr)
+        return 1
     print(f"\nCopied {totals['emails']} emails from {totals['runs']} run(s), {totals['files']} files"
           f"{', ' + str(totals['missing']) + ' missing' if totals['missing'] else ''} into {dest}")
     print("Classify them (keys in your .env), then open the review app; see docs/LOCAL_TESTING.md.")
