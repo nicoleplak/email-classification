@@ -11,6 +11,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Optional
 
+import os
+
 from dotenv import load_dotenv
 from openai import AzureOpenAI
 from tqdm.auto import tqdm
@@ -51,7 +53,8 @@ FAILURE_STATUSES = {
     "STORAGE_FAILED",
 }
 
-load_dotenv()
+if os.getenv("CI", "").strip().lower() not in {"1", "true", "yes"}:
+    load_dotenv()  # tests (CI=1) never read a developer's .env
 
 
 @dataclass(frozen=True)

@@ -29,6 +29,20 @@ ROOT = Path(__file__).resolve().parents[1]
 RUN_FILE = re.compile(r"^bronze/([^/]+)/emails\.json$")
 
 
+def _load_env(root: Path) -> None:
+    """The repo-root .env (as the classifier reads it); settings already set win. Skipped in tests (CI=1)."""
+    if os.getenv("CI", "").strip().lower() in {"1", "true", "yes"}:
+        return
+    try:
+        from dotenv import load_dotenv
+    except ImportError:
+        return
+    load_dotenv(root / ".env", override=False)
+
+
+_load_env(ROOT)
+
+
 def container_client():
     from azure.storage.blob import ContainerClient
 

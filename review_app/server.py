@@ -35,6 +35,19 @@ from pathlib import Path
 from urllib.parse import parse_qs, quote, urlparse
 
 HERE = Path(__file__).resolve().parent
+
+def _load_env(root: Path) -> None:
+    """The repo-root .env (as the classifier reads it); settings already set win. Skipped in tests (CI=1)."""
+    if os.getenv("CI", "").strip().lower() in {"1", "true", "yes"}:
+        return
+    try:
+        from dotenv import load_dotenv
+    except ImportError:
+        return
+    load_dotenv(root / ".env", override=False)
+
+
+_load_env(HERE.parent)
 APP = HERE.parent / "AI_email_classifier"
 sys.path.insert(0, str(APP))
 

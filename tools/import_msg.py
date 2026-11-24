@@ -31,6 +31,20 @@ from pathlib import Path
 import extract_msg
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "AI_email_classifier"))
+
+
+def _load_env(root: Path) -> None:
+    """The repo-root .env (as the classifier reads it); settings already set win. Skipped in tests (CI=1)."""
+    if os.getenv("CI", "").strip().lower() in {"1", "true", "yes"}:
+        return
+    try:
+        from dotenv import load_dotenv
+    except ImportError:
+        return
+    load_dotenv(root / ".env", override=False)
+
+
+_load_env(Path(__file__).resolve().parents[1])
 from utils.html_text import html_to_text  # noqa: E402
 
 ACCOUNT = os.getenv("RESULT_STORAGE_ACCOUNT", "datallmdev")

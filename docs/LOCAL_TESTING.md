@@ -68,7 +68,8 @@ then, with the server running, `node tests\browser\review_ui_test.cjs http://127
 You do not connect the classifier to Azure storage: you **copy a sample** to `local_data\blob` once,
 read-only, and work on the copy. Nothing in the shared container changes.
 
-**a. Access to the storage account** (`datallmdev`, container `email-classification`), one of:
+**a. Access to the storage account** (`datallmdev`, container `email-classification`), one of (or put
+`STG_KEY` / `AZURE_STORAGE_CONNECTION_STRING` in `.env`, section 3):
 
 ```powershell
 az login                                                    # needs a Storage Blob Data Reader role on the container
@@ -76,7 +77,8 @@ $env:STG_KEY = "<account key>"                              # or: the account ke
 $env:AZURE_STORAGE_CONNECTION_STRING = "<connection string>"  # or: a connection string
 ```
 
-**b. Copy a sample**
+**b. Copy a sample** into an empty `local_data` (delete the folder first if level 2 left invented emails
+in it, or the classifier will send those to the model too):
 
 ```powershell
 python tools\fetch_sample.py --runs 1 --limit 20 --registry
@@ -87,35 +89,30 @@ customer registry (`in\qualco_output_*.csv`, about 170 MB). Other options: `--ru
 specific run, `--runs 3`, `--limit 0` for every email, `--requests` for the past-requests file (about 570 MB).
 Without `--registry`, set `$env:REGISTRY_CSV` to a registry file you already have.
 
-**c. Keys for the model**, in a file `AI_email_classifier\.env` (git-ignored, never commit it):
+**c. Settings file**: copy `.env.example` to `.env` in the repository root (next to `README.md`), fill in
+section 1 (model keys) and the two full folder paths in section 2. `.env` is git-ignored: never commit it or
+send it. Every script below reads it, so steps d and e need no PowerShell settings.
 
-```dotenv
-AZURE_OPENAI_ENDPOINT=...
-AZURE_OPENAI_API_KEY=...
-AZURE_OPENAI_DEPLOYMENT=...
-AZURE_OPENAI_API_VERSION=...
-DOC_INTEL_ENDPOINT=...
-DOC_INTEL_API_KEY=...
+```powershell
+Copy-Item .env.example .env
+notepad .env
 ```
 
 **d. Classify the copy**
 
 ```powershell
 cd AI_email_classifier
-$env:LOCAL_BLOB_DIR = "..\local_data\blob"; $env:LOCAL_STORE_DIR = "..\local_data\case_store"
-$env:UPLOAD_RESULTS_TO_BLOB = "true"; $env:CASE_STORE = "local"
 python -m main
 cd ..
 ```
 
 Expect about 30 seconds per email. Results go to `local_data\blob\silver` and the cases to
-`local_data\case_store`.
+`local_data\case_store`. To try a few first, add `CLASSIFY_MAX_PER_RUN=5` to `.env`.
 
 **e. Review them**
 
 ```powershell
-$env:LOCAL_BLOB_DIR = "local_data\blob"; $env:LOCAL_STORE_DIR = "local_data\case_store"; $env:REVIEW_AUTH = "dev"
-python review_app\server.py
+python review_app\server.py      # prints the folders it reads and how many emails it found
 ```
 
 To compare prompt or rule changes on the same emails: delete `local_data\case_store` and
@@ -129,7 +126,7 @@ $env:LOCAL_BLOB_DIR = "local_data\blob"
 python tools\import_msg.py C:\path\to\msg-folder
 ```
 
-Then steps 3c to 3e. The customer registry comes from `--registry` (3b), `REGISTRY_CSV`, or, after
+Then steps 3c to 3e (with `LOCAL_BLOB_DIR` in `.env`, the import needs no `$env:` line). The customer registry comes from `--registry` (3b), `REGISTRY_CSV`, or, after
 `local_demo.py`, the invented one (real tax IDs will not be found in it).
 
 ## Why not connect straight to Azure storage?
