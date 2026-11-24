@@ -67,7 +67,8 @@ CASE_CACHE_SECONDS = 5
 MAX_BODY = 64_000
 STATIC = HERE / "static"
 CATEGORIES = [c["Categories"].strip() for c in json.loads((APP / "inputs" / "categories.json").read_text("utf-8"))]
-LIGHT = ["id", "subject", "from", "receivedAt", "status", "route", "routeReasons", "modelCategory",
+LIGHT = ["id", "subject", "from", "receivedAt", "status", "route", "routeReasons", "modelCategory", "noMatch",
+         "otherCategories", "reviewOutcome", "actionsOutcome",
          "finalCategory", "confidence", "reviewedBy", "reviewedAt", "classifiedAt", "mailboxState", "sourceRefs"]
 INLINE_TYPES = {"application/pdf", "image/png", "image/jpeg", "image/gif", "image/webp", "image/bmp", "text/plain"}
 
@@ -177,6 +178,23 @@ class MetricsCache:
 
 
 METRICS = MetricsCache()
+
+
+def list_items() -> list[dict]:
+    """The email list, with what its filters need: category and actions outcome, review reasons.
+
+    Reviews saved since Nov 2026 carry their outcome; older ones get it from the metrics read (30 s cache).
+    """
+    items = CASES.get()
+    missing = any(i.get("status") == "REVIEWED" and not i.get("actionsOutcome") for i in items)
+    older = {c["id"]: metrics.case_facts(c) for c in METRICS.get()} if missing else {}
+    out = []
+    for item in items:
+        facts = older.get(item["id"]) or {}
+        out.append({**item, "outcome": metrics.outcome(item),
+                    "actionsOutcome": item.get("actionsOutcome") or facts.get("actionsOutcome"),
+                    "reasonKeys": sorted({metrics.reason_key(r) for r in item.get("routeReasons") or []})})
+    return out
 METRIC_RANGES = {"7": 7, "30": 30, "90": 90, "all": 0}
 
 _users: dict[str, dict] = {}
@@ -326,6 +344,8 @@ def reset_review(user: dict, case_id: str, body: dict) -> tuple[int, dict]:
         "reviewComment": "",
         "reviewedBy": None,
         "reviewedAt": None,
+        "reviewOutcome": None,
+        "actionsOutcome": None,
         "updatedAt": now(),
     }
     try:
@@ -502,10 +522,13 @@ def save_review(user: dict, case_id: str, body: dict) -> tuple[int, dict]:
     if body.get("_etag") != case.get("_etag"):
         return 409, {"error": "changed", "case": case_detail(case_id)}
     final = str(body.get("finalCategory") or "").strip()
-    no_match = bool(body.get("noMatch"))
-    if not no_match and final not in CATEGORIES:
+    # "No Match Found" is a category of its own (manual handling): no other category has to be picked.
+    no_match = bool(body.get("noMatch")) or final == metrics.NO_MATCH
+    if no_match:
+        final = metrics.NO_MATCH
+    elif final not in CATEGORIES:
         return 400, {"error": "category"}
-    others = [c for c in body.get("otherCategories") or [] if c in CATEGORIES and c != final][:5]
+    others = list(dict.fromkeys(c for c in body.get("otherCategories") or [] if c in CATEGORIES and c != final))[:5]
     actions, error = clean_actions(body.get("finalActions"))
     if error:
         return 400, {"error": error}
@@ -514,7 +537,7 @@ def save_review(user: dict, case_id: str, body: dict) -> tuple[int, dict]:
     updated = {
         **case,
         "status": "REVIEWED",
-        "finalCategory": None if no_match else final,
+        "finalCategory": final,
         "noMatch": no_match,
         "otherCategories": others,
         "finalActions": actions,
@@ -522,17 +545,136 @@ def save_review(user: dict, case_id: str, body: dict) -> tuple[int, dict]:
         "reviewedBy": public_user(user),
         "reviewedAt": now(),
         "updatedAt": now(),
+        "reviewOutcome": None,
+        "actionsOutcome": None,
     }
+    # Stored with the review, so the email list can filter on them without reading the proposals.
+    updated["reviewOutcome"] = metrics.outcome(updated)
+    updated["actionsOutcome"] = metrics.actions_outcome(updated)
     try:
         saved = store().replace("cases", updated)
     except Conflict:
         return 409, {"error": "changed", "case": case_detail(case_id)}
     after = {k: saved.get(k) for k in fields}
+    # The system's category and actions at the time, so the history can show what was changed.
+    after["modelCategory"] = saved.get("modelCategory")
+    proposed = (saved.get("understanding") or {}).get("actions") or []
+    after["proposedActions"] = [{k: a.get(k) for k in ("do", "code", "account", "template", "folder") if a.get(k)}
+                                for a in proposed]
     store().create("audit", {"id": uuid.uuid4().hex, "caseId": case_id, "at": now(), "by": user["id"],
                              "byName": user.get("name"), "action": "reviewed", "before": before, "after": after})
     release_lock(user, case_id)
     CASES.drop()
     return 200, {"ok": True, "_etag": saved.get("_etag")}
+
+
+STATUS_TEXT = {"REVIEWED": "Ελέγχθηκε", "CLASSIFYING": "Χωρίς ταξινόμηση", "RECEIVED": "Χωρίς ταξινόμηση"}
+ROUTE_TEXT = {"AUTO": "Αυτόματα", "REVIEW": "Προς έλεγχο", "EXCEPTION": "Σφάλμα (έλεγχος)"}
+OUTCOME_TEXT = {"accepted": "Σωστή", "changed": "Άλλαξε", "none_fits": "No Match Found", "same": "Χωρίς αλλαγή"}
+REASON_TEXT = {
+    "low_confidence": "Χαμηλή βεβαιότητα", "no_tax_id": "Δεν βρέθηκε ΑΦΜ", "tax_id_unknown": "Ο ΑΦΜ δεν είναι στο μητρώο",
+    "split_categories": "ΑΦΜ με διαφορετικές κατηγορίες", "no_category": "Καμία κατηγορία δεν ταιριάζει",
+    "attachment_unread": "Συνημμένο δεν διαβάστηκε", "failed": "Η ταξινόμηση απέτυχε", "no_result": "Χωρίς αποτέλεσμα",
+    "name_mismatch": "Το όνομα διαφέρει", "possible_customer": "Μόνο πιθανός πελάτης", "no_customer": "Δεν βρέθηκε πελάτης",
+    "details_unread": "Στοιχεία πελάτη δεν διαβάστηκαν", "email_missing": "Λείπει το email", "reset": "Επαναφορά ελέγχου",
+    "account_unknown": "Δεν ταυτοποιήθηκε λογαριασμός/SPV", "complaint_secondary": "Παράπονο μαζί με άλλο αίτημα",
+    "distress": "Αυτοτραυματισμός ή απειλή νομικών μέτρων", "other": "Άλλο",
+}
+ACTION_TEXT = {"request": "Αίτημα Qualco", "portal_referral": "Παραπομπή στο Portal", "ask_identification": "Need more Info",
+               "manual": "Χειρισμός από το προσωπικό", "forward": "Προώθηση", "reply": "Απάντηση",
+               "bank_referral": "Παραπομπή σε Eurobank", "activity": "Activity Qualco", "no_action": "Καμία ενέργεια",
+               "outlook_folder": "Φάκελος Outlook"}
+
+
+def action_line(action: dict) -> str:
+    """One action as a line of plain Greek, for the Excel export."""
+    from core.action_rules import REPLIES, code_name
+
+    text = ACTION_TEXT.get(action.get("do"), action.get("do") or "")
+    code = action.get("code") or next(iter(action.get("codes") or []), None)
+    if action.get("do") in ("request", "activity") and code:
+        text += f" {code} {code_name(code)}".rstrip()
+    if action.get("account"):
+        text += f" (λογ. {action['account']}{', ' + action['spv'] if action.get('spv') else ''})"
+    if action.get("to"):
+        text += ": " + ", ".join(action["to"])
+    if action.get("folder"):
+        text += f": {action['folder']}"
+    if action.get("template") in REPLIES["templates"]:
+        text += f": {REPLIES['templates'][action['template']]['label']}"
+    return text
+
+
+def _people(items) -> str:
+    return ", ".join(((x or {}).get("emailAddress") or {}).get("address", "") for x in items or [] if x)
+
+
+def export_xlsx(ids: list[str]) -> bytes:
+    """The listed emails as an Excel sheet: email, categories, actions, reviewer, status."""
+    from openpyxl import Workbook
+    from openpyxl.styles import Alignment, Font, PatternFill
+    from openpyxl.utils import get_column_letter
+
+    columns = [
+        ("Λήψη (ώρα Ελλάδας)", 17), ("Από", 28), ("Προς", 28), ("Κοιν.", 28), ("Θέμα", 40), ("Κατάσταση", 16),
+        ("Δρομολόγηση", 16), ("Λόγοι ελέγχου", 34), ("Κατηγορία συστήματος", 30), ("Βεβαιότητα", 11),
+        ("Τελική κατηγορία", 30), ("Επιπλέον κατηγορίες", 30), ("Κατηγορία: αποτέλεσμα", 18),
+        ("Προτεινόμενες ενέργειες", 50), ("Τελικές ενέργειες", 50), ("Ενέργειες: αποτέλεσμα", 18),
+        ("Ελεγκτής", 22), ("Ημ. ελέγχου (ώρα Ελλάδας)", 17), ("Σχόλιο", 40), ("ID", 26),
+    ]
+    book = Workbook()
+    sheet = book.active
+    sheet.title = "Emails"
+    sheet.append([name for name, _ in columns])
+    for n, (_, width) in enumerate(columns, 1):
+        sheet.column_dimensions[get_column_letter(n)].width = width
+    for cell in sheet[1]:
+        cell.font = Font(bold=True, color="FFFFFF")
+        cell.fill = PatternFill("solid", fgColor="155E8F")
+        cell.alignment = Alignment(vertical="center", wrap_text=True)
+    wanted = set(ids)
+    rows = sorted((c for c in (store().get("cases", i) for i in wanted) if c), key=lambda c: c.get("receivedAt") or "",
+                  reverse=True)
+    for case in rows:
+        try:
+            message = run_message(case) or {}
+        except Exception:  # noqa: BLE001 - the sheet still has everything from the case itself
+            message = {}
+        reviewed = case.get("status") == "REVIEWED"
+        proposed = (case.get("understanding") or {}).get("actions") or []
+        reasons = sorted({metrics.reason_key(r) for r in case.get("routeReasons") or []})
+        sheet.append([
+            metrics.athens_time(case.get("receivedAt")),
+            case.get("from") or "",
+            _people(message.get("toRecipients")),
+            _people(message.get("ccRecipients")),
+            case.get("subject") or "",
+            STATUS_TEXT.get(case.get("status")) or ROUTE_TEXT.get(case.get("route") or "", "Χωρίς ταξινόμηση"),
+            ROUTE_TEXT.get(case.get("route") or "", ""),
+            "; ".join(REASON_TEXT.get(r, r) for r in reasons),
+            case.get("modelCategory") or "",
+            None if case.get("confidence") is None else round(float(case["confidence"]), 2),
+            (metrics.NO_MATCH if case.get("noMatch") else case.get("finalCategory") or "") if reviewed else "",
+            ", ".join(case.get("otherCategories") or []),
+            OUTCOME_TEXT.get(metrics.outcome(case) or "", ""),
+            "\n".join(action_line(a) for a in proposed),
+            "\n".join(action_line(a) for a in case.get("finalActions") or []) if reviewed else "",
+            OUTCOME_TEXT.get(metrics.actions_outcome(case) or "", "") if reviewed else "",
+            ((case.get("reviewedBy") or {}).get("name") or "") if reviewed else "",
+            metrics.athens_time(case.get("reviewedAt")) if reviewed else None,
+            case.get("reviewComment") or "",
+            case["id"],
+        ])
+    for row in sheet.iter_rows(min_row=2):
+        for cell in row:
+            cell.alignment = Alignment(vertical="top", wrap_text=True)
+        row[0].number_format = row[17].number_format = "dd/mm/yyyy hh:mm"
+        row[9].number_format = "0%"
+    sheet.freeze_panes = "A2"
+    sheet.auto_filter.ref = sheet.dimensions
+    buffer = io.BytesIO()
+    book.save(buffer)
+    return buffer.getvalue()
 
 
 def _content_type(attachment: dict) -> str:
@@ -696,7 +838,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def body(self) -> dict:
         size = int(self.headers.get("Content-Length") or 0)
-        if size > MAX_BODY:
+        limit = MAX_BODY * 16 if urlparse(self.path).path == "/api/export" else MAX_BODY  # a list of case ids
+        if size > limit:
             raise ValueError("body too large")
         return json.loads(self.rfile.read(size) or b"{}")
 
@@ -774,7 +917,13 @@ class Handler(BaseHTTPRequestHandler):
                                    "codeNames": {**QUALCO["requests"], **QUALCO["activities"]},
                                    "user": public_user(user), "mode": AUTH})
         if path == "/api/cases" and method == "GET":
-            return self.json(200, {"items": CASES.get(), "classifier": classifier_info(), "serverTime": now()})
+            return self.json(200, {"items": list_items(), "classifier": classifier_info(), "serverTime": now()})
+        if path == "/api/export" and method == "POST":
+            ids = [str(i) for i in (self.body().get("ids") or [])][:20000]
+            data = export_xlsx(ids)
+            stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M")
+            return self.send(200, data, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                             {"Content-Disposition": _disposition("attachment", f"emails-{stamp}.xlsx")})
         if path == "/api/metrics" and method == "GET":
             days = METRIC_RANGES.get((query.get("days") or ["30"])[0])
             if days is None:

@@ -154,7 +154,10 @@ def invented_email(n: int, now: datetime, upload, hours_ago: float | None = None
     return {
         "id": key, "internetMessageId": f"<{key}@demo.example.test>", "conversationId": key,
         "subject": subject, "from": {"emailAddress": {"name": name, "address": address}},
-        "toRecipients": [{"emailAddress": {"name": "Info", "address": "info@example.test"}}], "ccRecipients": [],
+        "toRecipients": [{"emailAddress": {"name": "Info", "address": "info@example.test"}},
+                         *([{"emailAddress": {"name": "Νομικό τμήμα", "address": "legal@example.test"}}] if n % 4 == 1 else [])],
+        "ccRecipients": [{"emailAddress": {"name": "Δικηγόρος πελάτη", "address": "lawyer@example.org"}},
+                         {"emailAddress": {"name": "", "address": f"family{n}@example.net"}}] if n % 3 == 0 else [],
         "receivedDateTime": stamp, "sentDateTime": stamp, "hasAttachments": bool(attachments),
         "body": {"contentType": "html", "content": html}, "body_clean": text,
         "conversation_thread": [], "reply_to_message_id": key, "attachments": attachments,
@@ -285,7 +288,7 @@ def invented_reviews(store, categories: list[str], now: datetime) -> int:
         at = min(received + timedelta(hours=2 + (i * 7) % 30), now).strftime("%Y-%m-%dT%H:%M:%SZ")
         fields = ("status", "finalCategory", "otherCategories", "finalActions", "reviewComment")
         before = {k: case.get(k) for k in fields}
-        saved = store.replace("cases", {**case, "status": "REVIEWED", "finalCategory": None if no_match else final,
+        saved = store.replace("cases", {**case, "status": "REVIEWED", "finalCategory": "No Match Found" if no_match else final,
                                         "noMatch": no_match, "otherCategories": [], "finalActions": actions,
                                         "reviewComment": "", "reviewedBy": reviewer, "reviewedAt": at, "updatedAt": at})
         store.create("audit", {"id": uuid.uuid4().hex, "caseId": case["id"], "at": at, "by": reviewer["id"],

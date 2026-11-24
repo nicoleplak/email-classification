@@ -16,7 +16,7 @@ from typing import Any, Iterable
 
 # What the metrics read from each case (the store returns only these).
 FIELDS = ["id", "receivedAt", "status", "route", "routeReasons", "modelCategory", "finalCategory", "noMatch",
-          "confidence", "reviewedAt", "finalActions", "understanding"]
+          "confidence", "reviewedAt", "reviewedBy", "finalActions", "understanding", "reviewOutcome", "actionsOutcome"]
 
 # routeReasons are English sentences written by core/run_classifier; the page shows them by key.
 REASON_KEYS = [
@@ -49,9 +49,9 @@ def _last_sunday(year: int, month: int) -> date:
     return d - timedelta(days=(d.weekday() + 1) % 7)
 
 
-def athens_day(iso: str | None) -> str | None:
-    """The Athens calendar day (YYYY-MM-DD) of a UTC timestamp: UTC+3 from the last Sunday of March
-    01:00 UTC to the last Sunday of October 01:00 UTC, UTC+2 otherwise (EU rule)."""
+def athens_time(iso: str | None) -> datetime | None:
+    """A UTC timestamp in Athens local time: UTC+3 from the last Sunday of March 01:00 UTC to the last
+    Sunday of October 01:00 UTC, UTC+2 otherwise (EU rule). Naive datetime, for display and Excel."""
     if not iso:
         return None
     try:
@@ -64,7 +64,13 @@ def athens_day(iso: str | None) -> str | None:
     summer_from = datetime.combine(_last_sunday(t.year, 3), datetime.min.time(), timezone.utc) + timedelta(hours=1)
     summer_to = datetime.combine(_last_sunday(t.year, 10), datetime.min.time(), timezone.utc) + timedelta(hours=1)
     offset = 3 if summer_from <= t < summer_to else 2
-    return (t + timedelta(hours=offset)).date().isoformat()
+    return (t + timedelta(hours=offset)).replace(tzinfo=None)
+
+
+def athens_day(iso: str | None) -> str | None:
+    """The Athens calendar day (YYYY-MM-DD) of a UTC timestamp."""
+    local = athens_time(iso)
+    return local.date().isoformat() if local else None
 
 
 def reason_key(reason: str) -> str:
@@ -81,15 +87,49 @@ def route_of(case: dict) -> str:
     return "WAITING"
 
 
+NO_MATCH = "No Match Found"  # a category of its own: manual handling
+
+
 def outcome(case: dict) -> str | None:
-    """For a reviewed email: did the reviewer keep the system's category? accepted / changed / none_fits."""
+    """For a reviewed email: did the reviewer keep the system's category? accepted / changed / none_fits.
+
+    "No Match Found" is a category (manual handling): kept when the system also proposed it.
+    """
     if case.get("status") != "REVIEWED":
         return None
-    if case.get("noMatch"):
-        return "none_fits"
-    if case.get("modelCategory") and case.get("finalCategory") == case.get("modelCategory"):
+    if case.get("reviewOutcome") in ("accepted", "changed", "none_fits"):
+        return case["reviewOutcome"]  # stored when the review was saved
+    model = case.get("modelCategory")
+    final = NO_MATCH if case.get("noMatch") else case.get("finalCategory")
+    if model and final == model:
         return "accepted"
-    return "changed"
+    return "none_fits" if final == NO_MATCH else "changed"
+
+
+def _action_key(action: dict) -> tuple:
+    return (action.get("do"), action.get("code") or ((action.get("codes") or [None])[0]), action.get("account"))
+
+
+def actions_outcome(case: dict) -> str | None:
+    """For a reviewed email: did the reviewer keep the proposed actions as they were? same / changed.
+
+    Same = every proposal kept and nothing added (a changed account or code counts as a change).
+    """
+    if case.get("status") != "REVIEWED":
+        return None
+    if case.get("actionsOutcome") in ("same", "changed"):
+        return case["actionsOutcome"]
+    proposed = Counter(_action_key(a) for a in (case.get("understanding") or {}).get("actions") or [])
+    final = case.get("finalActions") or []
+    if any(a.get("source") != "suggested" for a in final):
+        return "changed"
+    return "same" if Counter(_action_key(a) for a in final) == proposed else "changed"
+
+
+def case_facts(case: dict) -> dict:
+    """What the email list filters on, for one case (cheap fields only once computed)."""
+    return {"outcome": outcome(case), "actionsOutcome": actions_outcome(case),
+            "reasonKeys": sorted({reason_key(r) for r in case.get("routeReasons") or []})}
 
 
 def _pct(part: int, whole: int) -> float | None:
@@ -227,10 +267,37 @@ def compute(cases: Iterable[dict], days: int, today: str) -> dict[str, Any]:
         "unchangedPct": _pct(review_totals["unchanged"], review_totals["casesWithProposals"]),
     }
 
+    # -- reviewers and category x actions
+    people: dict[str, dict] = {}
+    for c in reviewed:
+        who = c.get("reviewedBy") or {}
+        key = who.get("id") or who.get("name") or "?"
+        row = people.setdefault(key, {"id": key, "name": who.get("name") or key, "reviewed": 0, "accepted": 0,
+                                      "changed": 0, "noneFits": 0, "actionsChanged": 0, "hours": [], "last": ""})
+        row["reviewed"] += 1
+        row[{"accepted": "accepted", "changed": "changed", "none_fits": "noneFits"}[outcome(c)]] += 1
+        row["actionsChanged"] += actions_outcome(c) == "changed"
+        hours = _hours(c.get("receivedAt"), c.get("reviewedAt"))
+        if hours is not None:
+            row["hours"].append(hours)
+        row["last"] = max(row["last"], c.get("reviewedAt") or "")
+    reviewers = sorted(
+        ({**{k: v for k, v in r.items() if k != "hours"}, "acceptedPct": _pct(r["accepted"], r["reviewed"]),
+          "actionsChangedPct": _pct(r["actionsChanged"], r["reviewed"]),
+          "medianHours": round(median(r["hours"]), 1) if r["hours"] else None} for r in people.values()),
+        key=lambda r: (-r["reviewed"], r["name"]))
+    matrix = Counter((outcome(c) == "accepted", actions_outcome(c) == "same") for c in reviewed)
+    combined = {
+        "rightRight": matrix[(True, True)], "rightWrong": matrix[(True, False)],
+        "wrongRight": matrix[(False, True)], "wrongWrong": matrix[(False, False)], "reviewed": len(reviewed),
+    }
+
     return {
         "from": first,
         "to": today,
         "totals": totals,
+        "reviewers": reviewers,
+        "combined": combined,
         "daily": list(daily.values()),
         "routing": {"reasons": [{"key": k, "emails": n} for k, n in reasons.most_common()],
                     "byRoute": by_route, "bands": bands, "categories": category_rows},

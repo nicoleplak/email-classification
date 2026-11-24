@@ -263,3 +263,47 @@ def test_metrics_need_sign_in_and_a_known_range(app):
     status, _, body = call(f"{base}/api/metrics?days=all", cookie=cookie)
     data = json.loads(body)
     assert status == 200 and data["totals"]["received"] == 1 and data["totals"]["review"] == 1
+
+
+def test_no_match_found_is_a_category_and_the_outcome_is_stored(app):
+    server, base, case_id = app
+    cookie = sign_in(base)
+    etag = json.loads(call(f"{base}/api/cases/{case_id}", cookie=cookie)[2])["case"]["_etag"]
+    status, _, _ = call(f"{base}/api/cases/{case_id}/review",
+                        {"_etag": etag, "finalCategory": "No Match Found", "finalActions": [{"do": "manual"}]}, cookie)
+    assert status == 200
+    saved = server.STORE.get("cases", case_id)
+    assert (saved["finalCategory"], saved["noMatch"], saved["reviewOutcome"], saved["actionsOutcome"]) == (
+        "No Match Found", True, "none_fits", "changed")
+    after = server.STORE.find("audit", "caseId", case_id)[-1]["after"]
+    assert after["modelCategory"] == "Βεβαίωση Οφειλής" and after["proposedActions"] == []
+    items = json.loads(call(f"{base}/api/cases", cookie=cookie)[2])["items"]
+    assert (items[0]["outcome"], items[0]["actionsOutcome"]) == ("none_fits", "changed")
+
+
+def test_further_categories_are_kept_in_order_without_repeats(app):
+    server, base, case_id = app
+    cookie = sign_in(base)
+    etag = json.loads(call(f"{base}/api/cases/{case_id}", cookie=cookie)[2])["case"]["_etag"]
+    body = {"_etag": etag, "finalCategory": "GDPR", "otherCategories": ["Παράπονα", "GDPR", "Αγωγές", "Παράπονα", "nope"]}
+    assert call(f"{base}/api/cases/{case_id}/review", body, cookie)[0] == 200
+    assert server.STORE.get("cases", case_id)["otherCategories"] == ["Παράπονα", "Αγωγές"]
+
+
+def test_excel_export_lists_the_requested_emails(app):
+    import io
+
+    from openpyxl import load_workbook
+
+    _, base, case_id = app
+    cookie = sign_in(base)
+    status, headers, body = call(f"{base}/api/export", {"ids": [case_id, "missing-id"]}, cookie)
+    assert status == 200 and headers["Content-Type"].startswith("application/vnd.openxmlformats")
+    assert ".xlsx" in headers["Content-Disposition"]
+    sheet = load_workbook(io.BytesIO(body)).active
+    header = [c.value for c in sheet[1]]
+    assert {"Κατάσταση", "Κατηγορία συστήματος", "Τελική κατηγορία", "Τελικές ενέργειες", "Ελεγκτής"} <= set(header)
+    assert sheet.max_row == 2
+    row = dict(zip(header, [c.value for c in sheet[2]]))
+    assert (row["ID"], row["Κατάσταση"], row["Κατηγορία συστήματος"]) == (case_id, "Προς έλεγχο", "Βεβαίωση Οφειλής")
+    assert call(f"{base}/api/export", {"ids": [case_id]})[0] == 401  # signed-in users only

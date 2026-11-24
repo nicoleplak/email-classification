@@ -24,8 +24,8 @@ const T = {
     leftMailbox: "Το email δεν βρίσκεται πια στο γραμματοκιβώτιο.",
     decision: "Ταξινόμηση", suggestion: "Πρόταση συστήματος", noSuggestion: "Δεν υπάρχει ακόμη πρόταση συστήματος.",
     certainty: "Βεβαιότητα", whyReview: "Γιατί χρειάζεται έλεγχο", alsoConsidered: "Εξετάστηκαν επίσης",
-    accept: "Η πρόταση είναι σωστή", other: "Άλλη κατηγορία", noneFits: "Καμία κατηγορία δεν ταιριάζει",
-    chooseCat: "Γράψτε ή επιλέξτε κατηγορία", extra: "Επιπλέον αίτημα στο ίδιο email (προαιρετικό)",
+    accept: "Η πρόταση είναι σωστή", other: "Άλλη κατηγορία", noneFits: "No Match Found · χειρισμός από το προσωπικό",
+    chooseCat: "Γράψτε ή επιλέξτε κατηγορία", extra: "Επιπλέον αιτήματα στο ίδιο email (προαιρετικό)",
     comment: "Σχόλιο (προαιρετικό)", save: "Αποθήκευση", saved: "Αποθηκεύτηκε", next: "Επόμενο μετά την αποθήκευση",
     reviewedBy: "Ελέγχθηκε από {n}, {d}", change: "Αλλαγή", final: "Τελική κατηγορία",
     badCat: "Επιλέξτε κατηγορία από τη λίστα.", changed: "Κάποιος άλλος αποθήκευσε αυτό το email στο μεταξύ. Φορτώθηκε η νέα εκδοχή· ελέγξτε την και αποθηκεύστε ξανά.",
@@ -77,6 +77,16 @@ const T = {
     cv_not_identified: "Ο πελάτης δεν ταυτοποιήθηκε με ΑΦΜ ή λογαριασμό· πριν την καταχώρηση χρειάζονται στοιχεία.",
     cv_not_in_registry: "Ο ΑΦΜ ή ο λογαριασμός δεν βρέθηκε στο μητρώο.",
     cv_account_not_identified: "Ο λογαριασμός δεν ταυτοποιήθηκε από το email· επιλέξτε λογαριασμό ή στείλτε «Χρειάζονται στοιχεία».",
+    extraCount: "{n} επιλεγμένα", extraNone: "κανένα", addCategory: "Προσθήκη κατηγορίας…",
+    toLabel: "Προς", ccLabel: "Κοιν.", evCategory: "Κατηγορία", evActions: "Ενέργειες", evOthers: "Επιπλέον κατηγορίες",
+    evComment: "Σχόλιο", evUnchanged: "χωρίς αλλαγή", evSystem: "πρόταση συστήματος", evAdded: "προστέθηκε", evRemoved: "αφαιρέθηκε",
+    showEmails: "Εμφάνιση αυτών των email", clickHint: "Πατήστε έναν αριθμό για να δείτε τα email του",
+    mQuality: "Ποιότητα και ελεγκτές", mCombined: "Κατηγορία και ενέργειες", mCombinedSub: "Ελεγμένα email: τι κράτησε ο ελεγκτής",
+    mCatRight: "Σωστή κατηγορία", mCatWrong: "Άλλαξε η κατηγορία", mActSame: "Ενέργειες χωρίς αλλαγή", mActChanged: "Άλλαξαν οι ενέργειες",
+    mReviewers: "Ελεγκτές", mReviewersSub: "Email που έλεγξε ο καθένας στην περίοδο", mReviewer: "Ελεγκτής",
+    mCatChanged: "Άλλαξε κατηγορία", mMedian: "Διάμεσος χρόνος", mLast: "Τελευταίος έλεγχος",
+    catFilter: "Κατηγορία", allCats: "Όλες οι κατηγορίες", exportExcel: "Εξαγωγή σε Excel", exporting: "Εξαγωγή…",
+    exported: "Εξήχθησαν {n} email", fromStats: "Από τα στατιστικά", clearFilter: "Κατάργηση φίλτρου",
     viewEmails: "Email", viewMetrics: "Στατιστικά", range7: "7 ημέρες", range30: "30 ημέρες", range90: "90 ημέρες",
     rangeAll: "Όλα", rangeLabel: "Περίοδος", mPeriod: "{a} – {b} · ώρα Ελλάδας", mReceived: "Παραλήφθηκαν",
     mAuto: "Αυτόματα", mReview: "Χρειάστηκαν έλεγχο", mException: "Σφάλμα", mWaiting: "Χωρίς ταξινόμηση ακόμη",
@@ -86,7 +96,7 @@ const T = {
     mTotal: "Σύνολο", mAsTable: "Προβολή ως πίνακας", mRouting: "Δρομολόγηση", mActionsTitle: "Ενέργειες",
     mReasons: "Γιατί χρειάστηκαν έλεγχο", mReasonsSub: "Email ανά λόγο· ένα email μπορεί να έχει πολλούς λόγους",
     mOutcome: "Αποτέλεσμα ελέγχου ανά δρομολόγηση", mOutcomeSub: "Πόσο συχνά ο ελεγκτής κράτησε την κατηγορία του συστήματος",
-    mRoute: "Δρομολόγηση", mEmails: "Email", mAccepted: "Σωστή κατηγορία", mChanged: "Άλλαξε", mNoneFits: "Καμία δεν ταιριάζει",
+    mRoute: "Δρομολόγηση", mEmails: "Email", mAccepted: "Σωστή κατηγορία", mChanged: "Άλλαξε", mNoneFits: "No Match Found",
     mAcceptRate: "Ποσοστό σωστών", mBands: "Βεβαιότητα και ακρίβεια", mBandsSub: "Βοηθά να οριστεί το όριο αυτόματης ταξινόμησης (σήμερα 90%)",
     mBand: "Βεβαιότητα", mCategories: "Κατηγορίες", mCategoriesSub: "Κατηγορία συστήματος· αυτόματα και προς έλεγχο",
     mCategory: "Κατηγορία", mAutoShare: "Αυτόματα %", mProposed: "Προτάθηκαν", mKept: "Κρατήθηκαν", mRemoved: "Αφαιρέθηκαν",
@@ -126,8 +136,8 @@ const T = {
     leftMailbox: "This email is no longer in the mailbox.",
     decision: "Classification", suggestion: "System suggestion", noSuggestion: "No system suggestion yet.",
     certainty: "Certainty", whyReview: "Why it needs review", alsoConsidered: "Also considered",
-    accept: "The suggestion is right", other: "Another category", noneFits: "No category fits",
-    chooseCat: "Type or pick a category", extra: "Further request in the same email (optional)",
+    accept: "The suggestion is right", other: "Another category", noneFits: "No Match Found · handled by staff",
+    chooseCat: "Type or pick a category", extra: "Further requests in the same email (optional)",
     comment: "Comment (optional)", save: "Save", saved: "Saved", next: "Open the next one after saving",
     reviewedBy: "Reviewed by {n}, {d}", change: "Change", final: "Final category",
     badCat: "Pick a category from the list.", changed: "Someone else saved this email meanwhile. The new version is loaded; check it and save again.",
@@ -179,6 +189,16 @@ const T = {
     cv_not_identified: "The customer is not identified by tax ID or account; details are needed before filing.",
     cv_not_in_registry: "The tax ID or account is not in the registry.",
     cv_account_not_identified: "The email does not identify the account; pick one or send “Need more Info”.",
+    extraCount: "{n} chosen", extraNone: "none", addCategory: "Add a category…",
+    toLabel: "To", ccLabel: "Cc", evCategory: "Category", evActions: "Actions", evOthers: "Further categories",
+    evComment: "Comment", evUnchanged: "unchanged", evSystem: "system suggestion", evAdded: "added", evRemoved: "removed",
+    showEmails: "Show these emails", clickHint: "Click a number to see its emails",
+    mQuality: "Quality and reviewers", mCombined: "Category and actions", mCombinedSub: "Reviewed emails: what the reviewer kept",
+    mCatRight: "Right category", mCatWrong: "Category changed", mActSame: "Actions unchanged", mActChanged: "Actions changed",
+    mReviewers: "Reviewers", mReviewersSub: "Emails each person reviewed in the period", mReviewer: "Reviewer",
+    mCatChanged: "Category changed", mMedian: "Median time", mLast: "Last review",
+    catFilter: "Category", allCats: "All categories", exportExcel: "Export to Excel", exporting: "Exporting…",
+    exported: "{n} emails exported", fromStats: "From metrics", clearFilter: "Remove filter",
     viewEmails: "Emails", viewMetrics: "Metrics", range7: "7 days", range30: "30 days", range90: "90 days",
     rangeAll: "All", rangeLabel: "Period", mPeriod: "{a} – {b} · Greek time", mReceived: "Received",
     mAuto: "Automatic", mReview: "Needed review", mException: "Error", mWaiting: "Not classified yet",
@@ -188,7 +208,7 @@ const T = {
     mTotal: "Total", mAsTable: "Show as table", mRouting: "Routing", mActionsTitle: "Actions",
     mReasons: "Why emails needed review", mReasonsSub: "Emails per reason; one email can have several",
     mOutcome: "Review outcome by route", mOutcomeSub: "How often the reviewer kept the system's category",
-    mRoute: "Route", mEmails: "Emails", mAccepted: "Right category", mChanged: "Changed", mNoneFits: "None fits",
+    mRoute: "Route", mEmails: "Emails", mAccepted: "Right category", mChanged: "Changed", mNoneFits: "No Match Found",
     mAcceptRate: "Right %", mBands: "Certainty and accuracy", mBandsSub: "Helps set the automatic threshold (now 90%)",
     mBand: "Certainty", mCategories: "Categories", mCategoriesSub: "System category; automatic and to review",
     mCategory: "Category", mAutoShare: "Automatic %", mProposed: "Proposed", mKept: "Kept", mRemoved: "Removed",
@@ -255,7 +275,8 @@ let lang = store("lang") || "el";
 const S = { user: null, mode: "dev", categories: [], items: [], queue: store("queue") || "review", day: "all",
             win: "all", basis: "received", sort: "newest", q: "", openId: null, detail: null, presence: {},
             viewer: { tab: "email", page: null, images: false }, choice: null,
-            view: store("view") === "metrics" ? "metrics" : "emails", range: store("range") || "30", metrics: null };
+            view: store("view") === "metrics" ? "metrics" : "emails", range: store("range") || "30", metrics: null,
+            cat: "all", f: null };
 
 function store(key, value) {
   try {
@@ -334,10 +355,34 @@ function statusPill(it) {
   return h("span", { class: "pill review", text: t("stReview") });
 }
 
+const NO_MATCH = "No Match Found";
+// The email's category now: the reviewer's when reviewed, otherwise the system's.
+const currentCat = (it) => it.status === "REVIEWED" ? (it.noMatch ? NO_MATCH : it.finalCategory) : it.modelCategory;
+
+// A filter set from the Statistics tab: every key present must hold.
+function matchesF(it, f) {
+  const day = (ath(it.receivedAt) || {}).day;
+  if (f.since && (!day || day < f.since)) return false;
+  if (f.until && (!day || day > f.until)) return false;
+  if (f.route && !f.route.includes(it.route)) return false;
+  if (f.outcome && !f.outcome.includes(it.outcome)) return false;
+  if (f.actions && it.actionsOutcome !== f.actions) return false;
+  if (f.reviewer && ((it.reviewedBy || {}).id || (it.reviewedBy || {}).name) !== f.reviewer) return false;
+  if (f.reason && !(it.reasonKeys || []).includes(f.reason)) return false;
+  if (f.band && (it.confidence == null || Math.round(it.confidence * 100) < f.band[0] || Math.round(it.confidence * 100) >= f.band[1])) return false;
+  if (f.modelCat && it.modelCategory !== f.modelCat) return false;
+  if (f.waiting && !["RECEIVED", "CLASSIFYING"].includes(it.status)) return false;
+  if (f.open && (it.status === "REVIEWED" || !["REVIEW", "EXCEPTION"].includes(it.route))) return false;
+  if (f.reviewed && it.status !== "REVIEWED") return false;
+  return true;
+}
+
 function filtered() {
   const q = norm(S.q.trim());
   return S.items.filter((it) => {
     if (q && !norm([it.subject, it.from, it.finalCategory, it.modelCategory, it.id].join(" ")).includes(q)) return false;
+    if (S.cat !== "all" && currentCat(it) !== S.cat) return false;
+    if (S.f && !matchesF(it, S.f)) return false;
     const a = ath(basisTime(it));
     if (S.basis === "reviewed" && !a) return false;
     if (S.day !== "all" && (!a || a.day !== S.day)) return false;
@@ -388,7 +433,62 @@ function renderWindows(base) {
     `${winLabel(w)} · `, h("span", { class: "n", text: String(n) }), w === current ? ` (${t("stillArriving")})` : "")));
 }
 
+function renderCats() {
+  const counts = new Map();
+  S.items.forEach((it) => { const c = currentCat(it); if (c) counts.set(c, (counts.get(c) || 0) + 1); });
+  if (S.cat !== "all" && !counts.has(S.cat)) counts.set(S.cat, 0);
+  const names = [...counts.keys()].sort((a, b) => catLabel(a).localeCompare(catLabel(b), "el", { sensitivity: "base" }));
+  const sel = $("#cat");
+  sel.replaceChildren(h("option", { value: "all", text: t("allCats") }),
+    ...names.map((c) => h("option", { value: c, text: `${catLabel(c)} (${counts.get(c)})` })));
+  sel.value = S.cat;
+}
+
+function renderChips() {
+  const box = $("#fchips");
+  box.hidden = !S.f;
+  if (!S.f) return box.replaceChildren();
+  const period = S.f.since ? ` · ${dayLabel(S.f.since)} – ${dayLabel(S.f.until || S.f.since)}` : "";
+  box.replaceChildren(h("span", { class: "fchip" }, h("span", { text: `${t("fromStats")}: ${S.f.label}${period}` }),
+    h("button", { type: "button", class: "chip-x", "aria-label": t("clearFilter"), text: "×",
+      onclick: () => { S.f = null; renderList(); } })));
+}
+
+// Statistics → Emails: show every email the clicked number counts, whatever queue it is in.
+function applyFilter(f, label) {
+  const m = S.metrics || {};
+  S.f = { since: m.from, until: m.to, ...f, label };
+  S.queue = "all"; store("queue", "all");
+  S.day = "all"; S.win = "all"; S.cat = "all"; S.q = ""; $("#search").value = "";
+  setView("emails");
+  renderDays();
+  renderList();
+}
+
+async function exportExcel(button) {
+  const ids = [...document.querySelectorAll("#list .item")].map((b) => b.dataset.id);
+  if (!ids.length) return toast(t("noItems"));
+  const restore = busy(button, t("exporting"));
+  try {
+    const res = await fetch("/api/export", { method: "POST", credentials: "same-origin",
+      headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids }) });
+    if (!res.ok) throw new Error(String(res.status));
+    const name = (/filename="([^"]+)"/.exec(res.headers.get("Content-Disposition") || "") || [])[1] || "emails.xlsx";
+    const url = URL.createObjectURL(await res.blob());
+    const a = h("a", { href: url, download: name });
+    document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+    toast(t("exported", { n: ids.length }));
+  } catch (e) {
+    toast(t("error"));
+  } finally {
+    restore();
+  }
+}
+
 function renderList() {
+  renderCats();
+  renderChips();
   const base = filtered();
   renderQueues(base);
   renderWindows(S.items.filter((it) => !S.q || base.includes(it)));
@@ -502,6 +602,7 @@ async function openCase(id, keepViewer) {
   S.forceEdit = false;
   S.comment = undefined;
   S.addOpen = false;
+  S.extraOpen = false;
   S.changing = null;
   S.enter = true; // animate this render only, not re-renders while reviewing
   if (!keepViewer) S.viewer = { tab: "email", page: null, images: false };
@@ -667,7 +768,7 @@ function categoryPicker({ id, value, suggested, onPick }) {
 
 // ------------------------------------------------------------------ review: 1 category · 2 actions · 3 save
 const editing = (c) => c.status !== "REVIEWED" || S.forceEdit;
-const finalCategoryNow = (c) => S.choice === "accept" ? c.modelCategory : S.choice === "other" ? S.pick : null;
+const finalCategoryNow = (c) => S.choice === "accept" ? c.modelCategory : S.choice === "other" ? S.pick : NO_MATCH;
 const actionText = (a) => `${ACTION[lang][a.do] || a.do}${[].concat(a.to || []).length ? " → " + [].concat(a.to).join(", ") : ""}`;
 const codesOf = (a) => [a.open, a.closed, ...(a.codes || [])].filter(Boolean).filter((x, i, arr) => arr.indexOf(x) === i);
 const asChoice = (a, source) => ({ ...a, to: a.to ? [].concat(a.to) : [], codes: a.codes || [], source, on: true });
@@ -678,7 +779,7 @@ function reviewForm(c) {
     S.choice = reviewed ? (c.noMatch ? "none" : c.finalCategory === c.modelCategory ? "accept" : "other")
       : c.modelCategory && c.route !== "EXCEPTION" ? "accept" : "other";
     S.pick = reviewed ? c.finalCategory || "" : "";
-    S.pickExtra = (c.otherCategories || [])[0] || "";
+    S.pickExtras = [...(c.otherCategories || [])];
     const u = c.understanding || {};
     S.acts = (c.finalActions || []).length ? c.finalActions.map((a) => ({ ...a, on: true }))
       : (u.actions || []).map((a) => asChoice(a, "suggested"));
@@ -689,14 +790,31 @@ function reviewForm(c) {
   const opt = (value, label, extraEl) => h("div", { class: `opt${S.choice === value ? " on" : ""}` },
     h("label", {}, h("input", { type: "radio", name: "rv-choice", value, checked: S.choice === value,
       onchange: () => { S.choice = value; renderCase(); } }), h("span", { text: label })), extraEl || "");
-  const extra = h("details", { class: "more extra", open: S.pickExtra ? true : null },
-    h("summary", { text: t("extra") }),
-    categoryPicker({ id: "rv-extra", value: S.pickExtra, suggested: u.otherRequests || [], onPick: (v) => { S.pickExtra = v; } }));
+  const extra = extraCategories(c, u, suggested);
   return h("div", { class: "choice" },
     c.modelCategory ? opt("accept", `${t("accept")}: ${catLabel(c.modelCategory)}`) : "",
     opt("other", t("other"), S.choice === "other" ? h("div", { class: "reveal" }, cat) : ""),
-    opt("none", t("noneFits")),
+    c.modelCategory === NO_MATCH ? "" : opt("none", t("noneFits")),
     extra);
+}
+
+/* Further requests in the same email: chosen ones as chips, the system's suggestions one click away, search for the rest. */
+function extraCategories(c, u, suggested) {
+  const main = finalCategoryNow(c);
+  const chosen = (S.pickExtras || []).filter((x) => x !== main);
+  const add = (x) => { if (!chosen.includes(x) && chosen.length < 5) S.pickExtras = [...chosen, x]; S.extraOpen = true; renderCase(); };
+  const ideas = [...new Set(suggested)].filter((x) => x && x !== main && x !== NO_MATCH && !chosen.includes(x) && S.categories.includes(x));
+  return h("section", { class: "extras" },
+    h("div", { class: "extras-head" }, h("span", { text: t("extra") }),
+      h("span", { class: "muted small", text: chosen.length ? t("extraCount", { n: chosen.length }) : t("extraNone") })),
+    chosen.length ? h("div", { class: "chips" }, ...chosen.map((x) => h("span", { class: "chip" }, catLabel(x),
+      h("button", { type: "button", class: "chip-x", "aria-label": `${t("remove")}: ${catLabel(x)}`, text: "×",
+        onclick: () => { S.pickExtras = chosen.filter((y) => y !== x); renderCase(); } })))) : "",
+    ideas.length ? h("div", { class: "chips ideas" }, h("span", { class: "muted small", text: `${t("suggestedCats")}:` }),
+      ...ideas.map((x) => h("button", { type: "button", class: "chip add", onclick: () => add(x) }, `+ ${catLabel(x)}`))) : "",
+    chosen.length < 5 ? h("details", { class: "more extra", open: S.extraOpen ? true : null, ontoggle: (e) => { S.extraOpen = e.target.open; } },
+      h("summary", { text: t("addCategory") }),
+      categoryPicker({ id: "rv-extra", value: "", suggested: ideas, onPick: (x) => { if (x) add(x); } })) : "");
 }
 
 // Where a request goes: the account (pickable while reviewing), its portfolio (SPV) and open/closed state.
@@ -824,12 +942,13 @@ function saveTop(c) {
   const next = h("input", { type: "checkbox", id: "rv-next", checked: store("next") !== "0" });
   const chosen = S.acts.filter((a) => a.on !== false);
   const save = h("button", { class: "primary", type: "button", text: t("save"), onclick: async () => {
-    const body = { _etag: c._etag, comment: S.comment ?? c.reviewComment ?? "", otherCategories: S.pickExtra ? [S.pickExtra] : [],
+    const body = { _etag: c._etag, comment: S.comment ?? c.reviewComment ?? "", otherCategories: S.pickExtras || [],
       finalActions: chosen.map(({ do: d, category, codes, code, open, closed, to, account, spv, accountState, folder, template, source }) =>
         ({ do: d, category, codes, code, open, closed, to, account, spv, accountState, folder, template, source })) };
-    if (S.choice === "none") body.noMatch = true;
-    else body.finalCategory = S.choice === "accept" ? c.modelCategory : S.pick;
-    if (!body.noMatch && !S.categories.includes(body.finalCategory)) { err.textContent = t("badCat"); return; }
+    body.finalCategory = finalCategoryNow(c);
+    // "No Match Found" is a category for manual handling: nothing else has to be picked.
+    if (body.finalCategory === NO_MATCH) body.noMatch = true;
+    else if (!S.categories.includes(body.finalCategory)) { err.textContent = t("badCat"); return; }
     const restore = busy(save, t("saving"));
     const res = await api(`/api/cases/${encodeURIComponent(c.id)}/review`, { json: body }).catch(() => ({ ok: false, data: {} }));
     restore();
@@ -923,28 +1042,68 @@ function foundCard(u) {
 /* One audit entry as a timeline row: when, who, what changed. Used per case and in the activity log. */
 const EVENT_LABEL = { registered: "evRegistered", classified: "evClassified", reviewed: "evReviewed", "left mailbox": "evLeft",
   rerouted: "evRerouted", reset: "evReset" };
-function eventRow(e, extra) {
+const actionLabel = (a) => [actionText(a), a.code ? `${a.code}${a.codeName ? " " + a.codeName : ""}` : codesOf(a).join(" "),
+  a.account ? `${t("accountLabel").toLowerCase()} ${a.account}` : "", a.template && (S.templates || {})[a.template] ? S.templates[a.template].label : ""]
+  .filter(Boolean).join(" · ");
+const catOf = (x) => !x ? "—" : x.noMatch ? NO_MATCH : catLabel(x.finalCategory || "—");
+
+// What a review changed: category (with the one it replaced, or the system's for reference), actions, further
+// categories and the comment. c gives the system's category for reviews saved before it was recorded.
+function reviewChanges(e, c) {
+  const before = e.before || {}, after = e.after || {};
+  const rows = [];
+  const firstReview = before.status !== "REVIEWED";  // automatic emails already carry a category before their first review
+  const was = firstReview ? (after.modelCategory || (c || {}).modelCategory) : null;
+  const old = firstReview ? (was ? catLabel(was) : null) : catOf(before);
+  const now = catOf(after);
+  rows.push([t("evCategory"), old && old !== now
+    ? h("span", {}, h("s", { class: "old", text: old }), firstReview ? h("span", { class: "muted small", text: ` (${t("evSystem")})` }) : "", " → ", h("b", { text: now }))
+    : h("span", {}, h("b", { text: now }), old ? h("span", { class: "muted small", text: ` (${t("evUnchanged")})` }) : "")]);
+  const othersBefore = before.otherCategories || [], othersAfter = after.otherCategories || [];
+  if (othersAfter.length || othersBefore.length) {
+    const added = othersAfter.filter((x) => !othersBefore.includes(x)), removed = othersBefore.filter((x) => !othersAfter.includes(x));
+    if (added.length || removed.length || firstReview)
+      rows.push([t("evOthers"), h("span", {}, ...added.map((x) => h("span", { class: "ev-add", text: `+ ${catLabel(x)}` })),
+        ...removed.map((x) => h("span", { class: "ev-del", text: `− ${catLabel(x)}` })),
+        !added.length && !removed.length ? othersAfter.map(catLabel).join(", ") : "")]);
+  }
+  // Reviews saved before Nov 2026 did not record the proposals: the email's own proposals stand in.
+  const reference = firstReview ? (after.proposedActions || ((c || {}).understanding || {}).actions || null) : (before.finalActions || []);
+  const finals = after.finalActions || [];
+  if (reference) {
+    const key = (a) => actionLabel(a);
+    const was = reference.map(key), now2 = finals.map(key);
+    const added = finals.filter((a) => !was.includes(key(a))), removed = reference.filter((a) => !now2.includes(key(a)));
+    rows.push([t("evActions"), added.length || removed.length
+      ? h("span", { class: "ev-list" }, ...added.map((a) => h("span", { class: "ev-add", text: `+ ${key(a)}` })),
+        ...removed.map((a) => h("span", { class: "ev-del", text: `− ${key(a)}` })))
+      : h("span", { class: "muted small", text: `${finals.length ? finals.map(key).join(" · ") : t("noActionsChosen")} (${t("evUnchanged")})` })]);
+  } else if (finals.length) {
+    rows.push([t("evActions"), h("span", { class: "ev-list" }, ...finals.map((a) => h("span", { text: actionLabel(a) })))]);
+  }
+  if ((after.reviewComment || "") !== (before.reviewComment || "") && after.reviewComment)
+    rows.push([t("evComment"), h("span", { class: "snippet", text: `“${after.reviewComment}”` })]);
+  return h("dl", { class: "ev-changes" }, ...rows.flatMap(([k, v]) => [h("dt", { text: k }), h("dd", {}, v)]));
+}
+
+function eventRow(e, extra, c) {
   const who = e.byName || (e.by === "classifier" ? t("system") : e.by || "");
   let detail = "";
   if ((e.action === "classified" || e.action === "rerouted") && e.after) {
     const pct = e.after.confidence == null ? "—" : `${Math.round(e.after.confidence * 100)}%`;
     detail = t("evClassifiedAs", { c: catLabel(e.after.category || "—"), p: pct, r: t(`route${e.after.route}`) });
   } else if (e.action === "reset" && e.before) {
-    detail = t("evResetDetail", { b: e.before.noMatch ? t("noneFits") : catLabel(e.before.finalCategory || "—") });
-  } else if (e.action === "reviewed" && e.after) {
-    const b = e.after.finalCategory ? catLabel(e.after.finalCategory) : t("noneFits");
-    const a = e.before && e.before.finalCategory ? catLabel(e.before.finalCategory) : "";
-    detail = a && a !== b ? t("evChanged", { a, b }) : t("evFirst", { b });
+    detail = t("evResetDetail", { b: catOf(e.before) });
   }
   return h("div", { class: `event ev-${(e.action || "").replace(/\s/g, "-")}` },
     h("div", { class: "ev-head" }, h("strong", { text: t(EVENT_LABEL[e.action] || e.action) }),
       h("span", { class: "muted", text: ` · ${who} · ${when(e.at)}` })),
     extra || "",
     detail ? h("div", { class: "ev-detail", text: detail }) : "",
-    e.after && e.after.reviewComment ? h("div", { class: "snippet", text: `“${e.after.reviewComment}”` }) : "");
+    e.action === "reviewed" && e.after ? reviewChanges(e, c) : "");
 }
 function historyCard(events) {
-  return card(t("history"), null, h("div", { class: "timeline" }, ...[...events].reverse().map((e) => eventRow(e))));
+  return card(t("history"), null, h("div", { class: "timeline" }, ...[...events].reverse().map((e) => eventRow(e, null, (S.detail || {}).case))));
 }
 
 // ------------------------------------------------------------------ activity log (all emails)
@@ -976,6 +1135,15 @@ function notice(text) {
   $("#case").prepend(n);
 }
 
+// Every To / Cc address, as written: name and address, wrapping onto as many lines as needed.
+function recipients(label, people) {
+  const list = (people || []).map((p) => (p && p.emailAddress) || {}).filter((a) => a.address || a.name);
+  if (!list.length) return "";
+  return h("div", { class: "recipients" }, h("span", { class: "muted", text: `${label}:` }),
+    ...list.map((a) => h("span", { class: "addr", title: a.address || "", text: a.name && a.address && a.name !== a.address
+      ? `${a.name} <${a.address}>` : a.address || a.name })));
+}
+
 function renderCase() {
   const d = S.detail;
   if (!d) return;
@@ -994,7 +1162,8 @@ function renderCase() {
       h("h2", { text: c.subject || "—" }),
       h("div", { class: "meta" },
         h("span", { text: from.name ? `${from.name} <${from.address}>` : from.address || c.from || "" }),
-        h("span", { text: when(c.receivedAt) }), statusPill(c))),
+        h("span", { text: when(c.receivedAt) }), statusPill(c)),
+      recipients(t("toLabel"), m.to), recipients(t("ccLabel"), m.cc)),
     lockedByOther ? h("div", { class: "notice warn", text: t("lockedBy", { n: d.lock.holderName }) }) : "",
     c.mailboxState === "removed" ? h("div", { class: "notice info", text: t("leftMailbox") }) : "",
     u.error ? h("div", { class: "notice warn", text: t("readError", { e: u.error }) }) : "",
@@ -1122,8 +1291,11 @@ function shortDay(day) {
     .format(Date.UTC(y, m - 1, d));
 }
 
-function statTile(label, value, sub, key) {
-  return h("div", { class: "tile", "data-key": key || null },
+function statTile(label, value, sub, key, filter) {
+  const attrs = { class: filter ? "tile tile-link" : "tile", "data-key": key || null };
+  if (filter) Object.assign(attrs, { role: "button", tabindex: "0", title: t("showEmails"),
+    onclick: () => applyFilter(filter, label), onkeydown: (e) => { if (e.key === "Enter") applyFilter(filter, label); } });
+  return h("div", attrs,
     h("div", { class: "tile-label" }, key ? h("span", { class: `swatch m-${key}`, "aria-hidden": "true" }) : null, label),
     h("div", { class: "tile-value", text: value }),
     sub ? h("div", { class: "tile-sub", text: sub }) : null);
@@ -1195,6 +1367,12 @@ function dailyChart(daily) {
       const hide = () => { tip.hidden = true; hit.classList.remove("on"); };
       hit.addEventListener("mouseenter", show); hit.addEventListener("focus", show);
       hit.addEventListener("mouseleave", hide); hit.addEventListener("blur", hide);
+      if (d.received) {
+        const open = () => applyFilter({ since: d.day, until: d.day }, dayLabel(d.day));
+        hit.addEventListener("click", open);
+        hit.addEventListener("keydown", (e) => { if (e.key === "Enter") open(); });
+        hit.classList.add("clickable");
+      }
       chart.append(hit);
     });
     box.replaceChildren(chart, tip);
@@ -1209,14 +1387,21 @@ function table(head, rows, opts = {}) {
     h("tbody", {}, ...rows.map((r) => h("tr", {}, ...r.map((x, i) => h("td", { class: i ? "num" : null }, x)))))));
 }
 // A value with a thin bar behind it (single series, so no legend: the column header names it).
-function barCell(value, max, text) {
+function barCell(value, max, shown) {
   return h("div", { class: "barcell" }, h("span", { class: "barfill", style: `width:${max ? (100 * value) / max : 0}%` }),
-    h("span", { class: "barval", text: text ?? fmtN(value) }));
+    h("span", { class: "barval" }, shown ?? fmtN(value)));
 }
 function mcard(title, sub, ...body) {
   const wide = body[0] === "wide";
   if (wide) body.shift();
   return h("section", { class: wide ? "mcard wide" : "mcard" }, h("h3", {}, h("span", { text: title }), sub ? h("span", { class: "sub", text: sub }) : null), ...body);
+}
+
+// A count that opens the Emails tab filtered to the emails it counts.
+function go(n, filter, label, text) {
+  const shown = text ?? fmtN(n);
+  if (!n) return shown;
+  return h("button", { type: "button", class: "num-link", title: t("showEmails"), onclick: () => applyFilter(filter, label) }, shown);
 }
 
 function renderMetrics() {
@@ -1232,46 +1417,91 @@ function renderMetrics() {
     return;
   }
   const chart = dailyChart(m.daily);
-  const r = m.routing, a = m.actions;
+  const r = m.routing, a = m.actions, cb = m.combined || {};
   const routeName = { AUTO: t("mAuto"), REVIEW: t("mReview"), EXCEPTION: t("mException") };
+  const routeOf = { AUTO: ["AUTO"], REVIEW: ["REVIEW"], EXCEPTION: ["EXCEPTION"] };
   const maxReason = Math.max(0, ...r.reasons.map((x) => x.emails));
   const maxBand = Math.max(0, ...r.bands.map((x) => x.emails));
   const maxKind = Math.max(0, ...a.byKind.map((x) => x.proposed));
   const anyReviewed = tot.reviewed > 0;
+  const WRONG = ["changed", "none_fits"];
+  const cell = (n, filter, label) => h("div", { class: "mx-cell" }, go(n, filter, label), h("span", { class: "muted small", text: fmtP(cb.reviewed ? (100 * n) / cb.reviewed : null) }));
   body.replaceChildren(
-    h("p", { class: "muted period", text: t("mPeriod", { a: dayLabel(m.from), b: dayLabel(m.to) }) }),
+    h("p", { class: "muted period", text: `${t("mPeriod", { a: dayLabel(m.from), b: dayLabel(m.to) })} · ${t("clickHint")}` }),
     h("div", { class: "tiles" },
-      statTile(t("mReceived"), fmtN(tot.received)),
-      statTile(t("mAuto"), fmtN(tot.auto), t("mOfClassified", { p: fmtP(tot.autoPct) }), "auto"),
+      statTile(t("mReceived"), fmtN(tot.received), null, null, {}),
+      statTile(t("mAuto"), fmtN(tot.auto), t("mOfClassified", { p: fmtP(tot.autoPct) }), "auto", { route: ["AUTO"] }),
       statTile(t("mReview"), fmtN(tot.review + tot.exception),
-        `${t("mOfClassified", { p: fmtP(tot.reviewPct) })} · ${t("mException")}: ${fmtN(tot.exception)}`, "review"),
-      statTile(t("mWaiting"), fmtN(tot.waiting), null, "wait"),
-      statTile(t("mOpen"), fmtN(tot.open)),
+        `${t("mOfClassified", { p: fmtP(tot.reviewPct) })} · ${t("mException")}: ${fmtN(tot.exception)}`, "review", { route: ["REVIEW", "EXCEPTION"] }),
+      statTile(t("mWaiting"), fmtN(tot.waiting), null, "wait", { waiting: true }),
+      statTile(t("mOpen"), fmtN(tot.open), null, null, { open: true }),
       statTile(t("mReviewed"), fmtN(tot.reviewed),
-        tot.medianHoursToReview == null ? null : `${t("mTurnaround")}: ${t("mHours", { n: fmtN(tot.medianHoursToReview) })}`)),
+        tot.medianHoursToReview == null ? null : `${t("mTurnaround")}: ${t("mHours", { n: fmtN(tot.medianHoursToReview) })}`, null, { reviewed: true })),
     mcard(t("mDaily"), t("mDailySub"), legend(), chart,
       h("details", { class: "astable" }, h("summary", { text: t("mAsTable") }),
         table([t("mDay"), t("mReceived"), t("mAuto"), t("mReview"), t("mException"), t("mWaiting"), t("mReviewed"), t("mOpen")],
-          [...m.daily].reverse().filter((d) => d.received).map((d) => [dayLabel(d.day), fmtN(d.received), fmtN(d.AUTO),
-            fmtN(d.REVIEW), fmtN(d.EXCEPTION), fmtN(d.WAITING), fmtN(d.reviewed), fmtN(d.open)])))),
+          [...m.daily].reverse().filter((d) => d.received).map((d) => {
+            const day = { since: d.day, until: d.day }, label = dayLabel(d.day);
+            return [label, go(d.received, day, label), go(d.AUTO, { ...day, route: ["AUTO"] }, `${label} · ${t("mAuto")}`),
+              go(d.REVIEW, { ...day, route: ["REVIEW"] }, `${label} · ${t("mReview")}`),
+              go(d.EXCEPTION, { ...day, route: ["EXCEPTION"] }, `${label} · ${t("mException")}`),
+              go(d.WAITING, { ...day, waiting: true }, `${label} · ${t("mWaiting")}`),
+              go(d.reviewed, { ...day, reviewed: true }, `${label} · ${t("mReviewed")}`),
+              go(d.open, { ...day, open: true }, `${label} · ${t("mOpen")}`)];
+          })))),
+    h("h2", { class: "msection", text: t("mQuality") }),
+    h("div", { class: "mgrid" },
+      mcard(t("mCombined"), t("mCombinedSub"), anyReviewed
+        ? h("div", { class: "matrix", role: "table", "aria-label": t("mCombined") },
+          h("div", { class: "mx-h" }), h("div", { class: "mx-h", text: t("mActSame") }), h("div", { class: "mx-h", text: t("mActChanged") }),
+          h("div", { class: "mx-r", text: t("mCatRight") }),
+          cell(cb.rightRight, { outcome: ["accepted"], actions: "same" }, `${t("mCatRight")} · ${t("mActSame")}`),
+          cell(cb.rightWrong, { outcome: ["accepted"], actions: "changed" }, `${t("mCatRight")} · ${t("mActChanged")}`),
+          h("div", { class: "mx-r", text: t("mCatWrong") }),
+          cell(cb.wrongRight, { outcome: WRONG, actions: "same" }, `${t("mCatWrong")} · ${t("mActSame")}`),
+          cell(cb.wrongWrong, { outcome: WRONG, actions: "changed" }, `${t("mCatWrong")} · ${t("mActChanged")}`))
+        : h("p", { class: "muted pad", text: t("mNoReviews") })),
+      mcard(t("mReviewers"), t("mReviewersSub"), (m.reviewers || []).length
+        ? table([t("mReviewer"), t("mReviewed"), t("mAccepted"), t("mCatChanged"), t("mActChanged"), t("mMedian"), t("mLast")],
+          m.reviewers.map((x) => [x.name,
+            go(x.reviewed, { reviewer: x.id, reviewed: true }, `${t("mReviewer")}: ${x.name}`),
+            go(x.accepted, { reviewer: x.id, outcome: ["accepted"] }, `${x.name} · ${t("mAccepted")}`, `${fmtN(x.accepted)} (${fmtP(x.acceptedPct)})`),
+            go(x.changed + x.noneFits, { reviewer: x.id, outcome: WRONG }, `${x.name} · ${t("mCatChanged")}`),
+            go(x.actionsChanged, { reviewer: x.id, actions: "changed" }, `${x.name} · ${t("mActChanged")}`,
+              `${fmtN(x.actionsChanged)} (${fmtP(x.actionsChangedPct)})`),
+            x.medianHours == null ? t("mNone") : t("mHours", { n: fmtN(x.medianHours) }),
+            x.last ? when(x.last) : t("mNone")]))
+        : h("p", { class: "muted pad", text: t("mNoReviews") }))),
     h("h2", { class: "msection", text: t("mRouting") }),
     h("div", { class: "mgrid" },
       mcard(t("mReasons"), t("mReasonsSub"), r.reasons.length
-        ? table([t("mReasons"), t("mEmails")], r.reasons.map((x) => [t(`rs_${x.key}`), barCell(x.emails, maxReason)]), { class: "bars" })
+        ? table([t("mReasons"), t("mEmails")], r.reasons.map((x) => [t(`rs_${x.key}`),
+          barCell(x.emails, maxReason, go(x.emails, { reason: x.key }, t(`rs_${x.key}`)))]), { class: "bars" })
         : h("p", { class: "muted pad", text: t("mNone") })),
       mcard(t("mBands"), t("mBandsSub"),
         table([t("mBand"), t("mEmails"), t("mReviewed"), t("mAcceptRate")],
-          [...r.bands].reverse().map((b) => [b.to === 100 ? `${b.from}–100%` : `${b.from}–${b.to}%`, barCell(b.emails, maxBand),
-            fmtN(b.reviewed), fmtP(b.acceptedPct)]), { class: "bars" })),
+          [...r.bands].reverse().map((b) => {
+            const label = b.to === 100 ? `${b.from}–100%` : `${b.from}–${b.to}%`;
+            return [label, barCell(b.emails, maxBand, go(b.emails, { band: [b.from, b.to === 100 ? 101 : b.to] }, `${t("mBand")} ${label}`)),
+              go(b.reviewed, { band: [b.from, b.to === 100 ? 101 : b.to], reviewed: true }, `${t("mBand")} ${label} · ${t("mReviewed")}`),
+              fmtP(b.acceptedPct)];
+          }), { class: "bars" })),
       mcard(t("mOutcome"), t("mOutcomeSub"), "wide", anyReviewed
         ? table([t("mRoute"), t("mEmails"), t("mReviewed"), t("mAccepted"), t("mChanged"), t("mNoneFits"), t("mAcceptRate")],
-          Object.entries(r.byRoute).map(([k, v]) => [routeName[k], fmtN(v.emails), fmtN(v.reviewed), fmtN(v.accepted),
-            fmtN(v.changed), fmtN(v.noneFits), fmtP(v.acceptedPct)]))
+          Object.entries(r.byRoute).map(([k, v]) => [routeName[k], go(v.emails, { route: routeOf[k] }, routeName[k]),
+            go(v.reviewed, { route: routeOf[k], reviewed: true }, `${routeName[k]} · ${t("mReviewed")}`),
+            go(v.accepted, { route: routeOf[k], outcome: ["accepted"] }, `${routeName[k]} · ${t("mAccepted")}`),
+            go(v.changed, { route: routeOf[k], outcome: ["changed"] }, `${routeName[k]} · ${t("mChanged")}`),
+            go(v.noneFits, { route: routeOf[k], outcome: ["none_fits"] }, `${routeName[k]} · ${t("mNoneFits")}`),
+            fmtP(v.acceptedPct)]))
         : h("p", { class: "muted pad", text: t("mNoReviews") })),
       mcard(t("mCategories"), t("mCategoriesSub"), "wide",
         table([t("mCategory"), t("mEmails"), t("mAuto"), t("mReview"), t("mAutoShare"), t("mAcceptRate")],
-          r.categories.slice(0, S.allCats ? undefined : 10).map((c) => [catLabel(c.category), fmtN(c.emails), fmtN(c.auto),
-            fmtN(c.review), fmtP(c.autoPct), fmtP(c.acceptedPct)]), { class: "cats" }),
+          r.categories.slice(0, S.allCats ? undefined : 10).map((c) => [catLabel(c.category),
+            go(c.emails, { modelCat: c.category }, catLabel(c.category)),
+            go(c.auto, { modelCat: c.category, route: ["AUTO"] }, `${catLabel(c.category)} · ${t("mAuto")}`),
+            go(c.review, { modelCat: c.category, route: ["REVIEW", "EXCEPTION"] }, `${catLabel(c.category)} · ${t("mReview")}`),
+            fmtP(c.autoPct), fmtP(c.acceptedPct)]), { class: "cats" }),
         r.categories.length > 10 ? h("button", { type: "button", class: "link more-cats",
           onclick: () => { S.allCats = !S.allCats; renderMetrics(); } },
         S.allCats ? t("mFewerCats") : t("mAllCats", { n: r.categories.length })) : null)),
@@ -1281,7 +1511,8 @@ function renderMetrics() {
       statTile(t("mKept"), fmtN(a.totals.kept), a.totals.keptPct == null ? null : `${fmtP(a.totals.keptPct)} · ${t("mProposedReviewed")}: ${fmtN(a.totals.proposedReviewed)}`),
       statTile(t("mRemoved"), fmtN(a.totals.removed)),
       statTile(t("mAdded"), fmtN(a.totals.added)),
-      statTile(t("mUnchanged"), fmtP(a.totals.unchangedPct), `${fmtN(a.totals.casesWithProposals)} ${t("mOfReviewed")}`)),
+      statTile(t("mUnchanged"), fmtP(a.totals.unchangedPct), `${fmtN(a.totals.casesWithProposals)} ${t("mOfReviewed")}`, null,
+        a.totals.casesWithProposals ? { actions: "same" } : null)),
     h("div", { class: "mgrid" },
       mcard(t("mActionsTitle"), t("mActionsSub"), "wide", a.byKind.length
         ? table([t("mKind"), t("mProposedAll"), t("mProposedReviewed"), t("mKept"), t("mRemoved"), t("mAdded"), t("mKeptRate")],
@@ -1378,6 +1609,8 @@ function wire() {
   $("#day").addEventListener("change", (e) => { S.day = e.target.value; S.win = "all"; renderList(); });
   $("#basis").addEventListener("change", (e) => { S.basis = e.target.value; S.day = "all"; S.win = "all"; renderDays(); renderList(); });
   $("#sort").addEventListener("change", (e) => { S.sort = e.target.value; renderList(); });
+  $("#cat").addEventListener("change", (e) => { S.cat = e.target.value; renderList(); });
+  $("#export").addEventListener("click", (e) => exportExcel(e.currentTarget));
   document.querySelectorAll("#views button").forEach((b) => b.addEventListener("click", () => setView(b.dataset.view)));
   let resizing;
   window.addEventListener("resize", () => { clearTimeout(resizing); resizing = setTimeout(() => { if (S.view === "metrics") renderMetrics(); }, 150); });

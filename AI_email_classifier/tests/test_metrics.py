@@ -105,3 +105,33 @@ def test_actions_kept_removed_and_added():
 def test_no_emails():
     out = metrics.compute([], 30, TODAY)
     assert out["totals"]["received"] == 0 and out["totals"]["autoPct"] is None and len(out["daily"]) == 30
+
+
+def test_no_match_found_kept_and_actions_outcome():
+    nmf = {"status": "REVIEWED", "modelCategory": "No Match Found", "finalCategory": "No Match Found", "noMatch": True}
+    assert metrics.outcome(nmf) == "accepted"
+    assert metrics.outcome({**nmf, "modelCategory": "GDPR"}) == "none_fits"
+    proposed = {"understanding": {"actions": [{"do": "request", "code": "62", "account": "1"}, {"do": "reply"}]}}
+    kept = [{"do": "request", "code": "62", "account": "1", "source": "suggested"}, {"do": "reply", "source": "suggested"}]
+    base = {"status": "REVIEWED", **proposed}
+    assert metrics.actions_outcome({**base, "finalActions": kept}) == "same"
+    assert metrics.actions_outcome({**base, "finalActions": kept[:1]}) == "changed"  # one removed
+    assert metrics.actions_outcome({**base, "finalActions": [{**kept[0], "account": "2"}, kept[1]]}) == "changed"  # other account
+    assert metrics.actions_outcome({**base, "finalActions": [*kept, {"do": "manual", "source": "added"}]}) == "changed"
+    assert metrics.actions_outcome({"status": "CLASSIFIED", **proposed}) is None
+
+
+def test_reviewers_and_category_by_actions():
+    who = {"id": "u1", "name": "Ann"}
+    cases = [
+        case(1, "2026-11-20T08:00:00Z", "AUTO", status="REVIEWED", final="Βεβαίωση οφειλής", reviewed_at="2026-11-20T10:00:00Z"),
+        case(2, "2026-11-20T08:00:00Z", "REVIEW", status="REVIEWED", final="GDPR", reviewed_at="2026-11-20T12:00:00Z",
+             chosen=[{"do": "manual", "source": "added"}]),
+    ]
+    for c in cases:
+        c["reviewedBy"] = who
+    out = metrics.compute(cases, 7, TODAY)
+    assert out["combined"] == {"rightRight": 1, "rightWrong": 0, "wrongRight": 0, "wrongWrong": 1, "reviewed": 2}
+    (ann,) = out["reviewers"]
+    assert (ann["name"], ann["reviewed"], ann["accepted"], ann["changed"], ann["actionsChanged"], ann["medianHours"]) == (
+        "Ann", 2, 1, 1, 1, 3.0)

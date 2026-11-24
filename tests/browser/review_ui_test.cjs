@@ -50,7 +50,7 @@ async function signIn(page) {
 }
 
 async function behaviour(browser) {
-  const context = await browser.newContext({ viewport: { width: 1600, height: 900 } });
+  const context = await browser.newContext({ viewport: { width: 1600, height: 900 }, acceptDownloads: true });
   const page = await context.newPage();
   let scriptErrors = 0;
   let consoleErrors = 0;
@@ -283,6 +283,56 @@ async function behaviour(browser) {
   await page.screenshot({ path: path.join(OUTPUT, "metrics_1600x900.png") });
   await page.click('#views button[data-view="emails"]');
   ok("back to the emails", !(await page.$eval(".layout", (l) => l.hidden)) && (await page.locator("#list .item").count()) > 0);
+
+  // Category filter on the Emails tab narrows the list.
+  await page.click("#queues button:nth-child(4)");
+  const allCount = await page.locator("#list .item").count();
+  const catValues = await page.$$eval("#cat option", (o) => o.map((x) => x.value).filter((v) => v !== "all"));
+  await page.selectOption("#cat", catValues[0]);
+  const oneCat = await page.locator("#list .item").count();
+  ok("category filter narrows the list", catValues.length > 1 && oneCat > 0 && oneCat < allCount, { categories: catValues.length, oneCat, allCount });
+  await page.selectOption("#cat", "all");
+
+  // Metrics → Emails: a clicked count lists exactly those emails, as a removable filter.
+  await page.click('#views button[data-view="metrics"]');
+  await page.waitForSelector("#metrics .tile");
+  const matrixLinks = page.locator(".matrix .num-link");
+  if (await matrixLinks.count()) {
+    const n = +(await matrixLinks.first().textContent());
+    await matrixLinks.first().click();
+    await page.waitForSelector("#fchips .fchip");
+    const listedN = await page.locator("#list .item").count();
+    ok("a metrics count opens exactly its emails", listedN === n && !(await page.$eval("#metrics", (m) => m.hidden)) === false, { n, listedN });
+    const [download] = await Promise.all([page.waitForEvent("download", { timeout: 15000 }), page.click("#export")]);
+    ok("Excel export downloads the listed emails", /\.xlsx$/.test(download.suggestedFilename()));
+    await page.click("#fchips .chip-x");
+    ok("removing the filter shows every email again", (await page.locator("#fchips").isHidden()) && (await page.locator("#list .item").count()) === allCount);
+    await page.click('#views button[data-view="metrics"]');
+    await page.waitForSelector("#metrics .tile");
+  } else ok("reviewed emails exist for the category/actions table", false);
+  ok("reviewers table lists people", (await page.locator(".mcard").filter({ hasText: /Ελεγκτές|Reviewers/ }).locator("tbody tr").count()) > 0);
+  await page.click('#views button[data-view="emails"]');
+
+  // Case page: further categories as chips; "No Match Found" offered as a category; history spells out changes.
+  await page.click("#queues button:nth-child(1)");
+  if (await page.locator("#list .item").count()) {
+    await page.locator("#list .item").first().click();
+    await page.waitForSelector(".extras");
+    await page.locator(".extras details summary").click();
+    await page.fill("#rv-extra", "gdpr");
+    await page.press("#rv-extra", "Enter");
+    await page.waitForTimeout(100);
+    const extraChips = await page.locator(".extras .chips .chip:not(.add)").count();
+    ok("further categories are added as chips", extraChips >= 1, { extraChips });
+    ok("No Match Found is offered for manual handling", (await page.locator(".choice .opt").filter({ hasText: "No Match Found" }).count()) === 1);
+  }
+  await page.click("#queues button:nth-child(3)");
+  if (await page.locator("#list .item").count()) {
+    await page.locator("#list .item").first().click();
+    await page.waitForSelector(".ev-changes");
+    const terms = await page.$$eval(".ev-changes dt", (d) => d.map((x) => x.textContent));
+    ok("history shows the category of a review", terms.some((x) => /Κατηγορία|Category/.test(x)), { rows: terms.length });
+  }
 
   ok("no script errors", scriptErrors === 0, { scriptErrors });
   ok("no console errors", consoleErrors === 0, { consoleErrors });
