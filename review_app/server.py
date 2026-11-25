@@ -36,18 +36,21 @@ from urllib.parse import parse_qs, quote, urlparse
 
 HERE = Path(__file__).resolve().parent
 
-def _load_env(root: Path) -> None:
-    """The repo-root .env (as the classifier reads it); settings already set win. Skipped in tests (CI=1)."""
+def _load_env(root: Path) -> set[str]:
+    """The repo-root .env (as the classifier reads it); settings already set win. Skipped in tests (CI=1).
+    Returns the names it set."""
     if os.getenv("CI", "").strip().lower() in {"1", "true", "yes"}:
-        return
+        return set()
     try:
         from dotenv import load_dotenv
     except ImportError:
-        return
+        return set()
+    before = set(os.environ)
     load_dotenv(root / ".env", override=False)
+    return set(os.environ) - before
 
 
-_load_env(HERE.parent)
+ENV_FROM_FILE = _load_env(HERE.parent) or set()  # which settings came from .env (shown on start)
 APP = HERE.parent / "AI_email_classifier"
 sys.path.insert(0, str(APP))
 
@@ -1039,23 +1042,44 @@ def make_server() -> ThreadingHTTPServer:
     return ThreadingHTTPServer((host, port), Handler)
 
 
+def _source(name: str) -> str:
+    if name in ENV_FROM_FILE:
+        return "  (from .env)"
+    return "  (set in this window, overrides .env)" if os.getenv(name) else ""
+
+
+def unregistered_runs(blob_dir: Path, store_dir: Path) -> list[str]:
+    """Runs copied into the files folder that the classifier has not registered as cases yet."""
+    runs = sorted(p.parent.name for p in (blob_dir / "bronze").glob("*/emails.json")) if blob_dir.is_dir() else []
+    return [r for r in runs if not (store_dir / "runs" / f"{r}.json").exists()]
+
+
 def startup_report() -> list[str]:
     """Where the app reads from and what it found, so an empty page has an explanation in the console."""
     lines = []
+    store_dir = None
     if os.getenv("CASE_STORE", "local").strip().lower() == "cosmos":
         lines.append(f"Cases: Cosmos {os.getenv('COSMOS_ENDPOINT', '?')}")
     else:
-        folder = Path(os.getenv("LOCAL_STORE_DIR", "case_store")).resolve()
-        count = len(list((folder / "cases").glob("*.json"))) if (folder / "cases").is_dir() else 0
-        lines.append(f"Cases: {folder} ({count} emails)")
-        if not count:
+        store_dir = Path(os.getenv("LOCAL_STORE_DIR", "case_store")).resolve()
+        count = len(list((store_dir / "cases").glob("*.json"))) if (store_dir / "cases").is_dir() else 0
+        lines.append(f"Cases: {store_dir} ({count} emails){_source('LOCAL_STORE_DIR')}")
+        blob_env = os.getenv("LOCAL_BLOB_DIR", "").strip()
+        copied = unregistered_runs(Path(blob_env).resolve(), store_dir) if blob_env else []
+        if not count and not copied:  # with copied runs waiting, the hint below says what to do
             demo = HERE.parent / "local_data" / "case_store"
-            hint = (f"set LOCAL_STORE_DIR={demo} (and LOCAL_BLOB_DIR={demo.parent / 'blob'}) in THIS window"
+            hint = (f"set LOCAL_STORE_DIR={demo} (and LOCAL_BLOB_DIR={demo.parent / 'blob'})"
                     if (demo / "cases").is_dir() else "run python tools/local_demo.py first")
             lines.append(f"  No emails there: {hint}. See docs/LOCAL_TESTING.md.")
     blob_dir = os.getenv("LOCAL_BLOB_DIR", "").strip()
     if blob_dir:
-        lines.append(f"Files: {Path(blob_dir).resolve()}" + ("" if Path(blob_dir).is_dir() else "  (folder not found)"))
+        folder = Path(blob_dir).resolve()
+        lines.append(f"Files: {folder}{'' if folder.is_dir() else '  (folder not found)'}{_source('LOCAL_BLOB_DIR')}")
+        waiting = unregistered_runs(folder, store_dir) if store_dir else []
+        if waiting:
+            lines.append(f"  {len(waiting)} copied run(s) not in the app yet ({', '.join(waiting[:3])}"
+                         f"{'…' if len(waiting) > 3 else ''}): register and classify them with "
+                         "'cd AI_email_classifier; python -m main', then restart the app.")
     elif os.getenv("AZURE_STORAGE_CONNECTION_STRING") or os.getenv("RESULT_STORAGE_ACCOUNT"):
         lines.append(f"Files: Azure container {os.getenv('RESULT_CONTAINER', '?')}")
     else:

@@ -160,7 +160,10 @@ def main() -> int:
         return 1
     print(f"\nCopied {totals['emails']} emails from {totals['runs']} run(s), {totals['files']} files"
           f"{', ' + str(totals['missing']) + ' missing' if totals['missing'] else ''} into {dest}")
-    print("Classify them (keys in your .env), then open the review app; see docs/LOCAL_TESTING.md.")
+    print("\nThey are files only: the review app shows them once the classifier has registered them as cases.")
+    print("Next (same LOCAL_BLOB_DIR / LOCAL_STORE_DIR, e.g. from .env; model keys in .env):")
+    print("  cd AI_email_classifier; python -m main; cd ..      # CLASSIFIER_PAUSED=true: register only")
+    print("  python review_app\\server.py")
     return 0
 
 

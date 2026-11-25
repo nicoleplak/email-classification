@@ -61,6 +61,8 @@ then, with the server running, `node tests\browser\review_ui_test.cjs http://127
 |---|---|---|
 | Server prints `(0 emails)` | the settings were typed in another window, or the server runs from another folder | use `python tools\local_demo.py --serve-only` |
 | Blank page or a spinner that never stops | the browser blocked the page script (versions before this fix, on Windows) | use the latest `dev`; then Ctrl+F5 in the browser |
+| Server prints `copied run(s) not in the app yet` | emails were copied but not registered as cases | step 3d: `cd AI_email_classifier; python -m main` (with `CLASSIFIER_PAUSED=true` to register only) |
+| Server shows a different folder than `.env`, with `(set in this window, overrides .env)` | `$env:` settings typed earlier in that window | open a new terminal, or `Remove-Item Env:LOCAL_BLOB_DIR, Env:LOCAL_STORE_DIR` |
 | "Δεν υπάρχουν email εδώ" | the selected queue or filter is empty | click «Όλα», set «Ημέρα» to «Όλες οι μέρες», clear the category filter |
 
 ## 3. Real emails copied from Azure
@@ -101,6 +103,9 @@ send it. Every script below reads it, so steps d and e need no PowerShell settin
 Copy-Item .env.example .env
 notepad .env
 ```
+
+The copied emails are files only. They appear in the review app after step d, which registers each one as
+a case (and classifies it). Until then the server prints `N copied run(s) not in the app yet`.
 
 **d. Classify the copy**
 

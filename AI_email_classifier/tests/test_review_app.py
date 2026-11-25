@@ -327,3 +327,18 @@ def test_startup_report_explains_an_empty_case_folder(app, tmp_path, monkeypatch
     monkeypatch.delenv("RESULT_STORAGE_ACCOUNT", raising=False)
     report = "\n".join(server.startup_report())
     assert "(0 emails)" in report and "No emails there" in report and "LOCAL_BLOB_DIR" in report
+
+
+def test_startup_report_points_at_copied_runs_not_yet_registered(app, tmp_path, monkeypatch):
+    server, _, _ = app
+    blob, store = tmp_path / "blob", tmp_path / "store"
+    for run in ("20261123T080038Z", "20261124T080000Z"):
+        (blob / "bronze" / run).mkdir(parents=True)
+        (blob / "bronze" / run / "emails.json").write_text("[]")
+    (store / "runs").mkdir(parents=True)
+    (store / "runs" / "20261123T080038Z.json").write_text("{}")
+    monkeypatch.setenv("LOCAL_BLOB_DIR", str(blob))
+    monkeypatch.setenv("LOCAL_STORE_DIR", str(store))
+    report = "\n".join(server.startup_report())
+    assert "1 copied run(s) not in the app yet (20261124T080000Z)" in report and "python -m main" in report
+    assert "set in this window" in report  # typed settings win over .env, and the report says so
