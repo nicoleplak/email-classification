@@ -187,25 +187,82 @@ def test_erb_case_goes_to_the_branch():
     assert [a["do"] for a in actions] == ["bank_referral"] and reply(actions) == "erb_branch"
 
 
-def test_heir_documents_open_the_request_and_the_right_activity():
-    actions = decide(["Νομιμοποίηση κληρονόμων με επισύναψη εγγράφων"], {"heir_certificates_attached": True},
-                     {**NO_PORTAL_CUSTOMER, "accounts": ONE})
-    assert only(actions)["code"] == "44" and only(actions, "activity")["codes"] == ["5005"]
+def test_every_request_is_followed_by_its_activity_on_the_same_account():
+    actions = decide([GDPR], {}, NO_PORTAL_CUSTOMER)
+    pairs = [(a["do"], a.get("code"), a.get("account")) for a in actions if a["do"] in ("request", "activity")]
+    assert pairs == [("request", "62", "4000000000001"), ("activity", "6572", "4000000000001"),
+                     ("request", "62", "4000000000009"), ("activity", "6572", "4000000000009")]
+    activity = of(actions, "activity")[0]
+    assert activity["forRequest"] == "62" and explain(activity)
 
 
-def test_folders_forwards_and_activities_need_no_identification():
+def test_heir_documents_get_three_activities():
+    actions = decide(["Νομιμοποίηση κληρονόμων με επισύναψη εγγράφων"], {}, {**NO_PORTAL_CUSTOMER, "accounts": ONE})
+    assert only(actions)["code"] == "44"
+    assert [a["code"] for a in of(actions, "activity")] == ["6598", "5005", "5007"]
+
+
+def test_a_request_without_account_keeps_its_activity_with_the_same_caveat():
+    actions = decide([COPIES], {}, NO_PORTAL_CUSTOMER, best_guess=True)
+    activity = only(actions, "activity")
+    assert (activity["code"], activity["caveat"], "account" in activity) == ("6567", "account_not_identified", False)
+
+
+def test_no_activity_for_a_request_the_sheet_does_not_list():
+    actions = decide([DEBT], {"is_heir": True}, PORTAL_CUSTOMER)
+    assert {a["code"] for a in of(actions, "request")} == {"111"} and not of(actions, "activity")
+
+
+# Portal only for the requests the sheet names ("YES for Request 113 / 89 / 119").
+def test_portal_only_for_the_named_requests():
+    assert [a["do"] for a in decide(["Αιτήματα Ν.3869"], {"asks_instalment": True}, PORTAL_CUSTOMER)] == ["portal_referral"]
+    other = decide(["Αιτήματα Ν.3869"], {"asks_debt_certificate": True}, PORTAL_CUSTOMER)
+    assert {a["code"] for a in of(other, "request")} == {"105"} and not of(other, "portal_referral")  # not a Portal request
+    assert [a["do"] for a in decide([DEBT], {}, PORTAL_CUSTOMER)] == ["portal_referral"]  # 89
+    breakdown = decide([DEBT], {"wants_breakdown": True}, PORTAL_CUSTOMER)
+    assert {a["code"] for a in of(breakdown, "request")} == {"91"} and not of(breakdown, "portal_referral")
+
+
+def test_account_movement_goes_to_the_portal_only_for_a_closed_case():
+    movement = "Κίνηση λογαριασμού"
+    open_case = {**PORTAL_CUSTOMER, "accounts": [acct("1", state="open")]}
+    assert only(decide([movement], {}, open_case))["code"] == "95"
+    closed_case = {**PORTAL_CUSTOMER, "accounts": [acct("1", state="closed")]}
+    assert [a["do"] for a in decide([movement], {}, closed_case)] == ["portal_referral"]  # 119
+    assert only(decide([movement], {"cannot_use_online": True}, closed_case))["code"] == "119"
+
+
+def test_a_request_the_portal_cannot_take_cancels_the_referral():
+    actions = decide([DEBT, "Αιτήματα Ν.3869"], {"asks_debt_certificate": True}, PORTAL_CUSTOMER)
+    assert not of(actions, "portal_referral")  # 105 is offline, so 89 is registered too
+
+
+@pytest.mark.parametrize("category, flags, customer, code", [
+    ("Αιτήματα που αφορούν στον εξωδικαστικό 4605", {"disputes_debt": True}, "closed", "160"),
+    ("Ασφαλιστήρια", {"insurance_compensation": True}, "closed", "172"),
+    ("Πόθεν έσχες", {}, "closed_3869", "110"),
+    ("Ηχογραφημένες κλήσεις", {"call_preservation": True}, "open", "86"),
+    ("Ηχογραφημένες κλήσεις", {"call_preservation": True}, "closed", "150"),
+])
+def test_new_codes_from_the_activities_sheet(category, flags, customer, code):
+    account = acct("1", state="open" if customer == "open" else "closed")
+    who = {**NO_PORTAL_CUSTOMER, "accounts": [account], "is_3869": customer == "closed_3869"}
+    assert only(decide([category], flags, who))["code"] == code
+
+
+def test_folders_and_forwards_need_no_identification():
     assert only(decide(["Αγωγές"], {}, {}), "forward")["to"][0] == "spdallas@dovaluegreece.gr"
     authority = decide(["Φορείς"], {}, {})
-    assert only(authority, "outlook_folder")["folder"] == "ΦΟΡΕΙΣ"
-    assert only(authority, "activity")["codes"] == ["6691", "2090"]
-    hearing = decide(["Αναβολές δικασίμων"], {}, {"is_3869": True})
-    assert [a["to"][0] for a in of(hearing, "forward")] == ["Dikografa@dovaluegreece.gr",
-                                                            "law3869_finalcourtdecisions@dovaluegreece.gr"]
+    assert only(authority, "outlook_folder")["folder"] == "ΦΟΡΕΙΣ" and not of(authority, "activity")
+    hearing = only(decide(["Αναβολές δικασίμων"], {}, {}), "forward")
+    assert hearing["to"] == ["Dikografa@dovaluegreece.gr", "law3869_finalcourtdecisions@dovaluegreece.gr"]
+    portal_issue = decide(["Τεχνικό πρόβλημα με Portal"], {}, {})
+    assert only(portal_issue, "outlook_folder")["folder"] == "Portal Issues" and reply(portal_issue) == "received"
 
 
 def test_imminent_auction_request_and_forward_both_fire():
     actions = decide(["Πλειστηριασμοί"], {"asks_negotiation": True, "auction_imminent": True}, NO_PORTAL_CUSTOMER)
-    assert {a["do"] for a in actions} == {"request", "forward", "reply"}
+    assert {a["do"] for a in actions} == {"request", "activity", "forward", "reply"}
 
 
 # Priority: the most important request first; a complaint only when nothing else is asked.

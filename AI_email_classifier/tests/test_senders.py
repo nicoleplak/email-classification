@@ -10,10 +10,17 @@ from core import senders
 ROOT = Path(__file__).resolve().parents[2]
 
 
-def test_internal_retail_and_external(tmp_path, monkeypatch):
+def _rules(tmp_path, monkeypatch, retail_lines):
     rules = tmp_path / "sender_flags.json"
-    rules.write_text(json.dumps({"internal_domains": ["dovaluegreece.gr"], "retail_support": ["Retail.Fwd@doValueGreece.gr"]}))
+    rules.write_text(json.dumps({"internal_domains": ["dovaluegreece.gr"], "internal_category": "Cat 38",
+                                 "retail_support_file": "retail.txt"}))
+    (tmp_path / "retail.txt").write_text(retail_lines, encoding="utf-8")
     monkeypatch.setattr(senders, "RULES_FILE", rules)
+    return tmp_path / "retail.txt"
+
+
+def test_internal_retail_and_external(tmp_path, monkeypatch):
+    _rules(tmp_path, monkeypatch, "# Retail Support\n  Retail.Fwd@doValueGreece.gr  # the shared box\n\n")
     assert senders.sender_type("maria@dovaluegreece.gr") == "internal"
     assert senders.sender_type("Someone@DOVALUEGREECE.GR") == "internal"
     assert senders.sender_type("ops@mail.dovaluegreece.gr") == "internal"  # a subdomain
@@ -21,25 +28,28 @@ def test_internal_retail_and_external(tmp_path, monkeypatch):
     assert senders.sender_type("client@gmail.com") == "external"
     assert senders.sender_type("x@notdovaluegreece.gr") == "external"  # a look-alike domain is not ours
     assert senders.sender_type("") == senders.sender_type(None) == "external"
+    assert senders.internal_category() == "Cat 38"
 
 
 def test_a_changed_list_applies_without_a_restart(tmp_path, monkeypatch):
     import os
     import time
 
-    rules = tmp_path / "sender_flags.json"
-    rules.write_text(json.dumps({"internal_domains": ["dovaluegreece.gr"], "retail_support": []}))
-    monkeypatch.setattr(senders, "RULES_FILE", rules)
+    retail = _rules(tmp_path, monkeypatch, "")
     assert senders.sender_type("rs@dovaluegreece.gr") == "internal"
-    rules.write_text(json.dumps({"internal_domains": ["dovaluegreece.gr"], "retail_support": ["rs@dovaluegreece.gr"]}))
+    retail.write_text("rs@dovaluegreece.gr\n", encoding="utf-8")
     later = time.time() + 5
-    os.utime(rules, (later, later))
+    os.utime(retail, (later, later))
     assert senders.sender_type("rs@dovaluegreece.gr") == "retail_support"
 
 
 def test_the_shipped_rules_file_reads():
+    import json as j
+
     domains, retail = senders.rules()
     assert "dovaluegreece.gr" in domains and isinstance(retail, frozenset)
+    categories = {c["Categories"].strip() for c in j.loads((ROOT / "AI_email_classifier" / "inputs" / "categories.json").read_text("utf-8"))}
+    assert senders.internal_category() in categories  # category 38 by name
 
 
 def _ingest(monkeypatch):

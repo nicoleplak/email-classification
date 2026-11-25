@@ -1,0 +1,9 @@
+# Retail Support addresses (one per line; letter case and spaces do not matter; lines starting with # are notes).
+#
+# An email FROM one of these addresses is classified like a customer's email (the model reads it, actions and
+# all) and is flagged "Προώθηση Retail Support" in the review app, where the «Αποστολέας» filter finds it.
+# Any other sender at an internal domain (inputs/sender_flags.json) gets category 38 by its address, with no
+# model call.
+#
+# Example:
+# retail.support@dovaluegreece.gr

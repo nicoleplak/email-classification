@@ -221,6 +221,22 @@ Thread continuity qualification:
   description, contact signature, or employee history.
 
 
+------------------------------------------------------------
+Rule F — Technical problem with the Portal
+------------------------------------------------------------
+
+When the email only reports that the sender cannot log in to, or use, the
+doValue Portal (αδυναμία σύνδεσης, δεν μπορώ να μπω, error, κωδικός δεν
+λειτουργεί) and asks for nothing else, select exactly:
+
+Τεχνικό πρόβλημα με Portal
+
+When the email reports the Portal problem AND asks for something the Portal
+would have given (a debt certificate, an instalment, account movements, ...),
+select the category of that request instead: the Portal problem is the
+reason it is asked by email, not the request itself.
+
+
 # ============================================================
 # 13. COMPLAINTS AND AUTHORITIES
 # ============================================================
@@ -399,7 +415,9 @@ Example C:
 πληρωμής."
 
 Result:
-Select the applicable operational category.
+Select the applicable operational category (a payment request here); an
+email that only reports the Portal problem is "Τεχνικό πρόβλημα με Portal"
+(Rule F).
 
 Reason:
 An operational problem alone is not a complaint.

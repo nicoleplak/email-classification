@@ -1,5 +1,8 @@
 {
-  "_about": "How senders are flagged in the review app (core/senders.py). internal_domains: a sender at one of these domains (or a subdomain) is 'internal'. retail_support: these addresses are 'forwarded by retail support' instead (exact addresses, any letter case). Changes apply to every email the next time it is shown.",
-  "internal_domains": ["dovaluegreece.gr"],
-  "retail_support": []
+  "_about": "How senders are handled (core/senders.py). A sender at one of internal_domains (or a subdomain) is 'internal': its email gets internal_category by its address, without any model call, and is handled automatically. The addresses in retail_support_emails.txt are the exception: their emails are classified as usual and flagged 'forwarded by retail support'. Changes apply the next time an email is classified or shown.",
+  "internal_domains": [
+    "dovaluegreece.gr"
+  ],
+  "internal_category": "Τα απεσταλμένα από dovaluegreece και όσα είναι κοινοποιημένο από εσωτερικά κανάλια",
+  "retail_support_file": "retail_support_emails.txt"
 }

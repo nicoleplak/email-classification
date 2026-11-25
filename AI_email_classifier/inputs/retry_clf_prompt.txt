@@ -715,6 +715,11 @@ A short reply such as "attached", "as requested", or "όπως ζητήσατε"
 continue a complaint only when the available history clearly establishes that
 the supplied material belongs to the complaint process.
 
+Portal technical problem: an email that only reports that the sender cannot
+log in to or use the Portal, and asks for nothing else, is
+"Τεχνικό πρόβλημα με Portal". With a concrete request as well, return the
+category of that request.
+
 ============================================================
 20. MULTIPLE CATEGORIES AND PRIORITY
 ============================================================

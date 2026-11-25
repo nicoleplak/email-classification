@@ -22,6 +22,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from rules_report import (  # noqa: E402
     ACCOUNT_MODES, ACTION_NAMES, OPEN_QUESTIONS, PRIORITY, QUALCO, REPLIES, REVIEW_REASONS, RULES, condition,
+    request_activities,
 )
 
 INK, INK2, LINE = "#18212B", "#4A5663", "#9AA6B2"
@@ -76,29 +77,36 @@ def two_lines(title: str, sub: str) -> str:
 
 
 def flow_page() -> Page:
-    p = Page("1 Διαδρομή email", 900, 1300)
+    p = Page("1 Διαδρομή email", 900, 1480)
     p.box(40, 10, 820, 40, f"<b style=\"font-size:20px\">Κανόνες αποφάσεων email</b><br>"
-          f"<font color=\"{INK2}\">Η διαδρομή ενός email · πηγή: rules_for_prompt.xlsx (Νοέμβριος 2026)</font>", TEXT)
+          f"<font color=\"{INK2}\">Η διαδρομή ενός email · πηγή: rules_for_prompt-2.xlsx (Νοέμβριος 2026)</font>", TEXT)
     start = p.box(150, 80, 200, 44, "Νέο email", PILL + f"fillColor={INK};strokeColor={INK};")
-    s1 = p.box(100, 160, 300, 60, two_lines("1 · Ταξινόμηση", "κύριο αίτημα + λοιπά (από 80% αυτόματα)"), BOX)
-    s2 = p.box(100, 250, 300, 60, two_lines("2 · Σειρά αιτημάτων", "προτεραιότητα 1 → 3 · παράπονο τελευταίο"), BOX)
-    s3 = p.box(100, 340, 300, 60, two_lines("3 · Κανόνες κατηγορίας", "ό,τι λέει το email → ενέργεια"), BOX)
-    d4 = p.box(80, 440, 340, 100, two_lines("4 · Portal;", "κατηγορία και πελάτης με Portal"), DECIDE)
-    d5 = p.box(80, 580, 340, 100, two_lines("5 · Ταυτοποίηση;", "ΑΦΜ ή λογαριασμός στο μητρώο"), DECIDE)
-    d6 = p.box(80, 720, 340, 100, two_lines("6 · Λογαριασμός;", "βρέθηκε λογαριασμός / SPV"), DECIDE)
-    s7 = p.box(100, 860, 300, 60, two_lines("7 · Κωδικός Qualco", "ανοιχτή: χωρίς _Cust · κλειστή: _Cust"), BOX)
-    s8 = p.box(100, 950, 300, 60, two_lines("8 · Μία απάντηση ανά email", "από τα πρότυπα (δεξιά)"), BOX)
-    d9 = p.box(80, 1050, 340, 100, two_lines("9 · Αυτόματα;", "κανένας λόγος ελέγχου"), DECIDE)
-    auto = p.box(150, 1190, 200, 44, "Αυτόματα", PILL + f"fillColor={OK};strokeColor={OK};")
-    review = p.box(600, 1075, 200, 50, "Προς έλεγχο", PILL + f"fillColor={WARN};strokeColor={WARN};")
-    other = p.box(560, 330, 280, 80, two_lines("Χωρίς πελάτη", "προώθηση · φάκελος Outlook · activity · τράπεζα · προσωπικό"), SIDE)
-    portal = p.box(560, 465, 280, 50, two_lines("Πρότυπο Portal", "αντί για αίτημα Qualco"), TEMPLATE)
-    nmi_afm = p.box(560, 605, 280, 50, two_lines("Need more Info", "ζητάμε ΑΦΜ"), TEMPLATE)
-    nmi_acc = p.box(560, 745, 280, 50, two_lines("Need more Info", "ζητάμε αριθμό λογαριασμού"), TEMPLATE)
-    tpl = p.box(560, 900, 280, 110, "<b>Πρότυπα απάντησης</b><br><font style=\"font-size:12px\">1 Need more Info<br>2 Portal · 3 Eurobank"
+    d0 = p.box(80, 150, 340, 100, two_lines("0 · Εσωτερικός αποστολέας;", "@dovaluegreece.gr, όχι Retail Support"), DECIDE)
+    s1 = p.box(100, 290, 300, 60, two_lines("1 · Ταξινόμηση", "κύριο αίτημα + λοιπά (από 80% αυτόματα)"), BOX)
+    s2 = p.box(100, 380, 300, 60, two_lines("2 · Σειρά αιτημάτων", "προτεραιότητα 1 → 3 · παράπονο τελευταίο"), BOX)
+    s3 = p.box(100, 470, 300, 60, two_lines("3 · Κανόνες κατηγορίας", "ό,τι λέει το email → ενέργεια"), BOX)
+    d4 = p.box(80, 570, 340, 100, two_lines("4 · Portal;", "αίτημα Portal + πελάτης με Portal"), DECIDE)
+    d5 = p.box(80, 710, 340, 100, two_lines("5 · Ταυτοποίηση;", "ΑΦΜ ή λογαριασμός στο μητρώο"), DECIDE)
+    d6 = p.box(80, 850, 340, 100, two_lines("6 · Λογαριασμός;", "βρέθηκε λογαριασμός / SPV"), DECIDE)
+    s7 = p.box(100, 990, 300, 60, two_lines("7 · Κωδικός αιτήματος Qualco", "ανοιχτή: χωρίς _Cust · κλειστή: _Cust"), BOX)
+    s8 = p.box(100, 1080, 300, 60, two_lines("8 · Activity Qualco", "του αιτήματος, ίδιος λογαριασμός (σελ. 6)"),
+               BOX.replace(f"strokeColor={INK2}", f"strokeColor={OK};strokeWidth=2"))
+    s9 = p.box(100, 1170, 300, 60, two_lines("9 · Μία απάντηση ανά email", "από τα πρότυπα (δεξιά)"), BOX)
+    d10 = p.box(80, 1260, 340, 100, two_lines("10 · Αυτόματα;", "κανένας λόγος ελέγχου"), DECIDE)
+    auto = p.box(150, 1400, 200, 44, "Αυτόματα", PILL + f"fillColor={OK};strokeColor={OK};")
+    review = p.box(600, 1285, 200, 50, "Προς έλεγχο", PILL + f"fillColor={WARN};strokeColor={WARN};")
+    internal = p.box(560, 165, 280, 70, two_lines("Κατηγορία 38 · αυτόματα", "χωρίς μοντέλο · φάκελος doValueGreece-noreply"),
+                     SIDE.replace(f"strokeColor={INK2}", f"strokeColor={OK}"))
+    other = p.box(560, 460, 280, 80, two_lines("Χωρίς πελάτη", "προώθηση · φάκελος Outlook · τράπεζα · προσωπικό"), SIDE)
+    portal = p.box(560, 595, 280, 50, two_lines("Πρότυπο Portal", "αντί για το αίτημα (π.χ. 113, 89, 119)"), TEMPLATE)
+    nmi_afm = p.box(560, 735, 280, 50, two_lines("Need more Info", "ζητάμε ΑΦΜ"), TEMPLATE)
+    nmi_acc = p.box(560, 875, 280, 50, two_lines("Need more Info", "ζητάμε αριθμό λογαριασμού"), TEMPLATE)
+    tpl = p.box(560, 1110, 280, 110, "<b>Πρότυπα απάντησης</b><br><font style=\"font-size:12px\">1 Need more Info<br>2 Portal · 3 Eurobank"
                 "<br>4 Received / In Progress της κατηγορίας</font>", TEMPLATE)
-    for a, b in ((start, s1), (s1, s2), (s2, s3), (s7, s8), (s8, d9)):
+    for a, b in ((start, d0), (s1, s2), (s2, s3), (s7, s8), (s8, s9), (s9, d10)):
         p.edge(a, b)
+    p.edge(d0, internal, "ναι")
+    p.edge(d0, s1, "όχι (Retail Support: σήμανση)")
     p.edge(s3, d4, "αίτημα Qualco")
     p.edge(s3, other, "άλλη ενέργεια")
     p.edge(d4, portal, "ναι")
@@ -107,13 +115,14 @@ def flow_page() -> Page:
     p.edge(d5, d6, "ναι")
     p.edge(d6, nmi_acc, "όχι")
     p.edge(d6, s7, "ναι")
-    p.edge(d9, auto, "ναι")
-    p.edge(d9, review, "όχι")
+    p.edge(d10, auto, "ναι")
+    p.edge(d10, review, "όχι")
     for side in (other, portal, nmi_afm, nmi_acc):
         p.edge(side, tpl, "", FEED, "exitX=1;exitY=0.5;entryX=1;entryY=0.5;")
-    p.edge(tpl, s8, "μία απάντηση", FEED)
-    p.box(40, 1250, 820, 50, f"<font color=\"{INK2}\">Τα βήματα 4–7 ισχύουν για κάθε αίτημα Qualco του email, με τη σειρά του βήματος 2. "
-          "Το Portal παρακάμπτεται όταν ο πελάτης αναφέρει τεχνικό πρόβλημα ή όταν το ίδιο email έχει αίτημα που δεν γίνεται στο Portal.</font>", TEXT)
+    p.edge(tpl, s9, "μία απάντηση", FEED)
+    p.box(470, 1360, 390, 100, f"<font color=\"{INK2}\">Τα βήματα 4–8 ισχύουν για κάθε αίτημα Qualco, με τη σειρά του βήματος 2. "
+          "Κωδικοί, _Cust και activities ανά αίτημα: σελίδα 6. Το Portal παρακάμπτεται με τεχνικό πρόβλημα ή όταν το "
+          "ίδιο email έχει αίτημα που δεν γίνεται στο Portal.</font>", TEXT)
     return p
 
 
@@ -165,6 +174,8 @@ def _action_text(rule: dict) -> str:
             text = f"{name} {code(rule['codes'][0])}"
         else:
             text = f"{name} {code(rule['open'])} <font color=\"{INK2}\">(κλειστή: {code(rule.get('closed'))})</font>"
+        acts = request_activities((rule.get("codes") or [rule.get("open")])[0])
+        text += f" <font color=\"{OK}\">· activity {' + '.join(acts)}</font>" if acts else f" <font color=\"{INK2}\">· χωρίς activity</font>"
         return text + (" <i>(και με Portal)</i>" if rule.get("bypass_online") else "")
     if do == "forward":
         return f"{name} {escape(', '.join(rule.get('to') or ['—']))}"
@@ -197,7 +208,8 @@ def categories_page() -> Page:
         reply = REPLIES["templates"][spec["reply"]]["label"] if spec.get("reply") else "—"
         mode = ACCOUNT_MODES[spec["accounts"]][0] if spec.get("accounts") else "—"
         p_ = PRIORITY.get(category)
-        meta = (f"Προτ. {'' if p_ is None else int(p_)} · Απάντηση: {escape(reply)} · Portal: {'Ναι' if spec.get('portal') else '—'}"
+        portal_label = ("μόνο " + ", ".join(spec["portal_codes"])) if spec.get("portal_codes") else ("Ναι" if spec.get("portal") else "—")
+        meta = (f"Προτ. {'' if p_ is None else int(p_)} · Απάντηση: {escape(reply)} · Portal: {portal_label}"
                 f" · Λογαριασμός: {escape(mode)}")
         rules = "<br>".join(f"• <font color=\"{INK2}\">{escape(condition(r))}</font> → {_action_text(r)}" for r in spec["rules"])
         label = f"<b style=\"font-size:14px\">{escape(category)}</b><br><font color=\"{INK2}\">{meta}</font><br><br>{rules}"
@@ -237,8 +249,41 @@ def questions_page() -> Page:
     return p
 
 
+def codes_page() -> Page:
+    from rules_report import code_table
+
+    rows = code_table()
+    widths = [330, 330, 150, 120, 470]
+    heads = ["Αίτημα (ανοιχτή υπόθεση)", "Κλειστή υπόθεση (_Cust)", "Activity", "Portal", "Κατηγορίες"]
+    p = Page("6 Κωδικοί Qualco", 40 * 2 + sum(widths), 150 + 44 * (len(rows) + 1))
+    p.box(40, 10, 1300, 50, "<b style=\"font-size:20px\">Κωδικοί αιτημάτων Qualco</b><br>"
+          f"<font color=\"{INK2}\">Κάθε αίτημα που ανοίγουν οι κανόνες: ανοιχτή υπόθεση, _Cust για κλειστή, η δραστηριότητα "
+          "που καταγράφεται μαζί του (φύλλο Activities), αν το Portal το αντικαθιστά, και οι κατηγορίες του.</font>", TEXT)
+    head_style = (f"rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=middle;spacingLeft=8;fillColor={ACCENT};"
+                  f"strokeColor={ACCENT};fontFamily=Helvetica;fontColor=#FFFFFF;fontStyle=1;fontSize=12;")
+    x = 40
+    for head, w in zip(heads, widths):
+        p.box(x, 80, w, 40, escape(head), head_style)
+        x += w
+    for n, r in enumerate(rows):
+        fill = "#FFFFFF" if n % 2 else "#F4F7FA"
+        style = (f"rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=middle;spacingLeft=8;fillColor={fill};"
+                 f"strokeColor={LINE};{FONT}fontSize=12;")
+        acts = " + ".join(r["activities"]) or "—"
+        if r["closedActivities"] and r["closedActivities"] != r["activities"]:
+            acts += f" (κλειστή: {' + '.join(r['closedActivities'])})"
+        portal = "Ναι" if r["portal"] else ("μόνο κλειστή" if r.get("portalClosed") else "—")
+        closed = f"<b>{escape(r['closed'])}</b> {escape(QUALCO['requests'].get(r['closed'], ''))}" if r["closed"] else "—"
+        cells = [f"<b>{escape(r['code'])}</b> {escape(r['name'])}", closed, escape(acts), portal, escape(", ".join(r["categories"]))]
+        x = 40
+        for cell, w in zip(cells, widths):
+            p.box(x, 120 + 44 * n, w, 44, cell, style)
+            x += w
+    return p
+
+
 def render() -> str:
-    pages = [flow_page(), criteria_page(), categories_page(), templates_page(), questions_page()]
+    pages = [flow_page(), criteria_page(), categories_page(), templates_page(), questions_page(), codes_page()]
     return ('<mxfile host="app.diagrams.net" agent="tools/rules_drawio.py" version="24.7.17">'
             + "".join(p.xml() for p in pages) + "</mxfile>\n")
 
@@ -249,4 +294,4 @@ if __name__ == "__main__":
         current = OUT.read_text(encoding="utf-8") if OUT.exists() else ""
         sys.exit(0 if current == xml else "docs/decision_rules.drawio is out of date: run python tools/rules_drawio.py")
     OUT.write_text(xml, encoding="utf-8")
-    print(f"Wrote {OUT.relative_to(ROOT)} ({len(xml) // 1024} KB, 5 pages)")
+    print(f"Wrote {OUT.relative_to(ROOT)} ({len(xml) // 1024} KB, {xml.count("<diagram ")} pages)")

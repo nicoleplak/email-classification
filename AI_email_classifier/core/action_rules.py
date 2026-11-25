@@ -20,6 +20,9 @@ about the customer (customer). This module only combines them, in this order (bu
               or every SPV when the email concerns all debts; otherwise "Need more Info".
 6. Code: the open-case request (without _cust); the closed-case _cust request only for an account the
    registry marks closed (that column is not delivered yet, see core.customer_lookup.account_state).
+   Each request is followed by its Qualco activity on the same account (``with_activities``, sheet
+   'Activities'). A category whose Portal column names requests ('YES for Request 113') sends only those
+   to the Portal (``portal_eligible``).
 7. Reply: one template per email (inputs/reply_templates.json): Need more Info, Portal, ERB branch, or
    the category's Received / In Progress template once something was done.
 
@@ -74,14 +77,12 @@ FLAGS = {
     "release_partial": "Asks for a PARTIAL release of a pre-notation (μερική άρση)",
     "auction_imminent": "An auction is imminent: today, tomorrow or within a week",
     "asks_negotiation": "Asks doValue to contact them to negotiate",
-    "authorization_attached": "Sends an authorization/power of attorney together with the request",
     "auction_cancel_4738": "Asks to cancel an auction because of law 4738",
     "health_data": "The request relies on health data",
     "health_doc_attached": "A signed solemn declaration (Υ/Δ) accompanies the health data",
     "reversal_form_attached": "The completed reversal form is attached",
     "call_preservation": "Asks to PRESERVE recorded calls older than a year (not to receive copies)",
     "all_debts": "The request concerns ALL of the customer's loans or debts (όλες τις οφειλές / όλα τα δάνεια), not one account",
-    "heir_certificates_attached": "Sends a certificate of closest relatives (πιστοποιητικό εγγυτέρων συγγενών) or a death certificate (ληξιαρχική πράξη θανάτου)",
     "distress_or_threat": "Mentions self-harm or suicide (αυτοχειρία, αυτοκτονία), or threatens legal action against doValue (μήνυση)",
 }
 
@@ -113,15 +114,12 @@ REASONS = {
     "erb=false": "Η υπόθεση δεν ανήκει στην ERB.",
     "call_preservation=true": "Ζητά να διατηρηθούν κλήσεις παλαιότερες του ενός έτους.",
     "asks_negotiation=true": "Ζητά να επικοινωνήσουμε μαζί του για διαπραγμάτευση.",
-    "authorization_attached=true": "Στέλνει μαζί και εξουσιοδότηση.",
     "auction_imminent=true": "Ο πλειστηριασμός είναι επικείμενος, μέσα στην εβδομάδα.",
     "auction_cancel_4738=true": "Ζητά ακύρωση πλειστηριασμού λόγω Ν.4738.",
     "health_data=true": "Το αίτημα στηρίζεται σε δεδομένα υγείας.",
     "health_data=false": "Το αίτημα δεν στηρίζεται σε δεδομένα υγείας.",
     "health_doc_attached=true": "Συνοδεύεται από υπογεγραμμένη υπεύθυνη δήλωση.",
     "health_doc_attached=false": "Δεν συνοδεύεται από υπογεγραμμένη υπεύθυνη δήλωση, οπότε ζητούμε να τη στείλει.",
-    "heir_certificates_attached=true": "Στέλνει πιστοποιητικό εγγυτέρων συγγενών ή ληξιαρχική πράξη θανάτου (activity 5005).",
-    "heir_certificates_attached=false": "Στέλνει άλλα έγγραφα κληρονόμων (activity 5007).",
     "else": "Δεν ισχύει καμία από τις ειδικές περιπτώσεις της κατηγορίας, οπότε εφαρμόζεται ο γενικός κανόνας.",
     "category_rule": "Για αυτή την κατηγορία η προδιαγραφή ορίζει πάντα αυτή την ενέργεια.",
     "has_portal": "Ο πελάτης έχει πρόσβαση στο Portal και αυτό το αίτημα γίνεται εκεί, οπότε του απαντάμε να το κάνει από το Portal.",
@@ -147,6 +145,7 @@ REASONS = {
     "account_closed": "Ο λογαριασμός είναι κλειστή υπόθεση στο Qualco, οπότε χρησιμοποιείται ο κωδικός _Cust.",
     "account_state_unknown": "Δεν υπάρχει ακόμη η ένδειξη ανοιχτής/κλειστής υπόθεσης, οπότε χρησιμοποιείται ο κωδικός ανοιχτής υπόθεσης (χωρίς _Cust).",
     "category_reply": "Η κατηγορία ορίζει αυτό το πρότυπο απάντησης.",
+    "request_activity": "Κάθε αίτημα Qualco καταγράφεται και με τη δραστηριότητά του (φύλλο Activities).",
 }
 
 
@@ -269,6 +268,34 @@ def _code_for(rule: dict, account: dict | None) -> tuple[str, list[str]]:
     return rule["open"], ["account_open" if account["state"] == "open" else "account_state_unknown"]
 
 
+def portal_eligible(category: str, rule: dict, code: str | None) -> bool:
+    """The Portal can replace this request: the category is a Portal one and, when the sheet names
+    requests ('YES for Request 113'), the request's code is one of them."""
+    spec = RULES.get(category, {})
+    if not spec.get("portal"):
+        return False
+    return not spec.get("portal_codes") or code in spec["portal_codes"]
+
+
+def request_activities(code: str | None) -> list[str]:
+    """The Qualco activities a request is logged with (sheet 'Activities')."""
+    return list(QUALCO.get("request_activities", {}).get(str(code), [])) if code else []
+
+
+def with_activities(actions: list[dict]) -> list[dict]:
+    """After each Qualco request, its activities on the same account (the request's caveat, if any, too)."""
+    out = []
+    for action in actions:
+        out.append(action)
+        if action["do"] != "request":
+            continue
+        for activity in request_activities(action.get("code")):
+            out.append({key: action[key] for key in ("category", "account", "spv", "accountState", "caveat") if action.get(key)}
+                       | {"do": "activity", "code": activity, "codes": [activity], "forRequest": action["code"],
+                          "because": ["request_activity"]})
+    return out
+
+
 def decide(
     categories: list[str],
     flags: dict,
@@ -287,8 +314,10 @@ def decide(
     fired = [(category, rule) for category in dict.fromkeys(categories) for rule in _fired(category, facts)]
     cannot_use_online = bool(flags.get("cannot_use_online"))
     # Spec: one request that cannot be done online means no referral for any of them.
+    # A request counts as one the Portal can take when any of its codes can (Κίνηση: only its _Cust 119).
     other_request_offline = any(
-        rule["do"] == "request" and not RULES.get(category, {}).get("portal") and not rule.get("bypass_online")
+        rule["do"] == "request" and not rule.get("bypass_online")
+        and not any(portal_eligible(category, rule, c) for c in (rule.get("codes") or [rule.get("open"), rule.get("closed")]))
         for category, rule in fired
     )
     actions: list[dict] = []
@@ -297,7 +326,10 @@ def decide(
         spec = RULES.get(category, {})
         action: dict[str, Any] = {"category": category, "do": rule["do"], "because": _rule_reasons(rule)}
         because = action["because"]
-        if spec.get("portal") and (rule["do"] == "request" or rule.get("online_gated")) and not rule.get("bypass_online"):
+        default_code = _code_for(rule, None)[0] if rule["do"] == "request" else None
+        if ((rule["do"] == "request" and portal_eligible(category, rule, default_code))
+                or (rule.get("online_gated") and spec.get("portal") and not spec.get("portal_codes"))) \
+                and not rule.get("bypass_online"):
             if cannot_use_online:
                 because.append("cannot_use_online")
             elif other_request_offline:
@@ -353,10 +385,17 @@ def decide(
             continue
         for account in targets:
             code, code_why = _code_for(rule, account)
+            if (code != default_code and portal_eligible(category, rule, code) and not rule.get("bypass_online")
+                    and not cannot_use_online and not other_request_offline and customer.get("portal")):
+                actions.append({"category": category, "do": "portal_referral", "because": [*because, *code_why, "has_portal"],
+                                "account": account["account"], "spv": account["spv"]})
+                continue
             actions.append({
                 **action, "because": [*because, *why, *code_why], "code": code, "codes": [code],
                 "account": account["account"], "spv": account["spv"], "accountState": account["state"],
             })
+
+    actions = with_activities(actions)
 
     # One reply per email.
     asks = [a for a in actions if a["do"] == "ask_identification"]

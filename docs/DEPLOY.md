@@ -96,17 +96,25 @@ regenerated with `python tools/rules_report.py` after any change, together with 
 Identification is by tax ID or account number only; a name or email match is shown to the reviewer but
 never makes a case automatic.
 
-## Sender flags
+## Senders: internal emails and Retail Support
 
-`AI_email_classifier/inputs/sender_flags.json`: senders at `internal_domains` (`dovaluegreece.gr`) show as
-**Εσωτερικό**; the addresses in `retail_support` show as **Προώθηση Retail Support** instead. The review app
-works this out whenever it shows an email, so a changed list applies to every email at once; deploy the image
-for the change to reach Azure.
+- **Internal** (`internal_domains` in `AI_email_classifier/inputs/sender_flags.json`, `dovaluegreece.gr`): the
+  classifier gives category 38 (`internal_category`) by the sender's address, with no model call, no
+  attachment reading and no customer lookup, and handles it automatically (Outlook folder
+  doValueGreece-noreply). A run with only internal emails does not even load the registry.
+- **Retail Support** (`AI_email_classifier/inputs/retail_support_emails.txt`, one address per line): classified
+  as usual and flagged **Προώθηση Retail Support**; the review app's «Αποστολέας» filter finds them.
+- Changes to either file apply to the next email classified or shown; deploy the image for Azure.
 
-The mailbox ingest no longer drops doValue's own senders (`EXCLUDE_DOMAINS` default is now `eurobank`). In a
-conversation that also has a customer's email in the same run, the customer's email still opens the case
-(`INTERNAL_DOMAINS`, default `dovaluegreece`). The ingest now also saves CC addresses (`ccRecipients`); emails
-fetched before this change have none.
+The mailbox ingest keeps doValue's own senders (`EXCLUDE_DOMAINS` default `eurobank`). In a conversation that
+also has a customer's email in the same run, the customer's email opens the case (`INTERNAL_DOMAINS`, default
+`dovaluegreece`). It also saves CC addresses (`ccRecipients`); emails fetched before have none.
+
+## Qualco activities
+
+Every Qualco request is followed by its activity on the same account (sheet "Activities" of
+rules_for_prompt-2.xlsx, `request_activities` in `inputs/qualco_requests.json`). The code table, with open and
+`_Cust` codes, activities and Portal, is in `docs/decision_rules.html` and page 6 of `docs/decision_rules.drawio`.
 
 ## Metrics view
 

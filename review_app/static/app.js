@@ -79,6 +79,7 @@ const T = {
     cv_account_not_identified: "Ο λογαριασμός δεν ταυτοποιήθηκε από το email· επιλέξτε λογαριασμό ή στείλτε «Χρειάζονται στοιχεία».",
     autoExtras: "Οι κατηγορίες με βεβαιότητα 80% ή περισσότερο προστέθηκαν αυτόματα, μαζί με τις ενέργειές τους.",
     autoExtraTip: "Προστέθηκε αυτόματα (βεβαιότητα 80%+)",
+    forRequest: "Δραστηριότητα του αιτήματος {c}", bySenderRule: "Εσωτερικός αποστολέας (@dovaluegreece.gr): η κατηγορία ορίστηκε από τη διεύθυνση, χωρίς κλήση στο μοντέλο.",
     senderLabel: "Αποστολέας", senderAll: "Όλοι", senderExternal: "Εξωτερικοί", senderInternal: "Εσωτερικό",
     senderRetail: "Προώθηση Retail Support", senderInternalTip: "Αποστολέας από τη doValue (@dovaluegreece.gr)",
     senderRetailTip: "Προώθηση από το Retail Support (λίστα στο inputs/sender_flags.json)",
@@ -196,6 +197,7 @@ const T = {
     cv_account_not_identified: "The email does not identify the account; pick one or send “Need more Info”.",
     autoExtras: "Categories with 80% certainty or more were added automatically, with their actions.",
     autoExtraTip: "Added automatically (80%+ certainty)",
+    forRequest: "Activity of request {c}", bySenderRule: "Internal sender (@dovaluegreece.gr): category set by the address, without calling the model.",
     senderLabel: "Sender", senderAll: "All", senderExternal: "External", senderInternal: "Internal",
     senderRetail: "Forwarded by Retail Support", senderInternalTip: "Sent from doValue (@dovaluegreece.gr)",
     senderRetailTip: "Forwarded by Retail Support (list in inputs/sender_flags.json)",
@@ -256,7 +258,7 @@ const ACTION = {
   el: { request: "Καταχώρηση αιτήματος στο Qualco", portal_referral: "Παραπομπή στο Portal",
         ask_identification: "Ζητάμε στοιχεία ταυτοποίησης", manual: "Χειρισμός από το προσωπικό",
         forward: "Προώθηση", reply: "Απάντηση με πρότυπο", bank_referral: "Παραπομπή στην τράπεζα",
-        activity: "Καταγραφή δραστηριότητας (activity)", no_action: "Καμία ενέργεια", outlook_folder: "Μεταφορά σε φάκελο Outlook" },
+        activity: "Δραστηριότητα Qualco (activity)", no_action: "Καμία ενέργεια", outlook_folder: "Μεταφορά σε φάκελο Outlook" },
   en: { request: "File a Qualco request", portal_referral: "Refer to the Portal", ask_identification: "Ask for identification",
         manual: "Handled by staff", forward: "Forward", reply: "Reply with template", bank_referral: "Refer to the bank",
         activity: "Log a Qualco activity", no_action: "No action", outlook_folder: "Move to an Outlook folder" },
@@ -693,6 +695,7 @@ function snippet(text, value) {
 
 function decisionCard(c) {
   const parts = [];
+  if (c.classifiedBy === "sender_rule") parts.push(h("div", { class: "notice info", text: t("bySenderRule") }));
   if (c.modelCategory) {
     parts.push(h("div", { class: "suggest" }, h("span", { class: "muted", text: t("suggestion") }),
       h("span", { class: "big", text: c.modelCategory }), h("span", { class: "muted", text: certaintyWord(c.confidence) })));
@@ -854,8 +857,19 @@ function extraCategories(c, u, suggested) {
       categoryPicker({ id: "rv-extra", value: "", suggested: ideas, onPick: (x) => { if (x) add(x); } })) : "");
 }
 
+// A request's Qualco activities travel with it: added, replaced or moved to another account together.
+const activitiesOf = (req) => S.acts.filter((x) => x.do === "activity" && x.forRequest === req.code && (x.account || null) === (req.account || null));
+function activityChoices(req, codes) {
+  return (codes || []).map((code) => asChoice({ do: "activity", code, codes: [code], forRequest: req.code, category: req.category,
+    account: req.account, spv: req.spv, accountState: req.accountState }, "added"));
+}
+
 // Where a request goes: the account (pickable while reviewing), its portfolio (SPV) and open/closed state.
 function accountLine(a, u, editable) {
+  if (a.do === "activity" && a.account) {
+    return h("div", { class: "account-line small" }, h("span", { class: "muted", text: `${t("accountLabel")}: ` }),
+      `${a.account}${a.spv ? " · " + a.spv : ""}`);
+  }
   if (a.do !== "request") return "";
   const accounts = (u.customerFacts || {}).accounts || [];
   const state = (x) => t({ open: "stOpen", closed: "stClosed" }[x] || "stUnknown");
@@ -866,6 +880,7 @@ function accountLine(a, u, editable) {
       if (!x) return;
       // A closed case takes the _cust request, when the rule has one.
       const code = x.state === "closed" && a.closedCode ? a.closedCode : a.openCode || a.code;
+      activitiesOf(a).forEach((act) => Object.assign(act, { account: x.account, spv: x.spv, accountState: x.state, forRequest: code }));
       Object.assign(a, { account: x.account, spv: x.spv, accountState: x.state, code, codes: [code],
         codeName: (S.codeNames || {})[code] || a.codeName, caveat: a.caveat === "account_not_identified" ? null : a.caveat });
       renderCase();
@@ -896,6 +911,7 @@ function actionRow(a, u, editable) {
     a.category ? h("div", { class: "muted small", text: catLabel(a.category) }) : "",
     codes.length ? h("div", { class: "codes" }, ...codes.map((x) => h("code", { text: String(x) })),
       a.codeName ? h("span", { class: "small", text: ` ${a.codeName}` }) : "") : "",
+    a.forRequest ? h("div", { class: "muted small", text: t("forRequest", { c: a.forRequest }) }) : "",
     accountLine(a, u, editable),
     a.folder ? h("div", { class: "small" }, h("span", { class: "muted", text: `${t("folderLabel")}: ` }), a.folder) : "",
     a.caveat ? h("div", { class: "caveat", text: t(`cv_${a.caveat}`) }) : "",
@@ -911,13 +927,16 @@ function actionRow(a, u, editable) {
       h("button", { class: "link change", type: "button", "aria-expanded": String(changing), text: changing ? t("cancel") : t("change"),
         onclick: () => { S.changing = changing ? null : a; renderCase(); } }),
       a.source === "added" ? h("button", { class: "link remove", type: "button", text: t("remove"),
-        onclick: () => { S.acts = S.acts.filter((x) => x !== a); S.changing = null; renderCase(); } }) : ""),
+        onclick: () => { const gone = a.do === "request" ? activitiesOf(a) : []; S.acts = S.acts.filter((x) => x !== a && !gone.includes(x)); S.changing = null; renderCase(); } }) : ""),
     h("label", { class: "action-check" },
       h("input", { type: "checkbox", checked: a.on !== false, onchange: (e) => { a.on = e.target.checked; renderCase(); } }), head),
     changing ? h("div", { class: "change-to" }, h("div", { class: "small muted", text: t("changeTo") }),
       actionPicker(a.category || finalCategoryNow(S.detail.case) || S.detail.case.modelCategory, (o, cat) => {
         // A replaced proposal counts as removed + added (Metrics), so the new one is the reviewer's own.
-        S.acts[S.acts.indexOf(a)] = asChoice({ ...o, category: cat }, "added");
+        const old = activitiesOf(a);
+        const next = asChoice({ ...o, category: cat }, "added");
+        S.acts = S.acts.filter((x) => !old.includes(x));
+        S.acts.splice(S.acts.indexOf(a), 1, next, ...(next.do === "request" ? activityChoices(next, o.activities) : []));
         S.changing = null;
         renderCase();
       }, true)) : "",
@@ -953,7 +972,12 @@ function actionAdder(category) {
   return h("details", { class: "more extra adder", open: S.addOpen ? true : null,
     ontoggle: (e) => { S.addOpen = e.target.open; } },
   h("summary", { text: t("addAction") }),
-  actionPicker(category, (o, cat) => { S.acts.push(asChoice({ ...o, category: cat }, "added")); S.addOpen = true; renderCase(); }));
+  actionPicker(category, (o, cat) => {
+    const next = asChoice({ ...o, category: cat }, "added");
+    S.acts.push(next, ...(next.do === "request" ? activityChoices(next, o.activities) : []));
+    S.addOpen = true;
+    renderCase();
+  }));
 }
 
 function actionsCard(u, c) {
@@ -980,8 +1004,8 @@ function saveTop(c) {
   const chosen = S.acts.filter((a) => a.on !== false);
   const save = h("button", { class: "primary", type: "button", text: t("save"), onclick: async () => {
     const body = { _etag: c._etag, comment: S.comment ?? c.reviewComment ?? "", otherCategories: S.pickExtras || [],
-      finalActions: chosen.map(({ do: d, category, codes, code, open, closed, to, account, spv, accountState, folder, template, source }) =>
-        ({ do: d, category, codes, code, open, closed, to, account, spv, accountState, folder, template, source })) };
+      finalActions: chosen.map(({ do: d, category, codes, code, open, closed, to, account, spv, accountState, folder, template, forRequest, source }) =>
+        ({ do: d, category, codes, code, open, closed, to, account, spv, accountState, folder, template, forRequest, source })) };
     body.finalCategory = finalCategoryNow(c);
     // "No Match Found" is a category for manual handling: nothing else has to be picked.
     if (body.finalCategory === NO_MATCH) body.noMatch = true;

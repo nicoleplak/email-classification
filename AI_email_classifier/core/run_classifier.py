@@ -31,7 +31,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
 
-from core.action_rules import extra_categories
+from core import senders
+from core.action_rules import decide, extra_categories
 from core.processor import EmailProcessor
 from data.case_store import Conflict
 
@@ -299,9 +300,12 @@ def _classify_cases(store, blob, processor_factory, now_fn, threshold, understan
             messages, _ = unwrap_run(json.loads(blob.download(run_file)))
             runs[run_file] = {email_id(m): m for m in messages}
 
-    processor = processor_factory()  # Loads the registry and LLM clients only when there is work.
     found = [runs[c["sourceRefs"]["runFile"]].get(c["id"]) for c in waiting]
-    understand_fn = understand_factory(processor, [m for m in found if m]) if understand_factory else None
+    # Internal senders get their category by address; the registry and the model clients load only when
+    # some other email is waiting.
+    needs_model = [m for c, m in zip(waiting, found) if m and senders.sender_type(c.get("from")) != senders.INTERNAL]
+    processor = processor_factory() if needs_model else None
+    understand_fn = understand_factory(processor, needs_model) if understand_factory and processor else None
     clf_run = now_fn().replace("-", "").replace(":", "")
     for n, (case, message) in enumerate(zip(waiting, found)):
         if out_of_time():
@@ -316,7 +320,10 @@ def _classify_cases(store, blob, processor_factory, now_fn, threshold, understan
         progress["current"] = case["id"]
         set_status(store, now_fn(), **progress, phase="classifying")
         try:
-            _classify_one(store, blob, processor, understand_fn, threshold, now_fn, clf_run, case, message, totals)
+            if senders.sender_type(case.get("from")) == senders.INTERNAL:
+                _classify_internal(store, blob, now_fn, clf_run, case, totals)
+            else:
+                _classify_one(store, blob, processor, understand_fn, threshold, now_fn, clf_run, case, message, totals)
         except BaseException:
             try:  # Back to the queue for the next run, unless a person saved it meanwhile.
                 store.replace("cases", {**case, "status": "RECEIVED"})
@@ -324,6 +331,37 @@ def _classify_cases(store, blob, processor_factory, now_fn, threshold, understan
                 pass
             raise
         progress["done"] += 1
+
+
+def _classify_internal(store, blob, now_fn, clf_run, case: dict, totals: dict[str, int]) -> None:
+    """A doValue sender (not on the retail support list): the internal category by address, its actions from
+    the rule table, handled automatically. No model call, no attachment reading, no customer lookup."""
+    category = senders.internal_category()
+    actions = decide([category], {}, {})
+    reason = "sender at an internal domain: category by address, no model call"
+    records = [{"category": category, "confidence": 1.0, "status": "internal_sender", "reasoning": reason}]
+    understanding = {"principalCategory": category, "otherRequests": [], "customers": [], "actions": actions,
+                     "flags": [], "evidence": [], "analysis": reason, "senderRule": True}
+    silver = f"silver/{case['sourceRefs']['ingestRun']}/{case['id']}/"
+    blob.upload_bytes(f"{silver}classification_{clf_run}.json", json.dumps(
+        {"caseId": case["id"], "classifierRun": clf_run, "route": "AUTO", "routeReasons": [], "error": None,
+         "records": records, "understanding": understanding}, ensure_ascii=False, indent=1).encode("utf-8"))
+    now = now_fn()
+    updated = {**case, "status": "CLASSIFIED", "route": "AUTO", "routeReasons": [], "modelCategory": category,
+               "confidence": 1.0, "votes": {}, "finalCategory": category, "autoCategories": [], "otherCategories": [],
+               "classifiedAt": now, "classifierRun": clf_run, "classifiedBy": "sender_rule", "error": None,
+               "sourceRefs": {**case["sourceRefs"], "silver": silver}, "payload": {"records": records},
+               "understanding": understanding, "updatedAt": now}
+    try:
+        store.replace("cases", updated)
+    except Conflict:
+        totals["skipped_held"] += 1
+        return
+    audit(store, case["id"], "classified", now, run=clf_run,
+          after={"route": "AUTO", "category": category, "confidence": 1.0, "by": "sender_rule"})
+    totals["classified"] += 1
+    totals["auto"] += 1
+    totals["internal"] = totals.get("internal", 0) + 1
 
 
 def _classify_one(store, blob, processor, understand_fn, threshold, now_fn, clf_run,

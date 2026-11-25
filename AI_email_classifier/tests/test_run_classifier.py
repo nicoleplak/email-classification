@@ -320,3 +320,40 @@ def test_unsure_second_category_is_only_suggested(store):
     rc.classify_waiting(store, blob, lambda: FakeProcessor({"Αίτημα βεβαίωσης": [unsure]}), lambda: T0, 0.95)
     case = store.get("cases", rc.email_id(msg(1)))
     assert (case["autoCategories"], case["otherCategories"]) == ([], [])
+
+
+def _from(n, address):
+    m = msg(n)
+    m["from"] = {"emailAddress": {"address": address}}
+    return m
+
+
+def test_internal_senders_get_category_38_without_the_model(store, monkeypatch, tmp_path):
+    from core import senders
+
+    retail = tmp_path / "retail.txt"
+    retail.write_text("# notes\nRetail.Fwd@dovaluegreece.gr\n")
+    monkeypatch.setattr(senders, "_retail_file", lambda: retail)
+    blob = FakeBlob()
+    blob.put_run("r1", [_from(1, "colleague@dovaluegreece.gr"), _from(2, "retail.fwd@dovaluegreece.gr"),
+                        _from(3, "client@example.test")])
+    rc.register_runs(store, blob, T0)
+    processor = FakeProcessor()
+    totals = rc.classify_waiting(store, blob, lambda: processor, lambda: T0, 0.95)
+    internal = store.get("cases", rc.email_id(msg(1)))
+    assert (internal["modelCategory"], internal["route"], internal["classifiedBy"]) == (
+        senders.internal_category(), "AUTO", "sender_rule")
+    assert [a["do"] for a in internal["understanding"]["actions"]] == ["outlook_folder"]
+    assert sorted(processor.calls) == ["graph-2", "graph-3"]  # retail support and the customer: the model reads them
+    assert totals["internal"] == 1 and totals["classified"] == 3
+
+
+def test_a_run_with_only_internal_emails_loads_no_model(store):
+    blob = FakeBlob()
+    blob.put_run("r1", [_from(1, "colleague@dovaluegreece.gr")])
+    rc.register_runs(store, blob, T0)
+
+    def no_processor():
+        raise AssertionError("the registry and model clients must not load for internal emails")
+
+    assert rc.classify_waiting(store, blob, no_processor, lambda: T0, 0.95)["internal"] == 1

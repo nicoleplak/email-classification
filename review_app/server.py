@@ -469,9 +469,11 @@ def _option(rule: dict) -> dict:
 
     if rule["do"] != "request":
         return {k: rule[k] for k in ("do", "codes", "to", "folder", "template") if rule.get(k)}
+    from core.action_rules import request_activities
+
     code = (rule.get("codes") or [rule.get("open")])[0]
     return {"do": "request", "code": code, "codes": [code], "openCode": code, "closedCode": rule.get("closed"),
-            "codeName": code_name(code)}
+            "codeName": code_name(code), "activities": request_activities(code)}
 
 
 def action_catalog() -> dict:
@@ -527,6 +529,7 @@ def clean_actions(raw) -> tuple[list[dict], str | None]:
             "spv": text(item["spv"]) if item.get("spv") else None,
             "accountState": item.get("accountState") if item.get("accountState") in ("open", "closed", "unknown") else None,
             "folder": text(item["folder"]) if item.get("folder") else None,
+            "forRequest": text(item["forRequest"]) if item.get("forRequest") else None,
             "template": item.get("template") if item.get("template") in REPLIES["templates"] else None,
             "source": "suggested" if item.get("source") == "suggested" else "added",
         })
@@ -613,6 +616,8 @@ def action_line(action: dict) -> str:
     code = action.get("code") or next(iter(action.get("codes") or []), None)
     if action.get("do") in ("request", "activity") and code:
         text += f" {code} {code_name(code)}".rstrip()
+    if action.get("forRequest"):
+        text += f" για αίτημα {action['forRequest']}"
     if action.get("account"):
         text += f" (λογ. {action['account']}{', ' + action['spv'] if action.get('spv') else ''})"
     if action.get("to"):
