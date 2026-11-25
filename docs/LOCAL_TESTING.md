@@ -96,7 +96,7 @@ specific run, `--runs 3`, `--limit 0` for every email, `--requests` for the past
 Without `--registry`, set `$env:REGISTRY_CSV` to a registry file you already have.
 
 **c. Settings file**: copy `.env.example` to `.env` in the repository root (next to `README.md`), fill in
-section 1 (model keys) and the two full folder paths in section 2. `.env` is git-ignored: never commit it or
+section 1 (model keys); section 2 already points to `C:\emclf-data` (outside OneDrive, keep it there). `.env` is git-ignored: never commit it or
 send it. Every script below reads it, so steps d and e need no PowerShell settings.
 
 ```powershell

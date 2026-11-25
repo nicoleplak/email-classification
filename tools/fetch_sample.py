@@ -147,7 +147,12 @@ def main() -> int:
     parser.add_argument("--registry", action="store_true", help="also the newest customer registry CSV")
     parser.add_argument("--requests", action="store_true", help="also the newest request_output CSV (~570 MB)")
     args = parser.parse_args()
-    dest = Path(os.getenv("LOCAL_BLOB_DIR") or ROOT / "local_data" / "blob")
+    dest_text = os.getenv("LOCAL_BLOB_DIR") or str(ROOT / "local_data" / "blob")
+    if "/path/to/" in dest_text.replace("\\", "/").lower():
+        print(f"LOCAL_BLOB_DIR is still the example path from .env.example ({dest_text}).\n"
+              r"Put your own folder in .env first, for example LOCAL_BLOB_DIR=C:\emclf-data\blob", file=sys.stderr)
+        return 1
+    dest = Path(dest_text)
     print(f"Copying from {os.getenv('RESULT_STORAGE_ACCOUNT', 'datallmdev')}/{os.getenv('RESULT_CONTAINER', 'email-classification')}"
           f" with {access_method()} into {dest}")
     try:

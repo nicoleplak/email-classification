@@ -1056,6 +1056,10 @@ def unregistered_runs(blob_dir: Path, store_dir: Path) -> list[str]:
 
 def startup_report() -> list[str]:
     """Where the app reads from and what it found, so an empty page has an explanation in the console."""
+    for name in ("LOCAL_BLOB_DIR", "LOCAL_STORE_DIR"):
+        if "/path/to/" in os.getenv(name, "").replace("\\", "/").lower():
+            return [f"{name} is still the example path from .env.example ({os.getenv(name)}).",
+                    r"  Put your own folders in .env, e.g. C:\emclf-data\blob and C:\emclf-data\case_store, then restart."]
     lines = []
     store_dir = None
     if os.getenv("CASE_STORE", "local").strip().lower() == "cosmos":

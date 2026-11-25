@@ -10,10 +10,20 @@ from functools import lru_cache
 from pathlib import Path
 
 
+def not_the_example(path: str, name: str) -> str:
+    """Stop on the example path from .env.example (C:\\path\\to\\...): it was meant to be replaced, and
+    using it silently puts client data in a stray folder."""
+    plain = path.replace("\\", "/").lower()
+    if "/path/to/" in plain:
+        raise ValueError(f"{name} is still the example path from .env.example ({path}). Put your own folder in .env, "
+                         r"for example C:\emclf-data\blob and C:\emclf-data\case_store.")
+    return path
+
+
 def local_root() -> Path | None:
     """The folder that stands in for the container, or None to use Azure."""
     root = os.getenv("LOCAL_BLOB_DIR", "").strip()
-    return Path(root).resolve() if root else None
+    return Path(not_the_example(root, "LOCAL_BLOB_DIR")).resolve() if root else None
 
 
 def local_path(root: Path, blob_name: str) -> Path:

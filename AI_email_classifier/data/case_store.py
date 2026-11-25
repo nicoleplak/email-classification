@@ -166,4 +166,6 @@ def open_store() -> LocalStore | CosmosStore:
             os.getenv("COSMOS_DATABASE", "EmailClassification"),
             credential,
         )
-    return LocalStore(os.getenv("LOCAL_STORE_DIR", "case_store"))
+    from data.blob_output import not_the_example
+
+    return LocalStore(not_the_example(os.getenv("LOCAL_STORE_DIR", "case_store"), "LOCAL_STORE_DIR"))

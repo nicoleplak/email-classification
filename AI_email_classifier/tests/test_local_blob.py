@@ -163,3 +163,18 @@ def test_fetch_sample_explains_a_missing_data_role(monkeypatch):
     monkeypatch.setenv("STG_KEY", "x")
     assert "account key" in module.explain(refused)
     assert module.explain(ValueError("something else")) is None
+
+
+@pytest.mark.parametrize("path", [r"C:\path\to\email-classification\local_data\blob", "/home/x/path/to/blob"])
+def test_the_example_path_from_env_example_is_refused(monkeypatch, path):
+    from data.case_store import open_store
+
+    monkeypatch.setenv("LOCAL_BLOB_DIR", path)
+    with pytest.raises(ValueError, match="example path"):
+        blob_output.local_root()
+    monkeypatch.setenv("LOCAL_STORE_DIR", path)
+    monkeypatch.setenv("CASE_STORE", "local")
+    with pytest.raises(ValueError, match="example path"):
+        open_store()
+    monkeypatch.setenv("LOCAL_BLOB_DIR", r"C:\emclf-data\blob")
+    assert blob_output.local_root() is not None  # a real folder is fine
