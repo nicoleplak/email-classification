@@ -79,6 +79,9 @@ const T = {
     cv_account_not_identified: "Ο λογαριασμός δεν ταυτοποιήθηκε από το email· επιλέξτε λογαριασμό ή στείλτε «Χρειάζονται στοιχεία».",
     autoExtras: "Οι κατηγορίες με βεβαιότητα 80% ή περισσότερο προστέθηκαν αυτόματα, μαζί με τις ενέργειές τους.",
     autoExtraTip: "Προστέθηκε αυτόματα (βεβαιότητα 80%+)",
+    senderLabel: "Αποστολέας", senderAll: "Όλοι", senderExternal: "Εξωτερικοί", senderInternal: "Εσωτερικό",
+    senderRetail: "Προώθηση Retail Support", senderInternalTip: "Αποστολέας από τη doValue (@dovaluegreece.gr)",
+    senderRetailTip: "Προώθηση από το Retail Support (λίστα στο inputs/sender_flags.json)",
     extraCount: "{n} επιλεγμένα", extraNone: "κανένα", addCategory: "Προσθήκη κατηγορίας…",
     toLabel: "Προς", ccLabel: "Κοιν.", evCategory: "Κατηγορία", evActions: "Ενέργειες", evOthers: "Επιπλέον κατηγορίες",
     evComment: "Σχόλιο", evUnchanged: "χωρίς αλλαγή", evSystem: "πρόταση συστήματος", evAdded: "προστέθηκε", evRemoved: "αφαιρέθηκε",
@@ -87,7 +90,7 @@ const T = {
     mCatRight: "Σωστή κατηγορία", mCatWrong: "Άλλαξε η κατηγορία", mActSame: "Ενέργειες χωρίς αλλαγή", mActChanged: "Άλλαξαν οι ενέργειες",
     mReviewers: "Ελεγκτές", mReviewersSub: "Email που έλεγξε ο καθένας στην περίοδο", mReviewer: "Ελεγκτής",
     mCatChanged: "Άλλαξε κατηγορία", mMedian: "Διάμεσος χρόνος", mLast: "Τελευταίος έλεγχος",
-    catFilter: "Κατηγορία", allCats: "Όλες οι κατηγορίες", exportExcel: "Εξαγωγή σε Excel", exporting: "Εξαγωγή…",
+    catFilter: "Κατηγορία", allCats: "Όλες οι κατηγορίες", exportExcel: "Excel", exportExcelTip: "Εξαγωγή των email της λίστας σε Excel", exporting: "Εξαγωγή…",
     exported: "Εξήχθησαν {n} email", fromStats: "Από τα στατιστικά", clearFilter: "Κατάργηση φίλτρου",
     viewEmails: "Email", viewMetrics: "Στατιστικά", range7: "7 ημέρες", range30: "30 ημέρες", range90: "90 ημέρες",
     rangeAll: "Όλα", rangeLabel: "Περίοδος", mPeriod: "{a} – {b} · ώρα Ελλάδας", mReceived: "Παραλήφθηκαν",
@@ -193,6 +196,9 @@ const T = {
     cv_account_not_identified: "The email does not identify the account; pick one or send “Need more Info”.",
     autoExtras: "Categories with 80% certainty or more were added automatically, with their actions.",
     autoExtraTip: "Added automatically (80%+ certainty)",
+    senderLabel: "Sender", senderAll: "All", senderExternal: "External", senderInternal: "Internal",
+    senderRetail: "Forwarded by Retail Support", senderInternalTip: "Sent from doValue (@dovaluegreece.gr)",
+    senderRetailTip: "Forwarded by Retail Support (list in inputs/sender_flags.json)",
     extraCount: "{n} chosen", extraNone: "none", addCategory: "Add a category…",
     toLabel: "To", ccLabel: "Cc", evCategory: "Category", evActions: "Actions", evOthers: "Further categories",
     evComment: "Comment", evUnchanged: "unchanged", evSystem: "system suggestion", evAdded: "added", evRemoved: "removed",
@@ -201,7 +207,7 @@ const T = {
     mCatRight: "Right category", mCatWrong: "Category changed", mActSame: "Actions unchanged", mActChanged: "Actions changed",
     mReviewers: "Reviewers", mReviewersSub: "Emails each person reviewed in the period", mReviewer: "Reviewer",
     mCatChanged: "Category changed", mMedian: "Median time", mLast: "Last review",
-    catFilter: "Category", allCats: "All categories", exportExcel: "Export to Excel", exporting: "Exporting…",
+    catFilter: "Category", allCats: "All categories", exportExcel: "Excel", exportExcelTip: "Export the listed emails to Excel", exporting: "Exporting…",
     exported: "{n} emails exported", fromStats: "From metrics", clearFilter: "Remove filter",
     viewEmails: "Emails", viewMetrics: "Metrics", range7: "7 days", range30: "30 days", range90: "90 days",
     rangeAll: "All", rangeLabel: "Period", mPeriod: "{a} – {b} · Greek time", mReceived: "Received",
@@ -280,7 +286,7 @@ const S = { user: null, mode: "dev", categories: [], items: [], queue: store("qu
             win: "all", basis: "received", sort: "newest", q: "", openId: null, detail: null, presence: {},
             viewer: { tab: "email", page: null, images: false }, choice: null,
             view: store("view") === "metrics" ? "metrics" : "emails", range: store("range") || "30", metrics: null,
-            cat: "all", f: null };
+            cat: "all", sender: "all", f: null };
 
 function store(key, value) {
   try {
@@ -346,6 +352,13 @@ const basisTime = (it) => S.basis === "reviewed" ? it.reviewedAt : it.receivedAt
 const norm = (s) => (s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 const fromOf = (it) => it.from || "";
 
+// Internal sender or a forward by retail support: shown next to the status, wherever the email is listed.
+function senderPill(type) {
+  if (type === "internal") return h("span", { class: "pill sender internal", title: t("senderInternalTip"), text: t("senderInternal") });
+  if (type === "retail_support") return h("span", { class: "pill sender retail", title: t("senderRetailTip"), text: t("senderRetail") });
+  return "";
+}
+
 function statusPill(it) {
   if (it.status === "REVIEWED") {
     const by = it.reviewedBy && it.reviewedBy.name;
@@ -386,6 +399,7 @@ function filtered() {
   return S.items.filter((it) => {
     if (q && !norm([it.subject, it.from, it.finalCategory, it.modelCategory, it.id].join(" ")).includes(q)) return false;
     if (S.cat !== "all" && currentCat(it) !== S.cat) return false;
+    if (S.sender !== "all" && (it.senderType || "external") !== S.sender) return false;
     if (S.f && !matchesF(it, S.f)) return false;
     const a = ath(basisTime(it));
     if (S.basis === "reviewed" && !a) return false;
@@ -448,6 +462,15 @@ function renderCats() {
   sel.value = S.cat;
 }
 
+function renderSenders() {
+  const counts = { all: S.items.length, external: 0, internal: 0, retail_support: 0 };
+  S.items.forEach((it) => { counts[it.senderType || "external"]++; });
+  const sel = $("#sender");
+  sel.replaceChildren(...[["all", "senderAll"], ["external", "senderExternal"], ["internal", "senderInternal"],
+    ["retail_support", "senderRetail"]].map(([v, k]) => h("option", { value: v, text: `${t(k)} (${counts[v]})` })));
+  sel.value = S.sender;
+}
+
 function renderChips() {
   const box = $("#fchips");
   box.hidden = !S.f;
@@ -463,7 +486,7 @@ function applyFilter(f, label) {
   const m = S.metrics || {};
   S.f = { since: m.from, until: m.to, ...f, label };
   S.queue = "all"; store("queue", "all");
-  S.day = "all"; S.win = "all"; S.cat = "all"; S.q = ""; $("#search").value = "";
+  S.day = "all"; S.win = "all"; S.cat = "all"; S.sender = "all"; S.q = ""; $("#search").value = "";
   setView("emails");
   renderDays();
   renderList();
@@ -492,6 +515,7 @@ async function exportExcel(button) {
 
 function renderList() {
   renderCats();
+  renderSenders();
   renderChips();
   const base = filtered();
   renderQueues(base);
@@ -520,7 +544,7 @@ function renderList() {
       onclick: () => openCase(it.id) },
     h("div", { class: "top" }, h("span", { class: "from", text: fromOf(it) || "—" }), h("span", { text: when(basisTime(it)) })),
     h("div", { class: "subject", text: it.subject || "—" }),
-    h("div", { class: "tags" }, statusPill(it),
+    h("div", { class: "tags" }, statusPill(it), senderPill(it.senderType),
       h("span", { class: "cat", text: it.finalCategory || it.modelCategory || "" }),
       atts ? h("span", { class: "muted small", text: t("attachments", { n: atts }) }) : null,
       viewers.length ? h("span", { class: "presence", text: t("openBy", { n: viewers.join(", ") }) }) : null)));
@@ -1175,7 +1199,7 @@ function renderCase() {
       h("h2", { text: c.subject || "—" }),
       h("div", { class: "meta" },
         h("span", { text: from.name ? `${from.name} <${from.address}>` : from.address || c.from || "" }),
-        h("span", { text: when(c.receivedAt) }), statusPill(c)),
+        h("span", { text: when(c.receivedAt) }), statusPill(c), senderPill(d.senderType)),
       recipients(t("toLabel"), m.to), recipients(t("ccLabel"), m.cc)),
     lockedByOther ? h("div", { class: "notice warn", text: t("lockedBy", { n: d.lock.holderName }) }) : "",
     c.mailboxState === "removed" ? h("div", { class: "notice info", text: t("leftMailbox") }) : "",
@@ -1256,6 +1280,7 @@ function applyWords() {
   document.documentElement.lang = lang;
   document.querySelectorAll("[data-t]").forEach((el) => { el.textContent = t(el.dataset.t); });
   $("#search").placeholder = t("search");
+  $("#export").title = t("exportExcelTip");
   $("#lang").textContent = lang === "el" ? "English" : "Ελληνικά";
   const opts = (sel, pairs, value) => { $(sel).replaceChildren(...pairs.map(([v, k]) => h("option", { value: v, text: t(k) }))); $(sel).value = value; };
   opts("#basis", [["received", "byArrival"], ["reviewed", "byReview"]], S.basis);
@@ -1623,6 +1648,7 @@ function wire() {
   $("#basis").addEventListener("change", (e) => { S.basis = e.target.value; S.day = "all"; S.win = "all"; renderDays(); renderList(); });
   $("#sort").addEventListener("change", (e) => { S.sort = e.target.value; renderList(); });
   $("#cat").addEventListener("change", (e) => { S.cat = e.target.value; renderList(); });
+  $("#sender").addEventListener("change", (e) => { S.sender = e.target.value; renderList(); });
   $("#export").addEventListener("click", (e) => exportExcel(e.currentTarget));
   document.querySelectorAll("#views button").forEach((b) => b.addEventListener("click", () => setView(b.dataset.view)));
   let resizing;

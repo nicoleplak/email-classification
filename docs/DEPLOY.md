@@ -96,6 +96,18 @@ regenerated with `python tools/rules_report.py` after any change, together with 
 Identification is by tax ID or account number only; a name or email match is shown to the reviewer but
 never makes a case automatic.
 
+## Sender flags
+
+`AI_email_classifier/inputs/sender_flags.json`: senders at `internal_domains` (`dovaluegreece.gr`) show as
+**Εσωτερικό**; the addresses in `retail_support` show as **Προώθηση Retail Support** instead. The review app
+works this out whenever it shows an email, so a changed list applies to every email at once; deploy the image
+for the change to reach Azure.
+
+The mailbox ingest no longer drops doValue's own senders (`EXCLUDE_DOMAINS` default is now `eurobank`). In a
+conversation that also has a customer's email in the same run, the customer's email still opens the case
+(`INTERNAL_DOMAINS`, default `dovaluegreece`). The ingest now also saves CC addresses (`ccRecipients`); emails
+fetched before this change have none.
+
 ## Metrics view
 
 The review app's **Metrics** tab (top bar) shows, for the last 7 / 30 / 90 days or everything, in Greek time:

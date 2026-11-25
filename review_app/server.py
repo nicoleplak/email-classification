@@ -56,6 +56,7 @@ sys.path.insert(0, str(APP))
 
 sys.path.insert(0, str(HERE))
 
+from core.senders import sender_type  # noqa: E402
 from data.case_store import Conflict, open_store  # noqa: E402
 from highlight import STYLE as HL_STYLE  # noqa: E402
 from highlight import mark_html, text_page  # noqa: E402
@@ -207,7 +208,7 @@ def list_items() -> list[dict]:
     out = []
     for item in items:
         facts = older.get(item["id"]) or {}
-        out.append({**item, "outcome": metrics.outcome(item),
+        out.append({**item, "senderType": sender_type(item.get("from")), "outcome": metrics.outcome(item),
                     "actionsOutcome": item.get("actionsOutcome") or facts.get("actionsOutcome"),
                     "reasonKeys": sorted({metrics.reason_key(r) for r in item.get("routeReasons") or []})})
     return out
@@ -316,6 +317,7 @@ def case_detail(case_id: str) -> dict | None:
     ]
     lock = store().get("locks", case_id)
     return {
+        "senderType": sender_type(case.get("from")),
         "case": {k: v for k, v in case.items() if not k.startswith("_") or k == "_etag"},
         "message": {
             "from": message.get("from"),
@@ -586,6 +588,7 @@ def save_review(user: dict, case_id: str, body: dict) -> tuple[int, dict]:
 
 STATUS_TEXT = {"REVIEWED": "Ελέγχθηκε", "CLASSIFYING": "Χωρίς ταξινόμηση", "RECEIVED": "Χωρίς ταξινόμηση"}
 ROUTE_TEXT = {"AUTO": "Αυτόματα", "REVIEW": "Προς έλεγχο", "EXCEPTION": "Σφάλμα (έλεγχος)"}
+SENDER_TEXT = {"external": "Εξωτερικός", "internal": "Εσωτερικό", "retail_support": "Προώθηση Retail Support"}
 OUTCOME_TEXT = {"accepted": "Σωστή", "changed": "Άλλαξε", "none_fits": "No Match Found", "same": "Χωρίς αλλαγή"}
 REASON_TEXT = {
     "low_confidence": "Χαμηλή βεβαιότητα", "no_tax_id": "Δεν βρέθηκε ΑΦΜ", "tax_id_unknown": "Ο ΑΦΜ δεν είναι στο μητρώο",
@@ -632,7 +635,7 @@ def export_xlsx(ids: list[str]) -> bytes:
     from openpyxl.utils import get_column_letter
 
     columns = [
-        ("Λήψη (ώρα Ελλάδας)", 17), ("Από", 28), ("Προς", 28), ("Κοιν.", 28), ("Θέμα", 40), ("Κατάσταση", 16),
+        ("Λήψη (ώρα Ελλάδας)", 17), ("Από", 28), ("Αποστολέας", 18), ("Προς", 28), ("Κοιν.", 28), ("Θέμα", 40), ("Κατάσταση", 16),
         ("Δρομολόγηση", 16), ("Λόγοι ελέγχου", 34), ("Κατηγορία συστήματος", 30), ("Βεβαιότητα", 11),
         ("Τελική κατηγορία", 30), ("Επιπλέον κατηγορίες", 30), ("Κατηγορία: αποτέλεσμα", 18),
         ("Προτεινόμενες ενέργειες", 50), ("Τελικές ενέργειες", 50), ("Ενέργειες: αποτέλεσμα", 18),
@@ -662,6 +665,7 @@ def export_xlsx(ids: list[str]) -> bytes:
         sheet.append([
             metrics.athens_time(case.get("receivedAt")),
             case.get("from") or "",
+            SENDER_TEXT[sender_type(case.get("from"))],
             _people(message.get("toRecipients")),
             _people(message.get("ccRecipients")),
             case.get("subject") or "",
@@ -684,8 +688,8 @@ def export_xlsx(ids: list[str]) -> bytes:
     for row in sheet.iter_rows(min_row=2):
         for cell in row:
             cell.alignment = Alignment(vertical="top", wrap_text=True)
-        row[0].number_format = row[17].number_format = "dd/mm/yyyy hh:mm"
-        row[9].number_format = "0%"
+        row[0].number_format = row[18].number_format = "dd/mm/yyyy hh:mm"
+        row[10].number_format = "0%"
     sheet.freeze_panes = "A2"
     sheet.auto_filter.ref = sheet.dimensions
     buffer = io.BytesIO()

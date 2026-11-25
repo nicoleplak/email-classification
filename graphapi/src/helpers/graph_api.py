@@ -29,7 +29,7 @@ DELTA_BOOTSTRAP_DAYS = int(os.getenv("DELTA_BOOTSTRAP_DAYS", "1"))
 REQUEST_TIMEOUT = (10, 120)
 
 MESSAGE_SELECT = (
-    "id,internetMessageId,subject,from,toRecipients,receivedDateTime,"
+    "id,internetMessageId,subject,from,toRecipients,ccRecipients,receivedDateTime,"
     "lastModifiedDateTime,body,categories,conversationId,hasAttachments"
 )
 
@@ -267,7 +267,7 @@ def get_conversation_thread(access_token: str, conversation_id: str) -> list[dic
     _require_settings()
     headers = _graph_headers(access_token)
     selection = (
-        "id,internetMessageId,subject,from,toRecipients,receivedDateTime,"
+        "id,internetMessageId,subject,from,toRecipients,ccRecipients,receivedDateTime,"
         "body,hasAttachments,conversationId"
     )
     params = {

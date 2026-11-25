@@ -342,3 +342,11 @@ def test_startup_report_points_at_copied_runs_not_yet_registered(app, tmp_path, 
     report = "\n".join(server.startup_report())
     assert "1 copied run(s) not in the app yet (20261124T080000Z)" in report and "python -m main" in report
     assert "set in this window" in report  # typed settings win over .env, and the report says so
+
+
+def test_list_and_email_carry_the_sender_type(app):
+    _, base, case_id = app
+    cookie = sign_in(base)
+    items = json.loads(call(f"{base}/api/cases", cookie=cookie)[2])["items"]
+    assert items[0]["senderType"] == "external"
+    assert json.loads(call(f"{base}/api/cases/{case_id}", cookie=cookie)[2])["senderType"] == "external"

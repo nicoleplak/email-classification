@@ -113,6 +113,8 @@ def tiny_pdf(text: str) -> bytes:
 
 def invented_email(n: int, now: datetime, upload, hours_ago: float | None = None) -> dict:
     name, address = SENDERS[n % len(SENDERS)]
+    if n % 9 == 4:  # some come from doValue itself, so the internal flag shows in the review app
+        name, address = "Retail Support", f"retail.support{n}@dovaluegreece.gr"
     subject, ask = REQUESTS[n % len(REQUESTS)]
     afm = invented_afm(n)
     received = now - timedelta(hours=n * 8.5 + 1 if hours_ago is None else hours_ago, minutes=n * 7)

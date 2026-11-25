@@ -1,0 +1,5 @@
+{
+  "_about": "How senders are flagged in the review app (core/senders.py). internal_domains: a sender at one of these domains (or a subdomain) is 'internal'. retail_support: these addresses are 'forwarded by retail support' instead (exact addresses, any letter case). Changes apply to every email the next time it is shown.",
+  "internal_domains": ["dovaluegreece.gr"],
+  "retail_support": []
+}

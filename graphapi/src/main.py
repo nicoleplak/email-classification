@@ -28,7 +28,8 @@ FETCH_ATTACHMENTS = os.getenv("FETCH_ATTACHMENTS", "false").strip().lower() == "
 MAX_EMAILS = int(os.getenv("MAX_EMAILS", "0"))
 EXCLUDE_DOMAINS = [
     value.strip().lower()
-    for value in os.getenv("EXCLUDE_DOMAINS", "dovaluegreece,eurobank").split(",")
+    # doValue's own senders are kept (Nov 2026): the review app flags them as internal.
+    for value in os.getenv("EXCLUDE_DOMAINS", "eurobank").split(",")
     if value.strip()
 ]
 
@@ -49,12 +50,28 @@ def is_excluded_sender(email: dict[str, Any]) -> bool:
     return any(domain in address for domain in EXCLUDE_DOMAINS)
 
 
+INTERNAL_DOMAINS = [
+    value.strip().lower()
+    for value in os.getenv("INTERNAL_DOMAINS", "dovaluegreece").split(",")
+    if value.strip()
+]
+
+
+def is_internal_sender(email: dict[str, Any]) -> bool:
+    address = email.get("from", {}).get("emailAddress", {}).get("address", "").lower()
+    return any(domain in address for domain in INTERNAL_DOMAINS)
+
+
 def deduplicate_by_conversation(emails: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """One email per conversation: the newest from outside doValue; an internal one only when the
+    conversation has nothing else in this batch (as before internal senders were kept, a staff reply
+    never takes the customer's case)."""
     latest: dict[str, dict[str, Any]] = {}
     for email in emails:
         key = str(email.get("conversationId") or email.get("id") or "")
         existing = latest.get(key)
-        if existing is None or str(email.get("receivedDateTime") or "") > str(existing.get("receivedDateTime") or ""):
+        rank = (not is_internal_sender(email), str(email.get("receivedDateTime") or ""))
+        if existing is None or rank > (not is_internal_sender(existing), str(existing.get("receivedDateTime") or "")):
             latest[key] = email
     return sorted(latest.values(), key=lambda x: str(x.get("receivedDateTime") or ""))
 
