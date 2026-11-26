@@ -17,6 +17,9 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s",
 )
+# The Azure SDKs log every HTTP request and its headers at INFO; keep their warnings and errors only.
+for noisy in ("azure", "azure.core.pipeline.policies.http_logging_policy", "httpx", "openai"):
+    logging.getLogger(noisy).setLevel(logging.WARNING)
 
 logger = logging.getLogger(__name__)
 logger.info("Starting main.py")

@@ -1042,7 +1042,9 @@ class Handler(BaseHTTPRequestHandler):
 def make_server() -> ThreadingHTTPServer:
     host = os.getenv("HOST", "0.0.0.0" if AUTH == "demo" else "127.0.0.1")
     if AUTH not in ("demo", "dev"):
-        raise SystemExit(f"REVIEW_AUTH must be demo or dev (got {AUTH!r}); entra is not built yet")
+        where = "your .env file" if "REVIEW_AUTH" in ENV_FROM_FILE else "this terminal ($env:REVIEW_AUTH)"
+        raise SystemExit(f"REVIEW_AUTH must be demo or dev (got {AUTH!r} from {where}). "
+                         "For local work set REVIEW_AUTH=dev.")
     if AUTH == "dev" and host != "127.0.0.1":
         raise SystemExit("REVIEW_AUTH=dev only listens on 127.0.0.1")
     if AUTH == "demo" and len(ACCESS_CODE) < 12:
