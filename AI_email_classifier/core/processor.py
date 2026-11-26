@@ -873,6 +873,7 @@ class EmailProcessor:
                 {
                     "filename": record.get("filename"),
                     "document_type": record.get("document_type"),
+                    "lender": record.get("lender", ""),
                     "relevance": record.get("relevance"),
                     "summary": record.get("summary", ""),
                 }

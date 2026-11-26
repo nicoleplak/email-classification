@@ -422,6 +422,8 @@ def _classify_one(store, blob, processor, understand_fn, threshold, now_fn, clf_
         "sourceRefs": {**refs, "silver": silver},
         "payload": {"records": [{k: v for k, v in r.items() if k not in HEAVY_FIELDS} for r in records]},
         "understanding": understanding,
+        # Marks for the list and filters, e.g. ERB when Eurobank is named in the email or an attachment.
+        "markers": list((understanding or {}).get("markers") or []),
         "updatedAt": now,
     }
     try:

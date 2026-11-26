@@ -31,6 +31,16 @@ const T = {
     badCat: "Επιλέξτε κατηγορία από τη λίστα.", changed: "Κάποιος άλλος αποθήκευσε αυτό το email στο μεταξύ. Φορτώθηκε η νέα εκδοχή· ελέγξτε την και αποθηκεύστε ξανά.",
     actions: "Τι πρέπει να γίνει", noActions: "Δεν προέκυψαν ενέργειες.",
     customer: "Πελάτης", customerFrom: "από το μητρώο {f}",
+    reasonFilter: "Λόγος ελέγχου", reasonAll: "Όλοι οι λόγοι", markFilter: "Σήμανση", markAll: "Όλα",
+    markERB: "ERB", markERBTip: "Το email ή συνημμένο αναφέρει τη Eurobank", erbWhere: "Η Eurobank αναφέρεται",
+    reviewReason: "Λόγος ελέγχου", reviewedReason: "Πήγε για έλεγχο επειδή",
+    catsChosen: "Κατηγορίες", catMain: "Κύρια", catExtra: "Επιπλέον αίτημα", catWhy: "Γιατί επιλέχθηκε",
+    catNoWhy: "Δεν δόθηκε αιτιολόγηση για αυτή την κατηγορία.", catNotApply: "Εξετάστηκε, δεν ισχύει",
+    possibleCustomers: "Πιθανοί πελάτες ({n})", possiblePick: "Επιλέξτε πιθανό πελάτη για λεπτομέρειες",
+    possibleOnly: "Δεν βρέθηκε επιβεβαιωμένος πελάτης από ΑΦΜ ή λογαριασμό.",
+    banksNamed: "Τράπεζα / SPV στο email", spvPointed: "δείχνει SPV {s}",
+    attachmentsCard: "Συνημμένα", attType: "Τύπος εγγράφου", attLender: "Τράπεζα", attRelevance: "Σχετικό",
+    rel_relevant: "ναι", rel_possibly_relevant: "ίσως", rel_irrelevant: "όχι", rel_unknown: "—",
     aboutPerson: "Το email αφορά", people: "Πρόσωπα στο email",
     confirmed: "Επιβεβαιωμένος", possible: "Πιθανός", matchedOn: "Ταίριαξε με",
     sameName: "{n} πελάτες έχουν το ίδιο όνομα — κανένας δεν επιλέχθηκε αυτόματα.",
@@ -149,6 +159,16 @@ const T = {
     badCat: "Pick a category from the list.", changed: "Someone else saved this email meanwhile. The new version is loaded; check it and save again.",
     actions: "What needs to happen", noActions: "No actions.",
     customer: "Customer", customerFrom: "from registry {f}",
+    reasonFilter: "Review reason", reasonAll: "All reasons", markFilter: "Mark", markAll: "All",
+    markERB: "ERB", markERBTip: "The email or an attachment names Eurobank", erbWhere: "Eurobank is named",
+    reviewReason: "Review reason", reviewedReason: "Went to review because",
+    catsChosen: "Categories", catMain: "Main", catExtra: "Further request", catWhy: "Why it was chosen",
+    catNoWhy: "No reasoning was given for this category.", catNotApply: "Considered, does not apply",
+    possibleCustomers: "Possible customers ({n})", possiblePick: "Pick a possible customer for details",
+    possibleOnly: "No customer confirmed by tax ID or account.",
+    banksNamed: "Bank / SPV in the email", spvPointed: "points at SPV {s}",
+    attachmentsCard: "Attachments", attType: "Document type", attLender: "Bank", attRelevance: "Relevant",
+    rel_relevant: "yes", rel_possibly_relevant: "maybe", rel_irrelevant: "no", rel_unknown: "—",
     aboutPerson: "The email is about", people: "People in the email",
     confirmed: "Confirmed", possible: "Possible", matchedOn: "Matched on",
     sameName: "{n} customers share this name — none was picked automatically.",
@@ -288,7 +308,7 @@ const S = { user: null, mode: "dev", categories: [], items: [], queue: store("qu
             win: "all", basis: "received", sort: "newest", q: "", openId: null, detail: null, presence: {},
             viewer: { tab: "email", page: null, images: false }, choice: null,
             view: store("view") === "metrics" ? "metrics" : "emails", range: store("range") || "30", metrics: null,
-            cat: "all", sender: "all", f: null };
+            cat: "all", sender: "all", reason: "all", mark: "all", f: null };
 
 function store(key, value) {
   try {
@@ -402,6 +422,8 @@ function filtered() {
     if (q && !norm([it.subject, it.from, it.finalCategory, it.modelCategory, it.id].join(" ")).includes(q)) return false;
     if (S.cat !== "all" && currentCat(it) !== S.cat) return false;
     if (S.sender !== "all" && (it.senderType || "external") !== S.sender) return false;
+    if (S.reason !== "all" && !(it.reasonKeys || []).includes(S.reason)) return false;
+    if (S.mark !== "all" && !(it.markers || []).includes(S.mark)) return false;
     if (S.f && !matchesF(it, S.f)) return false;
     const a = ath(basisTime(it));
     if (S.basis === "reviewed" && !a) return false;
@@ -464,6 +486,39 @@ function renderCats() {
   sel.value = S.cat;
 }
 
+function renderReasons() {
+  const counts = new Map();
+  S.items.forEach((it) => (it.reasonKeys || []).forEach((k) => counts.set(k, (counts.get(k) || 0) + 1)));
+  if (S.reason !== "all" && !counts.has(S.reason)) counts.set(S.reason, 0);
+  const keys = [...counts.keys()].sort((a, b) => counts.get(b) - counts.get(a));
+  const sel = $("#reason");
+  sel.replaceChildren(h("option", { value: "all", text: t("reasonAll") }),
+    ...keys.map((k) => h("option", { value: k, text: `${t(`rs_${k}`)} (${counts.get(k)})` })));
+  sel.value = S.reason;
+}
+
+function renderMarks() {
+  const counts = new Map([["ERB", 0]]);
+  S.items.forEach((it) => (it.markers || []).forEach((k) => counts.set(k, (counts.get(k) || 0) + 1)));
+  const sel = $("#mark");
+  sel.replaceChildren(h("option", { value: "all", text: `${t("markAll")} (${S.items.length})` }),
+    ...[...counts.keys()].map((k) => h("option", { value: k, text: `${t(`mark${k}`) === `mark${k}` ? k : t(`mark${k}`)} (${counts.get(k)})` })));
+  sel.value = S.mark;
+}
+
+// Marks next to the status: ERB when Eurobank is named in the email or an attachment.
+function markPills(markers) {
+  return (markers || []).map((k) => h("span", { class: `pill mark mark-${k.toLowerCase()}`, title: t(`mark${k}Tip`), text: k }));
+}
+
+// The first reason an email went to review, short, under its tags in the list.
+const reviewReasonLine = (it) => {
+  const keys = it.reasonKeys || [];
+  if (!keys.length || it.route === "AUTO") return null;
+  return h("div", { class: "why-line", title: (it.routeReasons || []).map(reasonText).join("\n") || null },
+    `${t("reviewReason")}: ${keys.map((k) => t(`rs_${k}`)).join(" · ")}`);
+};
+
 function renderSenders() {
   const counts = { all: S.items.length, external: 0, internal: 0, retail_support: 0 };
   S.items.forEach((it) => { counts[it.senderType || "external"]++; });
@@ -488,7 +543,7 @@ function applyFilter(f, label) {
   const m = S.metrics || {};
   S.f = { since: m.from, until: m.to, ...f, label };
   S.queue = "all"; store("queue", "all");
-  S.day = "all"; S.win = "all"; S.cat = "all"; S.sender = "all"; S.q = ""; $("#search").value = "";
+  S.day = "all"; S.win = "all"; S.cat = "all"; S.sender = "all"; S.reason = "all"; S.mark = "all"; S.q = ""; $("#search").value = "";
   setView("emails");
   renderDays();
   renderList();
@@ -518,6 +573,8 @@ async function exportExcel(button) {
 function renderList() {
   renderCats();
   renderSenders();
+  renderReasons();
+  renderMarks();
   renderChips();
   const base = filtered();
   renderQueues(base);
@@ -546,10 +603,11 @@ function renderList() {
       onclick: () => openCase(it.id) },
     h("div", { class: "top" }, h("span", { class: "from", text: fromOf(it) || "—" }), h("span", { text: when(basisTime(it)) })),
     h("div", { class: "subject", text: it.subject || "—" }),
-    h("div", { class: "tags" }, statusPill(it), senderPill(it.senderType),
+    h("div", { class: "tags" }, statusPill(it), senderPill(it.senderType), ...markPills(it.markers),
       h("span", { class: "cat", text: it.finalCategory || it.modelCategory || "" }),
       atts ? h("span", { class: "muted small", text: t("attachments", { n: atts }) }) : null,
-      viewers.length ? h("span", { class: "presence", text: t("openBy", { n: viewers.join(", ") }) }) : null)));
+      viewers.length ? h("span", { class: "presence", text: t("openBy", { n: viewers.join(", ") }) }) : null),
+    reviewReasonLine(it)));
   }
   list.replaceChildren(...out);
 }
@@ -693,20 +751,74 @@ function snippet(text, value) {
   return el;
 }
 
+/* Every category the system chose, side by side with the same space: main or further request, certainty,
+   why it was chosen (the reader's reasoning, in Greek) and the quote that shows it. */
+function categoryBlocks(c, u) {
+  const reasons = u.categoryReasons || [];
+  const why = (cat) => reasons.find((r) => r.category === cat);
+  const certainty = { ...(((c.payload || {}).records || [])[0] || {}).model_other_categories };
+  (c.autoCategories || []).forEach((a) => { certainty[a.category] = a.confidence; });
+  const main = c.modelCategory;
+  const extras = [...new Set([...(c.autoCategories || []).map((a) => a.category), ...(u.otherRequests || [])])]
+    .filter((x) => x && x !== main);
+  const classQuotes = (u.evidence || []).filter((e) => e.supports === "category");
+  const block = (cat, isMain) => {
+    const r = why(cat);
+    const pct = isMain ? c.confidence : certainty[cat];
+    const quotes = [r && r.quote ? { quote: r.quote, supports: "category", where: r.where } : null,
+      ...(isMain ? classQuotes.filter((q) => !r || q.quote !== r.quote) : [])].filter(Boolean);
+    return h("article", { class: `catblock${isMain ? " main" : ""}` },
+      h("div", { class: "cathead" }, h("span", { class: `pill ${isMain ? "main-tag" : "plain"}`, text: isMain ? t("catMain") : t("catExtra") }),
+        pct != null ? h("span", { class: "muted small", text: certaintyWord(pct) }) : null),
+      h("div", { class: "catname", text: catLabel(cat) }),
+      h("div", { class: "small muted", text: t("catWhy") }),
+      h("p", { class: `catwhy${r && r.reason ? "" : " muted"}`, text: r && r.reason ? r.reason : t("catNoWhy") }),
+      quotes.length ? h("div", { class: "quotes" }, ...quotes.map(quoteRow)) : null);
+  };
+  const shown = new Set([main, ...extras]);
+  const left = reasons.filter((r) => !r.applies && !shown.has(r.category));
+  return h("div", {},
+    h("div", { class: "catblocks" }, block(main, true), ...extras.map((x) => block(x, false))),
+    left.length ? h("details", { class: "more" }, h("summary", { text: `${t("catNotApply")} (${left.length})` }),
+      ...left.map((r) => h("div", { class: "small" }, h("strong", { text: catLabel(r.category) }), ` · ${r.reason}`))) : null);
+}
+
+/* Why the email went to review: at the top of the email, kept after the review for reference. */
+function reviewNotice(c) {
+  if (c.route === "AUTO" || !(c.routeReasons || []).length) return "";
+  return h("div", { class: "notice warn why-review" },
+    h("strong", { text: c.status === "REVIEWED" ? t("reviewedReason") : t("whyReview") }),
+    h("ul", { class: "reasons" }, ...c.routeReasons.map((r) => h("li", { text: reasonText(r) }))));
+}
+
+/* Banks named in the email or its attachments; Eurobank marks the email ERB. */
+function banksLine(u) {
+  const named = u.banks || [];
+  if (!named.length) return "";
+  const pointed = Object.keys(u.spvMentioned || {});
+  return h("div", { class: "banks" }, h("span", { class: "muted small", text: `${t("banksNamed")}:` }),
+    ...named.map((b) => h("span", { class: `bank${b.flag ? " flagged" : ""}` }, `${b.bank} `, b.flag ? h("b", { text: b.flag }) : "", " ",
+      sourceChip({ ...b.where, snippet: b.snippet }))),
+    pointed.length ? h("span", { class: "small", text: t("spvPointed", { s: pointed.join(", ") }) }) : "");
+}
+
+/* Each attachment: what kind of document it is, the bank it names, and a short summary. */
+function attachmentsCard(c) {
+  const items = ((((c.payload || {}).records || [])[0] || {}).attachment_summaries) || [];
+  if (!items.length) return "";
+  return card(t("attachmentsCard"), String(items.length), ...items.map((a) => h("div", { class: "attrow" },
+    h("div", { class: "row" }, sourceChip({ kind: "attachment", file: a.filename, page: 1 }),
+      h("span", { class: "pill plain", title: t("attType"), text: a.document_type || "—" }),
+      a.lender ? h("span", { class: "small", text: `${t("attLender")}: ${a.lender}` }) : "",
+      h("span", { class: "muted small", text: `${t("attRelevance")}: ${t(`rel_${a.relevance || "unknown"}`)}` })),
+    a.summary ? h("p", { class: "small", text: a.summary }) : "")));
+}
+
 function decisionCard(c) {
   const parts = [];
   if (c.classifiedBy === "sender_rule") parts.push(h("div", { class: "notice info", text: t("bySenderRule") }));
-  if (c.modelCategory) {
-    parts.push(h("div", { class: "suggest" }, h("span", { class: "muted", text: t("suggestion") }),
-      h("span", { class: "big", text: c.modelCategory }), h("span", { class: "muted", text: certaintyWord(c.confidence) })));
-  } else parts.push(h("p", { class: "muted", text: t("noSuggestion") }));
-  if (c.status !== "REVIEWED" && (c.routeReasons || []).length) {
-    parts.push(h("div", { class: "small muted", text: t("whyReview") }),
-      h("ul", { class: "reasons" }, ...c.routeReasons.map((r) => h("li", { text: reasonText(r) }))));
-  }
-  const classQuotes = ((c.understanding || {}).evidence || []).filter((e) => e.supports === "category");
-  if (classQuotes.length) parts.push(h("div", { class: "quotes" }, h("div", { class: "small muted", text: t("evidence") }),
-    ...classQuotes.map(quoteRow)));
+  if (c.modelCategory) parts.push(categoryBlocks(c, c.understanding || {}));
+  else parts.push(h("p", { class: "muted", text: t("noSuggestion") }));
   const votes = Object.entries(c.votes || {}).filter(([k]) => k !== c.modelCategory);
   if (votes.length) parts.push(h("div", { class: "votes" }, h("span", { class: "muted small", text: t("alsoConsidered") }),
     ...votes.map(([k, v]) => h("span", { text: `${k} · ${v}` }))));
@@ -1052,7 +1164,7 @@ function customerCard(u) {
     ` · ${ROLE[lang][principal.role] || principal.role} `, sourceChip({ ...principal.where, snippet: principal.evidence })));
   const customers = u.customers || [];
   if (!customers.length) body.push(h("p", { class: "muted", text: t("noCustomer") }));
-  for (const c of customers) {
+  const personCard = (c) => {
     const status = h("span", { class: `pill ${c.status === "confirmed" ? "done" : "review"}`, text: t(c.status) });
     const kv = h("dl", { class: "kv" },
       h("dt", { text: t("taxId") }), h("dd", { text: c.taxId }),
@@ -1070,12 +1182,34 @@ function customerCard(u) {
     const recent = c.recentRequests?.length ? h("details", { class: "more" }, h("summary", { text: t("recent") }),
       h("table", { class: "mini" }, h("tr", {}, ...[t("type"), t("status"), t("created")].map((x) => h("th", { text: x }))),
         ...c.recentRequests.map((r) => h("tr", {}, ...[r.type, r.status, r.created].map((x) => h("td", { text: x || "—" })))))) : null;
-    body.push(h("div", { class: "person" },
+    return h("div", { class: "person" },
       h("div", { class: "row" }, h("span", { class: "name", text: c.name || c.taxId }), " ", status),
       c.nameMismatch ? h("div", { class: "caveat", text: t("nameMismatch") }) : null,
       c.sameNameCount > 1 ? h("div", { class: "caveat", text: t("sameName", { n: c.sameNameCount }) }) : null,
-      kv, matched, accounts, recent));
+      kv, matched, accounts, recent);
+  };
+  const confirmed = customers.filter((c) => c.status === "confirmed");
+  const possible = customers.filter((c) => c.status !== "confirmed");
+  confirmed.forEach((c) => body.push(personCard(c)));
+  if (possible.length) {
+    // Possible matches (name or email only) never decide anything: one pick away, not spread over the page.
+    if (!confirmed.length) body.push(h("p", { class: "caveat", text: t("possibleOnly") }));
+    const shown = h("div", { class: "possible-card" });
+    const caseId = S.detail && S.detail.case.id;
+    const kept = S.possibleSel && S.possibleSel.id === caseId ? S.possibleSel.i : "";
+    const kindName = (k) => k === "name" ? (lang === "el" ? "όνομα" : "name") : k === "email" ? "email" : FIELD[lang][k] || k;
+    const matchedText = (c) => `${t("matchedOn").toLowerCase()}: ${[...new Set(c.matchedOn.map((m) => kindName(m.kind)))].join(", ")}`;
+    const pick = h("select", { id: "possible-pick", "aria-label": t("possibleCustomers", { n: possible.length }), onchange: (e) => {
+      const i = e.target.value;
+      S.possibleSel = { id: caseId, i };
+      shown.replaceChildren(i === "" ? "" : personCard(possible[+i]));
+    } }, h("option", { value: "", text: t("possiblePick") }),
+    ...possible.map((c, i) => h("option", { value: String(i), selected: String(i) === kept ? true : null, text: `${c.name || "—"} · ${t("taxId")} ${c.taxId} · ${matchedText(c)}` })));
+    if (kept !== "" && possible[+kept]) shown.append(personCard(possible[+kept]));
+    body.push(h("div", { class: "possible" }, h("label", { class: "field", for: "possible-pick" },
+      h("span", { text: t("possibleCustomers", { n: possible.length }) }), pick), shown));
   }
+
   for (const note of u.lookupNotes || []) {
     const [kind, value, n] = note.split(":");
     if (kind === "too_many_name_matches") body.push(h("p", { class: "caveat", text: t("tooMany", { v: value, n }) }));
@@ -1084,6 +1218,7 @@ function customerCard(u) {
   const others = (u.people || []).filter((p) => !p.principal);
   if (others.length) body.push(h("details", { class: "more" }, h("summary", { text: `${t("people")} (${others.length})` }),
     ...others.map((p) => h("div", { class: "small" }, h("strong", { text: p.name }), ` · ${ROLE[lang][p.role] || p.role} `, sourceChip({ ...p.where, snippet: p.evidence })))));
+  body.push(banksLine(u));
   const file = (u.registrySource || "").split("/").pop();
   return card(t("customer"), file ? t("customerFrom", { f: file }) : null, ...body);
 }
@@ -1223,14 +1358,17 @@ function renderCase() {
       h("h2", { text: c.subject || "—" }),
       h("div", { class: "meta" },
         h("span", { text: from.name ? `${from.name} <${from.address}>` : from.address || c.from || "" }),
-        h("span", { text: when(c.receivedAt) }), statusPill(c), senderPill(d.senderType)),
+        h("span", { text: when(c.receivedAt) }), statusPill(c), senderPill(d.senderType), ...markPills(c.markers)),
       recipients(t("toLabel"), m.to), recipients(t("ccLabel"), m.cc)),
     lockedByOther ? h("div", { class: "notice warn", text: t("lockedBy", { n: d.lock.holderName }) }) : "",
     c.mailboxState === "removed" ? h("div", { class: "notice info", text: t("leftMailbox") }) : "",
     u.error ? h("div", { class: "notice warn", text: t("readError", { e: u.error }) }) : "",
+    reviewNotice(c),
+    c.understanding && !u.error ? customerCard(u) : "",
     decisionCard(c),
     actionsCard(u, c),
-    ...(c.understanding && !u.error ? [customerCard(u), foundCard(u)] : []),
+    c.understanding && !u.error ? foundCard(u) : "",
+    attachmentsCard(c),
     u.analysis ? h("p", { class: "muted small", text: `${t("analysis")}: ${u.analysis}` }) : "",
     commentCard(c),
     historyCard(d.events || [])];
@@ -1673,6 +1811,8 @@ function wire() {
   $("#sort").addEventListener("change", (e) => { S.sort = e.target.value; renderList(); });
   $("#cat").addEventListener("change", (e) => { S.cat = e.target.value; renderList(); });
   $("#sender").addEventListener("change", (e) => { S.sender = e.target.value; renderList(); });
+  $("#reason").addEventListener("change", (e) => { S.reason = e.target.value; renderList(); });
+  $("#mark").addEventListener("change", (e) => { S.mark = e.target.value; renderList(); });
   $("#export").addEventListener("click", (e) => exportExcel(e.currentTarget));
   document.querySelectorAll("#views button").forEach((b) => b.addEventListener("click", () => setView(b.dataset.view)));
   let resizing;

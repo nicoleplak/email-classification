@@ -110,6 +110,23 @@ The mailbox ingest keeps doValue's own senders (`EXCLUDE_DOMAINS` default `eurob
 also has a customer's email in the same run, the customer's email opens the case (`INTERNAL_DOMAINS`, default
 `dovaluegreece`). It also saves CC addresses (`ccRecipients`); emails fetched before have none.
 
+## Banks, SPV and ERB
+
+`AI_email_classifier/inputs/banks.json` lists the banks an email or attachment may name (aliases in Greek and
+Latin; Greek case endings and accents are ignored) and, per bank, the registry portfolios (`PRTFL_NM`) that came
+from it. `core/banks.py` finds them in the subject, the email text and the attachments (not earlier messages of
+the thread), plus the lender each attachment's analysis names:
+
+- **SPV:** a bank or SPV name narrows the customer's accounts to that SPV before the account rule applies. While
+  a bank's `spvs` list is empty, only an SPV whose own name is written in the text matches. When the SPV still is
+  not known for an "SPV" category, one request is opened per SPV instead of asking for the account.
+- **ERB:** Eurobank named anywhere marks the email `ERB` (`markers` on the case): a pill in the list, the
+  «Σήμανση» filter and a column in the Excel export. It changes no action or route.
+
+Attachments get a document type from a fixed list (`DOCUMENT_TYPES` in `core/attachment_processor.py`), a lender
+and a one or two sentence summary in Greek, shown on the case page («Συνημμένα»). The reader also gives, in Greek,
+why each chosen category applies (`categoryReasons`), shown side by side on the case page.
+
 ## Qualco activities
 
 Every Qualco request is followed by its activity on the same account (sheet "Activities" of

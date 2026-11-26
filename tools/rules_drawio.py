@@ -87,7 +87,7 @@ def flow_page() -> Page:
     s3 = p.box(100, 470, 300, 60, two_lines("3 · Κανόνες κατηγορίας", "ό,τι λέει το email → ενέργεια"), BOX)
     d4 = p.box(80, 570, 340, 100, two_lines("4 · Portal;", "αίτημα Portal + πελάτης με Portal"), DECIDE)
     d5 = p.box(80, 710, 340, 100, two_lines("5 · Ταυτοποίηση;", "ΑΦΜ ή λογαριασμός στο μητρώο"), DECIDE)
-    d6 = p.box(80, 850, 340, 100, two_lines("6 · Λογαριασμός;", "βρέθηκε λογαριασμός / SPV"), DECIDE)
+    d6 = p.box(80, 850, 340, 100, two_lines("6 · Λογαριασμός;", "από email · τράπεζα/SPV στο κείμενο · αλλιώς ανά SPV"), DECIDE)
     s7 = p.box(100, 990, 300, 60, two_lines("7 · Κωδικός αιτήματος Qualco", "ανοιχτή: χωρίς _Cust · κλειστή: _Cust"), BOX)
     s8 = p.box(100, 1080, 300, 60, two_lines("8 · Activity Qualco", "του αιτήματος, ίδιος λογαριασμός (σελ. 6)"),
                BOX.replace(f"strokeColor={INK2}", f"strokeColor={OK};strokeWidth=2"))

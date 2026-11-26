@@ -1,0 +1,112 @@
+{
+  "_comment": [
+    "Banks and funds an email or attachment may name, to find the customer's portfolio (SPV) and to flag ERB.",
+    "aliases: how the name may be written; case, accents and Greek/Latin spelling as listed. Matched as whole words.",
+    "spvs: the registry portfolio names (PRTFL_NM) that came from this bank. To be filled in by the business:",
+    "while a list is empty, only an SPV whose own name is written in the text (e.g. CAIRO) is matched.",
+    "flag: a mark shown on the email and usable as a filter (ERB = Eurobank)."
+  ],
+  "banks": {
+    "Eurobank": {
+      "aliases": [
+        "eurobank",
+        "euro bank",
+        "eurobank ergasias",
+        "efg eurobank",
+        "ευρωμπανκ",
+        "γιουρομπανκ",
+        "γιούρομπανκ",
+        "τράπεζα εργασίας",
+        "τραπεζα εργασιας"
+      ],
+      "spvs": [],
+      "flag": "ERB"
+    },
+    "Alpha Bank": {
+      "aliases": [
+        "alpha bank",
+        "alphabank",
+        "άλφα τράπεζα",
+        "τράπεζα άλφα",
+        "alpha τράπεζα",
+        "άλφα μπανκ",
+        "τράπεζα πίστεως",
+        "εμπορική τράπεζα",
+        "emporiki bank"
+      ],
+      "spvs": []
+    },
+    "Τράπεζα Πειραιώς": {
+      "aliases": [
+        "τράπεζα πειραιώς",
+        "piraeus bank",
+        "τράπεζα πειραιως",
+        "αγροτική τράπεζα",
+        "atebank",
+        "millennium bank",
+        "γενική τράπεζα",
+        "geniki bank"
+      ],
+      "spvs": []
+    },
+    "Εθνική Τράπεζα": {
+      "aliases": [
+        "εθνική τράπεζα",
+        "εθνικη τραπεζα",
+        "national bank of greece",
+        "nbg",
+        "εθνική κτηματική"
+      ],
+      "spvs": []
+    },
+    "Attica Bank": {
+      "aliases": [
+        "attica bank",
+        "τράπεζα αττικής",
+        "τραπεζα αττικης",
+        "αττικής τράπεζα"
+      ],
+      "spvs": []
+    },
+    "Παγκρήτια Τράπεζα": {
+      "aliases": [
+        "παγκρήτια",
+        "pancreta",
+        "παγκρητια"
+      ],
+      "spvs": []
+    },
+    "Ταχυδρομικό Ταμιευτήριο": {
+      "aliases": [
+        "ταχυδρομικό ταμιευτήριο",
+        "ταχυδρομικο ταμιευτηριο",
+        "tt hellenic postbank",
+        "postbank"
+      ],
+      "spvs": []
+    },
+    "Probank": {
+      "aliases": [
+        "probank"
+      ],
+      "spvs": []
+    },
+    "Τράπεζα Κύπρου / Λαϊκή": {
+      "aliases": [
+        "τράπεζα κύπρου",
+        "bank of cyprus",
+        "λαϊκή τράπεζα",
+        "marfin"
+      ],
+      "spvs": []
+    },
+    "Citibank": {
+      "aliases": [
+        "citibank",
+        "citi bank",
+        "σιτιμπανκ"
+      ],
+      "spvs": []
+    }
+  }
+}

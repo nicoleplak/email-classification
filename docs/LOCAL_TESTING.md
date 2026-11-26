@@ -155,6 +155,12 @@ They go into `LOCAL_BLOB_DIR` from `.env`. Then steps 3c and 3d. The customer re
   the closed flag exists), followed by its **activity** (sheet Activities); Portal only for 113, 89, 119.
 - **Senders**: «Εσωτερικό» emails with category 38 and no model; «Προώθηση Retail Support»; the
   «Αποστολέας» filter; every To and Cc address in the email header (emails fetched from now on).
+- **Case page**: «Πελάτης» first, possible customers (name or email only) in a drop-down; every chosen category
+  in its own block with why it was chosen; «Συνημμένα» with document type, bank and summary; why the email went to
+  review at the top. In the list: the review reason under each email, and the «Λόγος ελέγχου» and «Σήμανση» (ERB)
+  filters.
+- **Banks and SPV**: a bank or SPV named in the email or an attachment picks the SPV of the request; otherwise an
+  "SPV" category opens one request per SPV. Fill the SPV names per bank in `AI_email_classifier\inputs\banks.json`.
 - **Statistics**: click a number to open exactly those emails; the Excel export lists the current list.
 - The rules for the business: `docs\decision_rules.html` and `docs\decision_rules.drawio`.
 

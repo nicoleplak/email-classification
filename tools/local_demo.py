@@ -32,6 +32,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 import os
 import sys
 from dataclasses import dataclass
@@ -89,6 +90,11 @@ def registry_csv(count: int) -> bytes:
             rows.append(";".join([invented_afm(n), plain_upper(f"{last} {first}"), "Datamart" if n % 10 == 5 else "Qualco",
                                   "Ν.3869" if n % 6 == 0 else "Active", f"DEMO{n:04d}", spv[-4:].upper(), spv,
                                   account, "", "", "Y" if n % 2 else "N", "I"]))
+    # Two namesakes for the emails that give no tax ID: the name alone makes them "possible" customers.
+    for n in (900, 901):
+        for account, spv in demo_accounts(n):
+            rows.append(";".join([invented_afm(n), "ΔΗΜΗΤΡΙΟΥ ΑΙΚΑΤΕΡΙΝΗ", "Qualco", "Active", f"DEMO{n:04d}",
+                                  spv[-4:].upper(), spv, account, "", "", "N", "I"]))
     return ("\n".join(rows) + "\n").encode("utf-8")
 
 
@@ -115,6 +121,8 @@ def invented_email(n: int, now: datetime, upload, hours_ago: float | None = None
     name, address = SENDERS[n % len(SENDERS)]
     if n % 9 == 4:  # some come from doValue itself, so the internal flag shows in the review app
         name, address = "Retail Support", f"retail.support{n}@dovaluegreece.gr"
+    elif n % 11 == 6:  # no tax ID below; two registry customers share this name
+        name, address = "Αικατερίνη Δημητρίου", "k.dimitriou@example.com"
     subject, ask = REQUESTS[n % len(REQUESTS)]
     afm = invented_afm(n)
     received = now - timedelta(hours=n * 8.5 + 1 if hours_ago is None else hours_ago, minutes=n * 7)
@@ -124,7 +132,13 @@ def invented_email(n: int, now: datetime, upload, hours_ago: float | None = None
         extra = f"\nΛογαριασμός: {demo_accounts(n)[-1][0]}"
     elif n % 7 == 3:
         extra = "\nΤο αίτημα αφορά όλες τις οφειλές μου."
-    text = f"Καλημέρα σας,\n\n{ask}\nΑΦΜ: {afm}{extra}\n\nΕυχαριστώ,\n{name}"
+    if n % 5 == 1:  # Eurobank named: the email is marked ERB
+        extra += "\nΤο δάνειο ήταν αρχικά της Eurobank."
+    elif n % 5 == 3:  # an SPV named: the request goes to that SPV's account
+        extra += "\nΑφορά το δάνειο του χαρτοφυλακίου Beta."
+    # Every 11th email gives no tax ID: only the sender's name points at customers, as "possible" ones.
+    afm_line = "" if n % 11 == 6 else f"\nΑΦΜ: {afm}"
+    text = f"Καλημέρα σας,\n\n{ask}{afm_line}{extra}\n\nΕυχαριστώ,\n{name}"
     html = "<p>" + "</p><p>".join(line or "&nbsp;" for line in text.split("\n")) + "</p>"
 
     files = []
@@ -203,7 +217,12 @@ class FakeProcessor:
             stem = f"{Path(item['name']).stem}_{number}"
             (folder / f"{stem}.txt").write_text(text, encoding="utf-8")
             (folder / f"{stem}.json").write_text(json.dumps({"filename": item["name"]}), encoding="utf-8")
+            pdf = item["name"].endswith(".pdf")
             records.append({"filename": item["name"], "status": "ANALYZED", "relevance": "relevant",
+                            "document_type": "Αίτηση / επιστολή πελάτη" if pdf else "Υπεύθυνη δήλωση",
+                            "lender": "Τράπεζα Πειραιώς" if pdf and number % 2 else "",
+                            "summary": ("Αίτηση του πελάτη για το αίτημα του email, με τον ΑΦΜ του." if pdf
+                                        else "Σημείωση του πελάτη που επαναλαμβάνει το αίτημα του email."),
                             "evidence_phrases": [text.splitlines()[0][:60]]})
         return records
 
@@ -223,7 +242,9 @@ class FakeProcessor:
             "model_other_categories": {runner_up: 0.8 + 0.05 * (n % 3)} if n % 4 == 0
             else {runner_up: 0.4, self.categories[(n + 2) % len(self.categories)]: 0.6} if n % 4 == 2 else {},
             "reasoning": "Invented classification from tools/local_demo.py (no model was called).",
-            "attachment_records": self._save_texts(email),
+            "attachment_records": (saved := self._save_texts(email)),
+            "attachment_summaries": [{k: r[k] for k in ("filename", "document_type", "lender", "relevance", "summary")}
+                                     for r in saved],
         }]
 
 
@@ -238,6 +259,10 @@ class FakeModel:
         from core.action_rules import FLAGS
 
         user = json.loads(kwargs["messages"][1]["content"])
+        system = kwargs["messages"][0]["content"]
+        principal = re.search(r"already classified as: (.+?)\.\n", system).group(1)
+        also = [c for c in re.search(r"classifier also considered: (.+?)\. For each", system, re.S).group(1)
+                .replace("\n", " ").split(", ") if c and c != "none"]
         lines = [line.strip() for line in user["body"].splitlines() if len(line.strip()) > 20]
         sender = user["sender"]["name"] or ""
         answer = {
@@ -254,6 +279,15 @@ class FakeModel:
             "flags": {k: (k == "asks_debt_certificate" and "βεβαίωση" in user["body"].lower())
                       or (k == "all_debts" and "όλες τις οφειλές" in user["body"]) for k in FLAGS},
             "other_requests": [],
+            # One reason per category: the principal and each one the classifier also considered.
+            "categories": [
+                {"category": c, "applies": i == 0 or i % 2 == 1,
+                 "reason": ("Το email ζητά ρητά αυτό το αίτημα στην πρώτη του πρόταση." if i == 0
+                            else "Το email αναφέρει και αυτό το αίτημα, ως δεύτερο θέμα." if i % 2
+                            else "Αναφέρεται μόνο παρεμπιπτόντως· δεν ζητείται κάτι σχετικό."),
+                 "quote": lines[0] if i == 0 and lines else "", "source": "body"}
+                for i, c in enumerate([principal, *also])
+            ],
             "evidence": [{"quote": lines[0], "supports": "category", "flag": "", "source": "body"}] if lines else [],
         }
         return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=json.dumps(answer)))])

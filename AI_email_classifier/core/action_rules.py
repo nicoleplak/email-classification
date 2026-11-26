@@ -16,8 +16,11 @@ about the customer (customer). This module only combines them, in this order (bu
               email names specific accounts;
    - account  the account must be identified: named in the email, the customer's only account, or
               every account when the email concerns all debts; otherwise "Need more Info";
-   - spv      one request on one account of the identified SPV: from a named account, the only SPV,
-              or every SPV when the email concerns all debts; otherwise "Need more Info".
+   - spv      one request on one account of the identified SPV: from a named account, the SPV whose
+              bank or name the email or an attachment mentions (core.banks), the only SPV, or every SPV
+              when the email concerns all debts; when the SPV is still unknown, one request per SPV
+              (never one picked at random).
+   A bank or SPV named in the email or an attachment also narrows per_spv and account to that SPV.
 6. Code: the open-case request (without _cust); the closed-case _cust request only for an account the
    registry marks closed (that column is not delivered yet, see core.customer_lookup.account_state).
    Each request is followed by its Qualco activity on the same account (``with_activities``, sheet
@@ -137,6 +140,8 @@ REASONS = {
     "all_debts_spv": "Το αίτημα αφορά όλες τις οφειλές, οπότε καταχωρείται ένα αίτημα σε κάθε χαρτοφυλάκιο (SPV).",
     "single_account": "Ο πελάτης έχει έναν μόνο λογαριασμό, οπότε το αίτημα καταχωρείται σε αυτόν.",
     "single_spv": "Ο πελάτης έχει λογαριασμούς σε ένα μόνο χαρτοφυλάκιο (SPV), οπότε το αίτημα καταχωρείται σε έναν από αυτούς.",
+    "spv_mentioned": "Το email ή ένα συνημμένο αναφέρει την τράπεζα ή το χαρτοφυλάκιο (SPV) του δανείου, οπότε το αίτημα καταχωρείται σε λογαριασμό αυτού του SPV.",
+    "spv_each": "Ο λογαριασμός δεν ταυτοποιείται από το email και ο πελάτης έχει λογαριασμούς σε περισσότερα χαρτοφυλάκια (SPV), οπότε καταχωρείται ένα αίτημα σε κάθε SPV αντί να επιλεγεί ένα στην τύχη.",
     "account_not_identified": "Η κατηγορία απαιτεί ταυτοποίηση λογαριασμού, αλλά το email δεν αναφέρει λογαριασμό και ο πελάτης έχει περισσότερους, οπότε ζητάμε τον αριθμό λογαριασμού.",
     "spv_not_identified": "Η κατηγορία απαιτεί ταυτοποίηση χαρτοφυλακίου (SPV), αλλά το email δεν αναφέρει λογαριασμό και ο πελάτης έχει λογαριασμούς σε περισσότερα, οπότε ζητάμε τον αριθμό λογαριασμού.",
     "guess_account_not_identified": "Ο λογαριασμός δεν ταυτοποιείται από το email. Πριν την καταχώρηση χρειάζεται ο αριθμός λογαριασμού.",
@@ -222,39 +227,51 @@ def _rule_reasons(rule: dict) -> list[str]:
 
 
 def select_accounts(
-    mode: str | None, accounts: list[dict], named: list[str], all_debts: bool, prefer_3869: bool = False
+    mode: str | None, accounts: list[dict], named: list[str], all_debts: bool, prefer_3869: bool = False,
+    spv_hint: list[str] | None = None,
 ) -> tuple[list[dict] | None, list[str], str | None]:
     """Which accounts get the request. Returns (accounts or None, reasons, what to ask for when None).
 
     "One of its accounts" is not random: open cases first, then Ν.3869 accounts for Ν.3869 requests,
     then the lowest account number, so the same email always gives the same account.
+    spv_hint: the customer's SPVs the email or an attachment names (a bank or SPV name, core.banks);
+    without a named account they narrow the choice to those SPVs, unless the email concerns all debts.
+    When the SPV still is not known, every SPV gets a request rather than one picked at random.
     """
     mode = mode or "per_spv"
     if not accounts:
         return None, ["no_accounts"], "account"
     ordered = sorted(accounts, key=lambda a: (a["state"] == "closed", not (prefer_3869 and a["is3869"]), a["account"]))
-    by_spv: dict[str, list[dict]] = {}
-    for account in ordered:
-        by_spv.setdefault(account["spv"], []).append(account)
-    one_per_spv = [group[0] for group in by_spv.values()]
+
+    def per_spv(items: list[dict]) -> tuple[list[dict], dict[str, list[dict]]]:
+        groups: dict[str, list[dict]] = {}
+        for account in items:
+            groups.setdefault(account["spv"], []).append(account)
+        return [group[0] for group in groups.values()], groups
+
     chosen = [a for a in ordered if a["account"] in set(named)]
     if chosen:
         if mode == "spv":
             return list({a["spv"]: a for a in reversed(chosen)}.values())[::-1], ["named_account"], None
         return chosen, ["named_account"], None
-    if mode == "per_spv":
-        return one_per_spv, ["per_spv"], None
-    if mode == "account":
-        if all_debts:
+    if all_debts and mode in ("account", "spv"):
+        if mode == "account":
             return ordered, ["all_debts_accounts"], None
+        return per_spv(ordered)[0], ["all_debts_spv"], None
+    lead: list[str] = []
+    hinted = [a for a in ordered if a["spv"] in set(spv_hint or [])]
+    if hinted and len({a["spv"] for a in hinted}) < len({a["spv"] for a in ordered}):
+        ordered, lead = hinted, ["spv_mentioned"]
+    one_per_spv, by_spv = per_spv(ordered)
+    if mode == "per_spv":
+        return one_per_spv, [*lead, "per_spv"], None
+    if mode == "account":
         if len(ordered) == 1:
-            return ordered, ["single_account"], None
-        return None, ["account_not_identified"], "account"
-    if all_debts:  # spv
-        return one_per_spv, ["all_debts_spv"], None
+            return ordered, [*lead, "single_account"], None
+        return None, [*lead, "account_not_identified"], "account"
     if len(by_spv) == 1:
-        return one_per_spv, ["single_spv"], None
-    return None, ["spv_not_identified"], "spv"
+        return one_per_spv, [*lead, "single_spv"], None
+    return one_per_spv, [*lead, "spv_each"], None
 
 
 def _code_for(rule: dict, account: dict | None) -> tuple[str, list[str]]:
@@ -305,7 +322,8 @@ def decide(
 ) -> list[dict]:
     """Actions for an email. categories: every request found, in order (``order_requests``).
 
-    customer: {identified, known, portal, erb, is_3869, accounts, named_accounts} (core.customer_lookup).
+    customer: {identified, known, portal, erb, is_3869, accounts, named_accounts, spv_hint}
+    (core.customer_lookup; spv_hint from core.banks).
     best_guess: for review, keep the request and its code when the customer or the account is not
     identified, with a caveat and a "Need more Info" reply, instead of only asking for the details.
     has_contract is kept for callers; no rule needs it any more.
@@ -373,7 +391,7 @@ def decide(
             continue
         targets, why, ask = select_accounts(spec.get("accounts"), customer.get("accounts") or [],
                                             customer.get("named_accounts") or [], bool(flags.get("all_debts")),
-                                            bool(spec.get("prefer_3869")))
+                                            bool(spec.get("prefer_3869")), customer.get("spv_hint"))
         if targets is None:
             missing.append(ask)
             if best_guess:

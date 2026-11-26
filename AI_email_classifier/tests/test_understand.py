@@ -120,6 +120,10 @@ class FakeClient:
                         "is_principal": True, "evidence": "ο οφειλέτης Γιάννης Παπαδόπουλος", "source": "body"}],
             "flags": {k: k == "asks_debt_certificate" for k in FLAGS},
             "other_requests": [],
+            "categories": [{"category": c, "applies": True, "reason": "Ζητά βεβαίωση οφειλής.",
+                            "quote": "Παρακαλώ βεβαίωση οφειλής" if i == 0 else "δεν υπάρχει στο κείμενο", "source": "body"}
+                           for i, c in enumerate(kwargs["response_format"]["json_schema"]["schema"]["properties"]
+                                                  ["other_requests"]["items"].get("enum", [])[:2])],
             "evidence": [
                 {"quote": "Παρακαλώ βεβαίωση οφειλής", "supports": "action", "flag": "asks_debt_certificate", "source": "body"},
                 {"quote": "the sender clearly wants a certificate", "supports": "category", "flag": "", "source": "body"},
@@ -214,3 +218,20 @@ def test_a_confident_second_category_brings_its_actions(registry):
     assert out["autoCategories"] == [{"category": "Αντίγραφα συμβάσεων", "confidence": 0.8}]
     assert "Αντίγραφα συμβάσεων" in out["otherRequests"] and "GDPR" not in out["otherRequests"]
     assert any(a["category"] == "Αντίγραφα συμβάσεων" and a["do"] == "request" for a in out["actions"])
+
+
+def test_category_reasons_banks_and_the_erb_marker(registry):
+    message = {
+        "id": "m1", "subject": "Βεβαίωση οφειλής",
+        "from": {"emailAddress": {"address": "lawyer@example.test", "name": "Δικηγόρος"}},
+        "body": {"body_clean": "Παρακαλώ βεβαίωση οφειλής για δάνειο της Eurobank, ΑΦΜ 094014298."},
+        "conversation_thread": [{"id": "m0", "subject": "Re", "body": {"body_clean": "Τράπεζα Πειραιώς"}}],
+    }
+    out = understand(client=FakeClient(), model="m", message=message, records=[{"category": "Βεβαιώσεις οφειλής"}],
+                     text_dir=None, categories=["Βεβαιώσεις οφειλής", "GDPR"], registry=registry,
+                     history=RequestHistory.empty())
+    assert out["markers"] == ["ERB"]
+    assert [b["bank"] for b in out["banks"]] == ["Eurobank"]  # earlier messages are not the sender's own text
+    reasons = out["categoryReasons"]
+    assert reasons[0]["reason"] == "Ζητά βεβαίωση οφειλής." and reasons[0]["quote"] == "Παρακαλώ βεβαίωση οφειλής"
+    assert reasons[1]["quote"] == ""  # a quote not found in the text is dropped

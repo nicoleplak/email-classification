@@ -334,6 +334,44 @@ async function behaviour(browser) {
     ok("history shows the category of a review", terms.some((x) => /Κατηγορία|Category/.test(x)), { rows: terms.length });
   }
 
+  // Review reason and ERB filters; the case page: customer first, categories side by side, possible customers.
+  await page.click("#queues button:nth-child(4)");
+  const total = await page.locator("#list .item").count();
+  const markValues = await page.$$eval("#mark option", (o) => o.map((x) => x.value));
+  if (markValues.includes("ERB")) {
+    await page.selectOption("#mark", "ERB");
+    const erb = await page.locator("#list .item").count();
+    ok("ERB filter lists only ERB emails", erb > 0 && erb < total && erb === (await page.locator("#list .item .pill.mark").count()), { erb, total });
+    await page.locator("#list .item").first().click();
+    await page.waitForSelector(".catblock");
+    const titles = await page.$$eval("#case .card > h3 > span:first-child", (x) => x.map((e) => e.textContent));
+    ok("customer comes first on the case page", /Πελάτης|Customer/.test(titles[0]), { titles });
+    ok("an ERB email names Eurobank", (await page.locator(".banks .bank.flagged").count()) >= 1);
+    await page.selectOption("#mark", "all");
+  } else ok("demo data has ERB emails", false);
+  const reasons = await page.$$eval("#reason option", (o) => o.map((x) => x.value).filter((v) => v !== "all"));
+  await page.selectOption("#reason", reasons[0]);
+  const withReason = await page.locator("#list .item").count();
+  ok("review reason filter narrows the list", reasons.length > 0 && withReason > 0 && withReason < total, { withReason, total });
+  ok("listed emails show their review reason", (await page.locator("#list .item .why-line").count()) === withReason);
+  await page.selectOption("#reason", "all");
+  const blocks = await page.$$eval("#list .item", (items) => items.map((i) => i.dataset.id));
+  let possibleSeen = false;
+  for (const id of blocks.slice(0, 60)) {
+    await page.click(`#list .item[data-id="${id}"]`);
+    await page.waitForFunction((x) => document.querySelector("#case").dataset.caseId === x, id);
+    if (await page.locator("#possible-pick").count()) {
+      const before = await page.locator(".possible .person").count();
+      await page.selectOption("#possible-pick", "0");
+      ok("possible customers open from a drop-down", before === 0 && (await page.locator(".possible .person").count()) === 1);
+      possibleSeen = true;
+      break;
+    }
+  }
+  if (!possibleSeen) ok("demo data has an email with only possible customers", false);
+  const widths = await page.$$eval(".catblock", (b) => b.map((x) => Math.round(x.getBoundingClientRect().width)));
+  ok("categories get the same space", widths.length >= 1 && new Set(widths).size === 1, { widths });
+
   ok("no script errors", scriptErrors === 0, { scriptErrors });
   ok("no console errors", consoleErrors === 0, { consoleErrors });
   await context.close();

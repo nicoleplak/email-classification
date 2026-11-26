@@ -513,3 +513,26 @@ details.template summary { font-size: 13px; color: var(--blue); cursor: pointer;
 .pill.sender.retail { color: #0f6b5c; background: #e3f4f0; }
 .filter-row2 { grid-template-columns: 1.25fr 1fr auto; }
 .export::before { content: "⤓ "; }
+
+/* Review reason, marks, categories side by side, possible customers, attachments (Nov 2026) */
+.why-line { margin-top: 4px; font-size: 12px; color: var(--review); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.why-review { display: grid; gap: 4px; }
+.why-review .reasons { margin: 0; }
+.pill.mark { color: #8a1c3c; background: #fbe7ee; }
+.catblocks { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 10px; }
+.catblock { border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; display: grid; gap: 4px; align-content: start; min-width: 0; }
+.catblock.main { border-color: var(--blue); }
+.catblock .cathead { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; justify-content: space-between; }
+.catblock .catname { font-size: 16px; font-weight: 700; overflow-wrap: anywhere; }
+.catblock .catwhy { margin: 0; font-size: 13.5px; }
+.catblock .quotes { margin-top: 4px; }
+.pill.main-tag { color: #fff; background: var(--blue); }
+.possible { margin-top: 10px; display: grid; gap: 6px; }
+.possible select { width: 100%; }
+.banks { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; margin-top: 10px; }
+.banks .bank { border: 1px solid var(--line); border-radius: 999px; padding: 1px 4px 1px 10px; font-size: 12.5px; }
+.banks .bank.flagged { border-color: #d9a3b5; background: #fbe7ee; }
+.attrow { padding: 8px 0; border-bottom: 1px solid var(--line); }
+.attrow:last-child { border-bottom: 0; }
+.attrow .row { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; }
+.attrow p { margin: 6px 0 0; }

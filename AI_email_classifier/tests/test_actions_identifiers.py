@@ -140,9 +140,11 @@ def test_account_mode_named_single_or_all_debts():
     assert len(every) == 3 and reply(decide([COPIES], {"all_debts": True}, NO_PORTAL_CUSTOMER)) == "received"
 
 
-def test_spv_mode_needs_the_portfolio():
+def test_spv_mode_without_the_portfolio_opens_one_request_per_spv():
     actions = decide([AUTH], {}, NO_PORTAL_CUSTOMER)
-    assert only(actions, "ask_identification")["missing"] == ["spv"]
+    requests = of(actions, "request")
+    assert [(a["account"], a["spv"]) for a in requests] == [("4000000000001", "SPV A"), ("4000000000009", "SPV B")]
+    assert all("spv_each" in a["because"] for a in requests) and not of(actions, "ask_identification")
     one_spv = {**NO_PORTAL_CUSTOMER, "accounts": TWO_SPVS[:2]}
     assert "single_spv" in only(decide([AUTH], {}, one_spv))["because"]
     named = {**NO_PORTAL_CUSTOMER, "named_accounts": ["4000000000002", "4000000000001"]}
@@ -541,3 +543,17 @@ def test_second_and_third_category_from_80_percent():
     assert extra_categories({"GDPR": 0.79}, "Ρύθμιση") == []
     assert extra_categories({"GDPR": 0.9}, "GDPR") == []  # never the main category again
     assert extra_categories({"GDPR": 0.7}, "Ρύθμιση", threshold=0.6) == [{"category": "GDPR", "confidence": 0.7}]
+
+
+# A bank or SPV named in the email or an attachment picks the customer's SPV.
+def test_named_spv_narrows_the_request_to_that_spv():
+    hinted = {**NO_PORTAL_CUSTOMER, "spv_hint": ["SPV B"]}
+    for category in (AUTH, GDPR):
+        requests = of(decide([category], {}, hinted), "request")
+        assert [a["account"] for a in requests] == ["4000000000009"]
+        assert "spv_mentioned" in requests[0]["because"]
+    # The account rule: the SPV's only account is the account.
+    assert only(decide([COPIES], {}, hinted))["account"] == "4000000000009"
+    # A hint for an SPV the customer does not have changes nothing; all debts ignores it.
+    assert len(of(decide([GDPR], {}, {**NO_PORTAL_CUSTOMER, "spv_hint": ["SPV Z"]}), "request")) == 2
+    assert len(of(decide([AUTH], {"all_debts": True}, hinted), "request")) == 2

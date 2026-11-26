@@ -85,7 +85,7 @@ MAX_BODY = 64_000
 STATIC = HERE / "static"
 CATEGORIES = [c["Categories"].strip() for c in json.loads((APP / "inputs" / "categories.json").read_text("utf-8"))]
 LIGHT = ["id", "subject", "from", "receivedAt", "status", "route", "routeReasons", "modelCategory", "noMatch",
-         "otherCategories", "reviewOutcome", "actionsOutcome",
+         "otherCategories", "reviewOutcome", "actionsOutcome", "markers",
          "finalCategory", "confidence", "reviewedBy", "reviewedAt", "classifiedAt", "mailboxState", "sourceRefs"]
 INLINE_TYPES = {"application/pdf", "image/png", "image/jpeg", "image/gif", "image/webp", "image/bmp", "text/plain"}
 
@@ -633,6 +633,11 @@ def _people(items) -> str:
     return ", ".join(((x or {}).get("emailAddress") or {}).get("address", "") for x in items or [] if x)
 
 
+def attachment_summaries(case: dict) -> list[dict]:
+    records = (case.get("payload") or {}).get("records") or []
+    return list((records[0] if records else {}).get("attachment_summaries") or [])
+
+
 def export_xlsx(ids: list[str]) -> bytes:
     """The listed emails as an Excel sheet: email, categories, actions, reviewer, status."""
     from openpyxl import Workbook
@@ -641,7 +646,7 @@ def export_xlsx(ids: list[str]) -> bytes:
 
     columns = [
         ("Λήψη (ώρα Ελλάδας)", 17), ("Από", 28), ("Αποστολέας", 18), ("Προς", 28), ("Κοιν.", 28), ("Θέμα", 40), ("Κατάσταση", 16),
-        ("Δρομολόγηση", 16), ("Λόγοι ελέγχου", 34), ("Κατηγορία συστήματος", 30), ("Βεβαιότητα", 11),
+        ("Δρομολόγηση", 16), ("Λόγοι ελέγχου", 34), ("Σημάνσεις", 12), ("Συνημμένα (τύπος)", 34), ("Κατηγορία συστήματος", 30), ("Βεβαιότητα", 11),
         ("Τελική κατηγορία", 30), ("Επιπλέον κατηγορίες", 30), ("Κατηγορία: αποτέλεσμα", 18),
         ("Προτεινόμενες ενέργειες", 50), ("Τελικές ενέργειες", 50), ("Ενέργειες: αποτέλεσμα", 18),
         ("Ελεγκτής", 22), ("Ημ. ελέγχου (ώρα Ελλάδας)", 17), ("Σχόλιο", 40), ("ID", 26),
@@ -677,6 +682,8 @@ def export_xlsx(ids: list[str]) -> bytes:
             STATUS_TEXT.get(case.get("status")) or ROUTE_TEXT.get(case.get("route") or "", "Χωρίς ταξινόμηση"),
             ROUTE_TEXT.get(case.get("route") or "", ""),
             "; ".join(REASON_TEXT.get(r, r) for r in reasons),
+            ", ".join(case.get("markers") or []),
+            "\n".join(f"{a.get('filename')}: {a.get('document_type') or '—'}" for a in attachment_summaries(case)),
             case.get("modelCategory") or "",
             None if case.get("confidence") is None else round(float(case["confidence"]), 2),
             (metrics.NO_MATCH if case.get("noMatch") else case.get("finalCategory") or "") if reviewed else "",
