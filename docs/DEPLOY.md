@@ -130,7 +130,14 @@ why each chosen category applies (`categoryReasons`), shown side by side on the 
 ## Qualco activities
 
 Every Qualco request is followed by its activity on the same account (sheet "Activities" of
-rules_for_prompt-2.xlsx, `request_activities` in `inputs/qualco_requests.json`). The code table, with open and
+rules_for_prompt-2.xlsx, `request_activities` in `inputs/qualco_requests.json`).
+
+**Follow-up:** when the past-requests file (`in/request_output_*.csv`, `REQUEST_HISTORY=true`) already has a
+request of the same type for the customer's account (or with no account) whose `REQUEST_STATUS` is one of
+`follow_up.statuses` in `inputs/qualco_requests.json` (today «Καταχώρηση αιτήματος»), no new request is
+proposed: only the request's activity, marked follow-up, and the «σε εξέλιξη» reply. A request with no activity of
+its own uses `follow_up.default_activity` (2090). Same type = `REQUEST_TYPE_DSC` equals the request's name, with or
+without its code in front. The code table, with open and
 `_Cust` codes, activities and Portal, is in `docs/decision_rules.html` and page 6 of `docs/decision_rules.drawio`.
 
 ## Metrics view

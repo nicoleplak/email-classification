@@ -557,3 +557,27 @@ def test_named_spv_narrows_the_request_to_that_spv():
     # A hint for an SPV the customer does not have changes nothing; all debts ignores it.
     assert len(of(decide([GDPR], {}, {**NO_PORTAL_CUSTOMER, "spv_hint": ["SPV Z"]}), "request")) == 2
     assert len(of(decide([AUTH], {"all_debts": True}, hinted), "request")) == 2
+
+
+# Follow-up: the same request already registered in Qualco → only its activity, no new request.
+def test_a_registered_request_of_the_same_type_gets_only_a_follow_up_activity():
+    one = {**NO_PORTAL_CUSTOMER, "accounts": ONE}
+    registered = {"type": "Χορήγηση_Συμβατικών Εγγράφων", "status": "ΚΑΤΑΧΩΡΗΣΗ ΑΙΤΗΜΑΤΟΣ", "created": "2026-11-20",
+                  "account": "4000000000001"}
+    actions = decide([COPIES], {}, {**one, "open_requests": [registered]})
+    assert not of(actions, "request")
+    follow = only(actions, "activity")
+    assert (follow["code"], follow["forRequest"], follow["followUp"], follow["account"]) == ("6567", "154", True, "4000000000001")
+    assert "open_request_exists" in follow["because"] and reply(actions) == "in_progress"
+    # The code in front of the name also matches; so does a request Qualco keeps without an account.
+    for row in ({**registered, "type": "154 - Χορήγηση_Συμβατικών Εγγράφων"}, {**registered, "account": ""}):
+        assert not of(decide([COPIES], {}, {**one, "open_requests": [row]}), "request")
+    # Another status, another type or another account: a new request as usual.
+    for row in ({**registered, "status": "Ολοκληρώθηκε"}, {**registered, "type": "GDPR"},
+                {**registered, "account": "4000000000777"}):
+        assert only(decide([COPIES], {}, {**one, "open_requests": [row]}))["code"] == "154"
+
+
+def test_a_request_without_its_own_activity_follows_up_with_the_default():
+    from core.action_rules import follow_up_activities
+    assert follow_up_activities("111") == ["2090"] and follow_up_activities("154") == ["6567"]

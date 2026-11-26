@@ -89,7 +89,7 @@ def flow_page() -> Page:
     d5 = p.box(80, 710, 340, 100, two_lines("5 · Ταυτοποίηση;", "ΑΦΜ ή λογαριασμός στο μητρώο"), DECIDE)
     d6 = p.box(80, 850, 340, 100, two_lines("6 · Λογαριασμός;", "από email · τράπεζα/SPV στο κείμενο · αλλιώς ανά SPV"), DECIDE)
     s7 = p.box(100, 990, 300, 60, two_lines("7 · Κωδικός αιτήματος Qualco", "ανοιχτή: χωρίς _Cust · κλειστή: _Cust"), BOX)
-    s8 = p.box(100, 1080, 300, 60, two_lines("8 · Activity Qualco", "του αιτήματος, ίδιος λογαριασμός (σελ. 6)"),
+    s8 = p.box(100, 1080, 300, 60, two_lines("8 · Activity Qualco", "ίδιος λογαριασμός · μόνο αυτή (follow-up) αν το αίτημα υπάρχει ήδη"),
                BOX.replace(f"strokeColor={INK2}", f"strokeColor={OK};strokeWidth=2"))
     s9 = p.box(100, 1170, 300, 60, two_lines("9 · Μία απάντηση ανά email", "από τα πρότυπα (δεξιά)"), BOX)
     d10 = p.box(80, 1260, 340, 100, two_lines("10 · Αυτόματα;", "κανένας λόγος ελέγχου"), DECIDE)

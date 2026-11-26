@@ -24,7 +24,8 @@ about the customer (customer). This module only combines them, in this order (bu
 6. Code: the open-case request (without _cust); the closed-case _cust request only for an account the
    registry marks closed (that column is not delivered yet, see core.customer_lookup.account_state).
    Each request is followed by its Qualco activity on the same account (``with_activities``, sheet
-   'Activities'). A category whose Portal column names requests ('YES for Request 113') sends only those
+   'Activities'). Follow-up: when Qualco already has a request of the same type in «Καταχώρηση αιτήματος»
+   for that account (request_output), no new request is opened, only its activity (``open_request``). A category whose Portal column names requests ('YES for Request 113') sends only those
    to the Portal (``portal_eligible``).
 7. Reply: one template per email (inputs/reply_templates.json): Need more Info, Portal, ERB branch, or
    the category's Received / In Progress template once something was done.
@@ -39,6 +40,8 @@ from __future__ import annotations
 
 import json
 import os
+import re
+import unicodedata
 from pathlib import Path
 from typing import Any
 
@@ -56,6 +59,7 @@ PRIORITY = {
     c["Categories"].strip(): float(c["Priority"]) if c.get("Priority") not in (None, "") else 3.0
     for c in _load("categories.json")
 }
+FOLLOW_UP = QUALCO.get("follow_up") or {}
 COMPLAINTS = ("Παράπονα",)  # never the principal request when the email asks for something else
 REPLY_KINDS = ("reply", "portal_referral", "bank_referral", "ask_identification")
 
@@ -150,6 +154,8 @@ REASONS = {
     "account_closed": "Ο λογαριασμός είναι κλειστή υπόθεση στο Qualco, οπότε χρησιμοποιείται ο κωδικός _Cust.",
     "account_state_unknown": "Δεν υπάρχει ακόμη η ένδειξη ανοιχτής/κλειστής υπόθεσης, οπότε χρησιμοποιείται ο κωδικός ανοιχτής υπόθεσης (χωρίς _Cust).",
     "category_reply": "Η κατηγορία ορίζει αυτό το πρότυπο απάντησης.",
+    "open_request_exists": "Υπάρχει ήδη αίτημα του ίδιου τύπου σε «Καταχώρηση αιτήματος» για τον πελάτη, οπότε δεν ανοίγει νέο αίτημα· καταχωρείται μόνο η δραστηριότητα παρακολούθησης (follow-up).",
+    "follow_up_reply": "Το αίτημα είναι ήδη καταχωρημένο και σε εξέλιξη, οπότε η απάντηση είναι το πρότυπο «σε εξέλιξη».",
     "request_activity": "Κάθε αίτημα Qualco καταγράφεται και με τη δραστηριότητά του (φύλλο Activities).",
 }
 
@@ -207,6 +213,41 @@ def render_reply(template: str, missing: list[str] | None = None) -> str:
     lines = "\n".join(REPLIES["missing"][m] for m in missing or [] if m in REPLIES["missing"])
     return REPLIES["templates"][template]["text"].format(
         signature=settings["signature"], portal_url=settings["portal_url"], missing=lines)
+
+
+def _key(text: Any) -> str:
+    plain = "".join(c for c in unicodedata.normalize("NFD", str(text or "")) if not unicodedata.combining(c))
+    return " ".join(plain.upper().split())
+
+
+def open_request(codes: list[str | None], account: dict | None, existing: list[dict]) -> dict | None:
+    """A request already in Qualco of the same type, still in a follow-up status (qualco_requests.json
+    'follow_up', e.g. «Καταχώρηση αιτήματος»), for this account or, when Qualco gives no account, the customer.
+
+    Same type: REQUEST_TYPE_DSC is the request's name, with or without its code in front.
+    """
+    statuses = {_key(s) for s in FOLLOW_UP.get("statuses", [])}
+    codes = [str(c) for c in codes if c]
+    names = {_key(code_name(c)) for c in codes} - {""}
+    numbers = account and {account["account"], *account.get("otherNumbers", [])}
+    for row in existing:
+        if _key(row.get("status")) not in statuses:
+            continue
+        kind = _key(row.get("type"))
+        bare = re.sub(r"^\d+\s*[-–.:]?\s*", "", kind)
+        if not kind or not (kind in codes or bare in names or kind in names
+                            or any(re.match(rf"{re.escape(c)}(?!\d)", kind) for c in codes)):
+            continue
+        if numbers and str(row.get("account") or "").strip() and str(row["account"]).strip() not in numbers:
+            continue
+        return row
+    return None
+
+
+def follow_up_activities(code: str) -> list[str]:
+    """The activities that follow up a request already in Qualco: its own, or the default one."""
+    own = request_activities(code)
+    return own or ([FOLLOW_UP["default_activity"]] if FOLLOW_UP.get("default_activity") else [])
 
 
 def _holds(when: dict, facts: dict) -> bool:
@@ -408,9 +449,18 @@ def decide(
                 actions.append({"category": category, "do": "portal_referral", "because": [*because, *code_why, "has_portal"],
                                 "account": account["account"], "spv": account["spv"]})
                 continue
+            place = {"account": account["account"], "spv": account["spv"], "accountState": account["state"]}
+            existing = open_request([code, rule.get("open"), rule.get("closed")], account, customer.get("open_requests") or [])
+            if existing:
+                # Already registered in Qualco: no new request, only its follow-up activity.
+                for activity in follow_up_activities(code):
+                    actions.append({"category": category, "do": "activity", "code": activity, "codes": [activity],
+                                    "forRequest": code, "followUp": True, **place,
+                                    "openRequest": {k: existing.get(k) for k in ("type", "status", "created", "account")},
+                                    "because": [*because, *why, "open_request_exists"]})
+                continue
             actions.append({
-                **action, "because": [*because, *why, *code_why], "code": code, "codes": [code],
-                "account": account["account"], "spv": account["spv"], "accountState": account["state"],
+                **action, "because": [*because, *why, *code_why], "code": code, "codes": [code], **place,
             })
 
     actions = with_activities(actions)
@@ -428,7 +478,10 @@ def decide(
     elif not any(a["do"] in REPLY_KINDS for a in actions) or any(a["do"] not in REPLY_KINDS for a in actions):
         done = [a for a in actions if a["do"] not in REPLY_KINDS and a["do"] != "no_action"]
         reply_category = next((c for c in dict.fromkeys(categories) if RULES.get(c, {}).get("reply")), None)
-        if done and reply_category:
+        if done and all(a.get("followUp") for a in done) and "in_progress" in REPLIES["templates"]:
+            actions.append({"category": done[0]["category"], "do": "reply", "template": "in_progress",
+                            "because": ["follow_up_reply"]})
+        elif done and reply_category:
             actions.append({"category": reply_category, "do": "reply", "template": RULES[reply_category]["reply"],
                             "because": ["category_reply"]})
     for action in actions:

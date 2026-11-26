@@ -530,6 +530,7 @@ def clean_actions(raw) -> tuple[list[dict], str | None]:
             "accountState": item.get("accountState") if item.get("accountState") in ("open", "closed", "unknown") else None,
             "folder": text(item["folder"]) if item.get("folder") else None,
             "forRequest": text(item["forRequest"]) if item.get("forRequest") else None,
+            "followUp": True if item.get("followUp") is True else None,
             "template": item.get("template") if item.get("template") in REPLIES["templates"] else None,
             "source": "suggested" if item.get("source") == "suggested" else "added",
         })
@@ -617,7 +618,7 @@ def action_line(action: dict) -> str:
     if action.get("do") in ("request", "activity") and code:
         text += f" {code} {code_name(code)}".rstrip()
     if action.get("forRequest"):
-        text += f" για αίτημα {action['forRequest']}"
+        text += f" {'παρακολούθηση (follow-up) υπάρχοντος αιτήματος' if action.get('followUp') else 'για αίτημα'} {action['forRequest']}"
     if action.get("account"):
         text += f" (λογ. {action['account']}{', ' + action['spv'] if action.get('spv') else ''})"
     if action.get("to"):

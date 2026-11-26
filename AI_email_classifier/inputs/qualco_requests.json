@@ -399,5 +399,12 @@
     "184": [
       "6693"
     ]
+  },
+  "follow_up": {
+    "_about": "A request of the same type already registered for the customer (request_output, REQUEST_STATUS) means no new request: only its activity is logged, as a follow-up. A request without its own activity uses default_activity (to confirm with the business).",
+    "statuses": [
+      "Καταχώρηση αιτήματος"
+    ],
+    "default_activity": "2090"
   }
 }

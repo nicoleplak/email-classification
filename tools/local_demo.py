@@ -306,8 +306,8 @@ def invented_reviews(store, categories: list[str], now: datetime) -> int:
                    key=lambda c: c["receivedAt"])
     done = 0
     for i, case in enumerate(cases):
-        if i % 10 >= 8:
-            continue  # some stay in the queue
+        if i % 10 >= 8 or any(a.get("followUp") for a in (case.get("understanding") or {}).get("actions") or []):
+            continue  # some stay in the queue, follow-ups among them
         model = case.get("modelCategory")
         no_match = bool(model) and int(case["id"][-8:], 16) % 9 == 4
         # The id ends in 8 hex digits of a hash: a fair, repeatable "coin" independent of the order above.
@@ -413,11 +413,21 @@ def main() -> int:
         registry_file = Path(blob_dir) / registry_blob
         registry = Registry(DataLoader.load_registry_df(str(registry_file)), registry_blob)
 
+        # Requests already in Qualco: every 3rd customer has each request type registered on its first account,
+        # so their emails show the follow-up (activity only, no new request).
+        import pandas as pd
+        names = json.loads((APP / "inputs" / "qualco_requests.json").read_text(encoding="utf-8"))["requests"]
+        history = RequestHistory(pd.DataFrame([
+            {"AFM": invented_afm(n), "EMAIL": "", "CUST_FIRST_NM": "", "CUST_LAST_NM": "", "REQUEST_TYPE_DSC": name,
+             "REQUEST_STATUS": "Καταχώρηση αιτήματος", "REQUEST_CREATED": "2026-11-10", "CLOSED_REQUEST_FLAG": "N",
+             "ACC_ID": demo_accounts(n)[0][0]}
+            for n in range(args.emails) if n % 3 == 1 for name in names.values()]), "invented request history")
+
         def understand_factory(_processor, _messages):
             def read(message, records, text_dir):
                 return understand(client=FakeModel(), model="demo", message=message, records=records,
                                   text_dir=text_dir, categories=categories, registry=registry,
-                                  history=RequestHistory.empty())
+                                  history=history)
             return read
 
         processor = FakeProcessor(categories, blob_output)

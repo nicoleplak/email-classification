@@ -190,6 +190,10 @@ class RequestHistory:
         rows = self.rows[self.rows["EMAIL"].str.lower() == email.lower()]
         return _unique(rows["AFM"])
 
+    def requests(self, tax_id: str, limit: int = 200) -> list[dict[str, str]]:
+        """Every past Qualco request of a customer (newest first), for the follow-up rule in core.action_rules."""
+        return [{**r, "taxId": tax_id} for r in self.recent(tax_id, limit)]
+
     def recent(self, tax_id: str, limit: int = 5) -> list[dict[str, str]]:
         rows = self.rows[self.rows["AFM"] == tax_id].sort_values("REQUEST_CREATED", ascending=False)
         return [
@@ -296,5 +300,7 @@ def find_customers(
             "is_3869": any(r["CST_STS_NM"].str.contains("3869").any() for r in rows if "CST_STS_NM" in r.columns),
             "accounts": customer_accounts,
             "named_accounts": list(dict.fromkeys(named)),
+            # Requests already in Qualco: one of the same type still registered means a follow-up, not a new one.
+            "open_requests": [r for c in facts_from for r in history.requests(c["taxId"])],
         },
     }
