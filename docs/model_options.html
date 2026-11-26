@@ -1,0 +1,220 @@
+<title>Classifier Model Options</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Space+Grotesk:wght@500;600&display=swap">
+<style>
+/* Layout: one reading column (memo) with full-width tables; calculator sits right under the summary */
+:root{
+  --bg:#f6f7f8; --surface:#ffffff; --fg:#1b2329; --muted:#5b6670; --line:#dde2e6;
+  --accent:#0f6e6a; --accent-soft:#e2f1ef; --warn:#9a5b00; --warn-soft:#fbf0dc; --bad:#a53a2e; --bad-soft:#f8e6e3; --good:#2f7a3a; --good-soft:#e5f2e6;
+  --f-display:"Space Grotesk","Segoe UI",system-ui,sans-serif; --f-body:"IBM Plex Sans","Segoe UI",system-ui,sans-serif; --f-mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#12171b; --surface:#1a2126; --fg:#e4e9ec; --muted:#9aa6ae; --line:#2c353c;
+  --accent:#5cc4bc; --accent-soft:#16302e; --warn:#e3a94a; --warn-soft:#33270f; --bad:#ec8a7d; --bad-soft:#3a1d19; --good:#7fcf8a; --good-soft:#18301b; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#12171b; --surface:#1a2126; --fg:#e4e9ec; --muted:#9aa6ae; --line:#2c353c;
+  --accent:#5cc4bc; --accent-soft:#16302e; --warn:#e3a94a; --warn-soft:#33270f; --bad:#ec8a7d; --bad-soft:#3a1d19; --good:#7fcf8a; --good-soft:#18301b; color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.55}
+.wrap{max-width:1040px;margin:0 auto;padding-block:32px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:28px}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0;line-height:1.2}
+h1{font-size:2rem}
+h2{font-size:1.3rem;margin-bottom:10px}
+h3{font-size:1.02rem;margin-bottom:6px}
+p{margin:0 0 10px;max-width:72ch}
+ul{margin:0 0 10px;padding-left:20px;max-width:76ch}
+li{margin-bottom:4px}
+.eyebrow{font-family:var(--f-mono);font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.lede{font-size:1.05rem;color:var(--muted)}
+code,.mono{font-family:var(--f-mono);font-size:.88em}
+section{display:grid;gap:6px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px 20px}
+.verdict{border-left:4px solid var(--accent);background:var(--accent-soft);border-radius:8px;padding:16px 20px}
+.verdict p:last-child{margin-bottom:0}
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:.9rem;font-variant-numeric:tabular-nums}
+th,td{padding:9px 12px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{font-weight:600;font-size:.78rem;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);background:var(--bg)}
+tr:last-child td{border-bottom:0}
+td.n,th.n{text-align:right;white-space:nowrap}
+tr.rec td{background:var(--accent-soft)}
+.pill{display:inline-block;font-size:.75rem;font-weight:600;padding:2px 8px;border-radius:99px;white-space:nowrap}
+.p-good{background:var(--good-soft);color:var(--good)}
+.p-warn{background:var(--warn-soft);color:var(--warn)}
+.p-bad{background:var(--bad-soft);color:var(--bad)}
+.p-acc{background:var(--accent-soft);color:var(--accent)}
+.calc{display:flex;flex-wrap:wrap;gap:18px;align-items:end;margin-bottom:14px}
+.calc label{display:grid;gap:4px;font-size:.82rem;color:var(--muted)}
+.calc input[type=number]{font:inherit;font-family:var(--f-mono);width:120px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg)}
+.calc .chk{display:flex;gap:8px;align-items:center;color:var(--fg);font-size:.9rem}
+input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.bar{height:8px;border-radius:4px;background:var(--accent);min-width:2px}
+.barcell{width:28%;min-width:120px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}
+.grid2>*{min-width:0}
+.note{font-size:.84rem;color:var(--muted)}
+ol.steps{padding-left:22px;max-width:80ch}
+ol.steps li{margin-bottom:8px}
+.src a{color:var(--accent)}
+.src li{font-size:.86rem}
+</style>
+
+<div class="wrap">
+<header style="display:grid;gap:8px">
+  <div class="eyebrow">Email classifier · Replacing GPT-4.1 · 26 Nov 2026</div>
+  <h1>Which models after GPT-4.1</h1>
+  <p class="lede">Options for the three model steps of the classifier, with cost per email at our own prompt sizes, expected time per email, and what the code has to change. Prices are Azure Global Standard list prices from public sources and must be confirmed on the Azure pricing page before a decision.</p>
+</header>
+
+<div class="verdict">
+  <h3>Recommendation</h3>
+  <p><b>GPT-6.1 Terra with reasoning off</b> for the category and the customer details, <b>GPT-6 Luna</b> for attachment summaries, and a second opinion from <b>GPT-6 Sol (reasoning low)</b> only for the emails where Terra's five answers disagree. About <b>25% cheaper than GPT-4.1 today</b> at about the same speed, deployed in the <b>EU Data Zone</b>.</p>
+  <p>Do not run <code>gpt-6-sol</code> with its default reasoning on every step: about <b>4× the cost of today</b> and 2 to 4× slower, without a measured gain. Before committing, run the benchmark in the last section on the 70 copied emails: two facts (below) can only be settled by calling the deployments.</p>
+</div>
+
+<section>
+  <h2>What the classifier asks of a model</h2>
+  <p>One email goes through three model steps. The sizes are measured from our prompts and settings; the email part is an average.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Step</th><th>What it does</th><th class="n">Input tokens</th><th class="n">Output tokens</th><th>Needs</th></tr></thead>
+    <tbody>
+      <tr><td>1 · Category</td><td>Category, other requests, reasoning. Five answers in one call, the % certainty comes from how many agree and their token probabilities</td><td class="n">≈17,000<br><span class="note">14,400 fixed (prompt + 46 categories), cacheable</span></td><td class="n">5 × 300</td><td><code>n=5</code>, <code>logprobs</code>, <code>temperature</code>, JSON schema</td></tr>
+      <tr><td>1b · Retry</td><td>Only when the answer fails validation (about 1 email in 10)</td><td class="n">≈19,500</td><td class="n">300</td><td>JSON schema</td></tr>
+      <tr><td>2 · Attachments</td><td>Short summary of each attachment after OCR (Document Intelligence, unchanged)</td><td class="n">≈12,500 each<br><span class="note">9,700 cacheable</span></td><td class="n">400</td><td>JSON</td></tr>
+      <tr><td>3 · Customer details</td><td>Tax ID / account evidence, people, flags, other requests</td><td class="n">≈4,000</td><td class="n">≈1,000</td><td>JSON schema</td></tr>
+    </tbody>
+  </table></div>
+  <p class="note">The certainty % drives everything downstream: 90% or more → automatic, 80% → a second or third category is added. A model that cannot give several answers or token probabilities needs another way to measure certainty, and the thresholds must be re-tuned on reviewed emails.</p>
+</section>
+
+<section>
+  <h2>Models available in Azure</h2>
+  <div class="tbl"><table>
+    <thead><tr><th>Model</th><th class="n">Input $/1M</th><th class="n">Cached $/1M</th><th class="n">Output $/1M</th><th>Reasoning</th><th>Fit for us</th></tr></thead>
+    <tbody>
+      <tr><td><b>GPT-4.1</b> (today)</td><td class="n">2.00</td><td class="n">0.50</td><td class="n">8.00</td><td>none</td><td><span class="pill p-bad">Retiring</span> you expect January; public dates vary (Oct 2026 to Apr 2027)</td></tr>
+      <tr><td><b>GPT-5.1</b></td><td class="n">1.25</td><td class="n">0.125</td><td class="n">10.00</td><td>default <code>none</code></td><td><span class="pill p-acc">Possible</span> Microsoft's listed replacement for 4.1. Logprobs reported missing with JSON schema</td></tr>
+      <tr><td><b>GPT-5 mini / nano</b></td><td class="n">0.25 / 0.05</td><td class="n">0.025 / 0.005</td><td class="n">2.00 / 0.40</td><td>cannot be turned off</td><td><span class="pill p-warn">Weak</span> always reason, older generation</td></tr>
+      <tr><td><b>GPT-6 Luna</b></td><td class="n">0.10</td><td class="n">≈0.01</td><td class="n">0.50</td><td><code>none</code> … <code>max</code>, default medium</td><td><span class="pill p-good">Attachments</span> built for high-volume simple tasks; too risky alone for the category</td></tr>
+      <tr class="rec"><td><b>GPT-6.1 Terra</b></td><td class="n">1.00</td><td class="n">≈0.10</td><td class="n">5.00</td><td><code>none</code> available</td><td><span class="pill p-good">Main model</span> mid tier, released 26 Oct 2026, EU Data Zone listed at 1.20 / 6.00</td></tr>
+      <tr><td><b>GPT-6 Sol</b> (your <code>gpt-6-sol</code>)</td><td class="n">2.00</td><td class="n">0.20</td><td class="n">10.00</td><td><code>none</code> … <code>max</code>, default medium</td><td><span class="pill p-acc">Second opinion</span> EU Data Zone 2.40 / 12.00. Rejects <code>max_tokens</code> (seen on your laptop)</td></tr>
+      <tr><td><b>GPT-6 Astra</b></td><td class="n">10.00</td><td class="n">1.00</td><td class="n">50.00</td><td>low or more, no <code>none</code></td><td><span class="pill p-bad">No</span> limited access, 5× Sol, built for agents</td></tr>
+    </tbody>
+  </table></div>
+  <p class="note">Reasoning tokens are billed as output. With reasoning on, every call adds hundreds to thousands of hidden output tokens and seconds of waiting; for a classification task with a long rule prompt, <code>none</code> or <code>low</code> is the right range.</p>
+</section>
+
+<section class="panel">
+  <h2>Cost and time per option</h2>
+  <div class="calc">
+    <label for="vol">Emails per day<input id="vol" type="number" min="1" step="10" value="300"></label>
+    <label for="att">Attachments per email<input id="att" type="number" min="0" step="0.1" value="1"></label>
+    <label class="chk" for="eu"><input id="eu" type="checkbox" checked> EU Data Zone prices (+20%)</label>
+  </div>
+  <div class="tbl"><table>
+    <thead><tr><th>Option</th><th class="n">$ / 1,000 emails</th><th class="n">$ / month</th><th class="barcell">Relative cost</th><th class="n">Time / email</th><th class="n">Emails per 45-min run</th></tr></thead>
+    <tbody id="rows"></tbody>
+  </table></div>
+  <p class="note" style="margin-top:10px">Model costs only (OCR and Azure hosting are the same for every option). Month = 30 days. Fixed prompt parts are billed at the cached rate, as the job classifies emails back to back. Times are estimates from today's 28 s per email on GPT-4.1 (which includes OCR); the benchmark measures the real ones.</p>
+</section>
+
+<section>
+  <h2>The options</h2>
+  <div class="grid2">
+    <div class="panel"><h3>A · Today: GPT-4.1</h3><p>Five answers in one call with token probabilities. The reference for cost and quality. Stops working when 4.1 is retired.</p></div>
+    <div class="panel"><h3>B · <code>gpt-6-sol</code> as set on your laptop</h3><p>Medium reasoning on every step, five separate calls for the vote. Highest cost, slowest; one 45-minute run would classify about a third of today's number.</p></div>
+    <div class="panel"><h3>C · GPT-5.1, reasoning off</h3><p>Closest to today: the same call shape may work. Cheaper input, dearer output. A generation behind GPT-6, and token probabilities may not come back with a JSON schema.</p></div>
+    <div class="panel" style="border-color:var(--accent)"><h3>D · Terra + Luna + Sol on doubt (recommended)</h3><p>Terra with reasoning off gives five answers in parallel; the % is the share that agree. Luna summarizes attachments. When the five disagree (about 1 in 5), Sol with low reasoning gives the reviewer a better proposal. The email still goes to review, so Sol never makes an email automatic on its own.</p></div>
+    <div class="panel"><h3>E · Luna everywhere</h3><p>Very cheap and fast. Small models miss subtle Greek wording and rule exceptions, so more emails would go to review or be wrong. Useful as a lower bound in the benchmark.</p></div>
+    <div class="panel"><h3>F · Sol (low) everywhere</h3><p>The quality ceiling at a sensible effort. About twice today's cost. Worth it only if the benchmark shows clearly more correct categories than D.</p></div>
+  </div>
+</section>
+
+<section>
+  <h2>Two things only a test can answer</h2>
+  <ul>
+    <li><b>Do Terra and Sol accept several answers per call (<code>n=5</code>) and token probabilities with reasoning off and a JSON schema?</b> Reports conflict: GPT-5.1 and 5.2 return empty probabilities with a JSON schema. If <code>n</code> is refused, the code sends five calls in parallel instead. The fixed 14,400-token prefix is cached, so this adds about 10% to the cost, not 5×.</li>
+    <li><b>Which models your Azure resource can deploy in the EU Data Zone, and with how much quota.</b> Five parallel answers of 17,000 tokens for 90 emails in 45 minutes needs about 170,000 tokens per minute on the category deployment.</li>
+  </ul>
+  <p>The retirement date is also unclear in public sources (October 2026, January 2027 for OpenAI's own API, April 2027 in Azure's schedule). Check the date shown on your deployment in the Foundry portal; if it is January, the plan below fits.</p>
+</section>
+
+<section>
+  <h2>What changes in the code</h2>
+  <ol class="steps">
+    <li><b>One deployment setting per step</b> in <code>.env</code> and the job: category, attachments, customer details, second opinion, each with its reasoning effort. Today all three steps share <code>AZURE_OPENAI_DEPLOYMENT</code>.</li>
+    <li><b>Model-aware calls</b>: <code>max_completion_tokens</code> instead of <code>max_tokens</code>; <code>temperature</code> and <code>logprobs</code> only where the model accepts them; <code>n=5</code> or five parallel calls.</li>
+    <li><b>Certainty from votes</b> when probabilities are missing: the share of the five answers on the winning category (the app already stores the votes). Re-tune the 90% and 80% thresholds on reviewed emails, using the certainty bands in the Statistics tab.</li>
+    <li><b>Second opinion</b> on disagreement, recorded on the email so reviewers and the statistics see which model proposed what.</li>
+    <li><b>Benchmark tool</b>: <code>tools/model_benchmark.py</code> runs the same emails through each option without saving cases, and writes time, tokens, cost (from the model's own usage numbers) and agreement with reviewed categories to an Excel file.</li>
+  </ol>
+</section>
+
+<section>
+  <h2>Plan to January</h2>
+  <ol class="steps">
+    <li>Deploy Terra, Luna and Sol in the EU Data Zone on <code>openai-data-llm</code> (or check which exist; <code>gpt-6-sol</code> already does).</li>
+    <li>Code changes 1 to 3 and the benchmark tool, tested locally on the 70 copied emails and on reviewed emails from the review app.</li>
+    <li>Compare A, C, D, E, F; choose; set the thresholds.</li>
+    <li>Run the chosen option next to GPT-4.1 for a week (shadow: results stored, not used) before switching the job.</li>
+  </ol>
+</section>
+
+<section>
+  <h2>Sources</h2>
+  <p class="note">Microsoft Learn could not be opened from this environment, so model parameters and prices come from Microsoft's blog posts, Q&amp;A threads and price aggregators. Confirm on the Azure pricing page and the reasoning-models documentation.</p>
+  <ul class="src">
+    <li><a href="https://azure.microsoft.com/en-us/blog/gpt-6-astra-sol-and-luna-for-production-agents-in-microsoft-foundry/">Azure blog: GPT-6 Astra, Sol and Luna in Microsoft Foundry</a></li>
+    <li><a href="https://futureagi.com/llm-cost-calculator/azure-ai-foundry/gpt-6-sol/">GPT-6 Sol pricing, Azure AI Foundry</a> · <a href="https://tech-insider.org/azure-ai-foundry-pricing-gpt-6-astra-sol-luna-2026/">Azure AI Foundry pricing: Luna vs Astra</a></li>
+    <li><a href="https://developers.openai.com/api/docs/models/gpt-6-luna">OpenAI: GPT-6 Luna model (reasoning effort levels)</a> · <a href="https://aiswitch.co.kr/docs/en/resources/insights/openai-gpt-6-sol-luna-reasoning-effort-202609/">Why reasoning effort matters more than the price sheet</a></li>
+    <li><a href="https://cloudprice.net/models/gpt-6.1-terra">GPT-6.1 Terra pricing</a> · <a href="https://theregister.com/ai-and-ml/2026/10/26/openai-rolls-out-budget-priced-mid-tier-gpt-61-terra/5305574">The Register: GPT-6.1 Terra</a> · <a href="https://www.edenai.co/fr/models/gpt-6-1-terra">Eden AI: GPT-6.1 Terra (EU endpoint)</a></li>
+    <li><a href="https://azure-noob.com/blog/azure-openai-pricing-real-costs/">GPT-5.1 Azure pricing</a> · <a href="https://www.azurespeed.com/AzureAiModelPricing">Azure AI model pricing (GPT-5 mini, nano)</a></li>
+    <li><a href="https://learn.microsoft.com/en-us/azure/foundry/openai/concepts/model-retirement-schedule-gov">Microsoft: model retirement schedule (Azure Government)</a> · <a href="https://learn.microsoft.com/en-us/answers/questions/5564814/azure-gpt-4-1-model-retirement-in-april-2026-quest">Q&amp;A: GPT-4.1 retirement</a> · <a href="https://learn.microsoft.com/en-my/answers/questions/5932838/which-models-we-can-use-as-a-replacement-of-the-gp">Q&amp;A: replacements for gpt-4.1</a> · <a href="https://datanorth.ai/news/gpt-4o-and-gpt-4-1-leave-openais-api-on-14-january-2027-fine-tuned-versions-included">GPT-4.1 leaves OpenAI's API on 14 Jan 2027</a></li>
+    <li><a href="https://techcommunity.microsoft.com/blog/azure-ai-foundry-blog/migrating-to-gpt-5-x-without-breaking-gpt-4-a-practical-backward-compatible-play/4522936">Microsoft: migrating to GPT-5.x without breaking GPT-4</a> · <a href="https://community.openai.com/t/gpt-5-1-5-2-message-output-text-logprobs-is-empty-when-structured-outputs-json-schema-is-enabled-in-responses-api/1371927">Logprobs empty with JSON schema on GPT-5.1/5.2</a> · <a href="https://github.com/BerriAI/litellm/issues/17309">Azure gpt-5.1 with reasoning none and temperature</a></li>
+  </ul>
+</section>
+</div>
+
+<script>
+// $ per 1M tokens: [input, cached input, output], Global Standard
+const P={ "gpt-4.1":[2,0.5,8], "gpt-5.1":[1.25,0.125,10], luna:[0.10,0.01,0.50], terra:[1,0.10,5], sol:[2,0.20,10] };
+const R={none:0, low:400, medium:1800};          // extra hidden output tokens per answer
+// per call: [fresh input, cacheable input, output]
+const CLS=[2600,14400,300], RETRY=[2500,17000,300], ATT=[2800,9700,400], UND=[4000,0,1000];
+function call(m,t,reason,votes,oneRequest){
+  const [i,c,o]=P[m], [f,ca,out]=t;
+  const input = oneRequest ? f*i+ca*c : votes*(f*i+ca*c);
+  return (input + votes*(out+R[reason])*o)/1e6;
+}
+const OPTS=[
+  {k:"A",name:"Today: GPT-4.1, five answers in one call",time:"≈28 s (measured)",sec:28,
+   cost:a=>call("gpt-4.1",CLS,"none",5,true)+.1*call("gpt-4.1",RETRY,"none",1)+a*call("gpt-4.1",ATT,"none",1)+call("gpt-4.1",UND,"none",1)},
+  {k:"B",name:"gpt-6-sol, default medium reasoning",time:"70–120 s",sec:95,
+   cost:a=>call("sol",CLS,"medium",5)+.1*call("sol",RETRY,"medium",1)+a*call("sol",ATT,"medium",1)+call("sol",UND,"medium",1)},
+  {k:"C",name:"GPT-5.1, reasoning off, five in one call",time:"25–30 s",sec:28,
+   cost:a=>call("gpt-5.1",CLS,"none",5,true)+.1*call("gpt-5.1",RETRY,"none",1)+a*call("gpt-5.1",ATT,"none",1)+call("gpt-5.1",UND,"none",1)},
+  {k:"D",name:"Terra (off) ×5 + Luna attachments + Sol (low) on doubt",time:"25–35 s",sec:30,rec:true,
+   cost:a=>call("terra",CLS,"none",5)+.1*call("terra",RETRY,"none",1)+a*call("luna",ATT,"none",1)+call("terra",UND,"none",1)+.2*call("sol",CLS,"low",1)},
+  {k:"E",name:"Luna everywhere, five answers",time:"15–25 s",sec:20,
+   cost:a=>call("luna",CLS,"none",5)+.1*call("luna",RETRY,"none",1)+a*call("luna",ATT,"none",1)+call("luna",UND,"none",1)},
+  {k:"F",name:"Sol (low) ×5 + Terra attachments + Sol (low) details",time:"35–50 s",sec:42,
+   cost:a=>call("sol",CLS,"low",5)+.1*call("sol",RETRY,"low",1)+a*call("terra",ATT,"none",1)+call("sol",UND,"low",1)},
+];
+const $=id=>document.getElementById(id);
+const fmt=(v,d)=>v.toLocaleString("en-US",{minimumFractionDigits:d,maximumFractionDigits:d});
+function render(){
+  let vol=parseFloat($("vol").value); if(!(vol>0)) vol=300;
+  let att=parseFloat($("att").value); if(!(att>=0)) att=1;
+  const k=$("eu").checked?1.2:1;
+  const rows=OPTS.map(o=>({...o,per:o.cost(att)*k}));
+  const max=Math.max(...rows.map(r=>r.per));
+  $("rows").innerHTML=rows.map(r=>`<tr${r.rec?' class="rec"':''}>
+    <td><b>${r.k}</b> · ${r.name}${r.rec?' <span class="pill p-acc">recommended</span>':''}</td>
+    <td class="n">${fmt(r.per*1000,2)}</td>
+    <td class="n">${fmt(r.per*vol*30,0)}</td>
+    <td class="barcell"><div class="bar" style="width:${(r.per/max*100).toFixed(1)}%"></div></td>
+    <td class="n">${r.time}</td>
+    <td class="n">≈${Math.round(2700/r.sec)}</td></tr>`).join("");
+}
+["vol","att","eu"].forEach(id=>$(id).addEventListener("input",render));
+render();
+</script>
