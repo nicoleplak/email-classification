@@ -42,6 +42,7 @@ ROLES = [
     "none",
 ]
 PERSON_ROLES = {"debtor", "co_debtor", "deceased_debtor", "heir"}
+ROLE_RANK = {"deceased_debtor": 1, "heir": 3}  # everyone else 2: the deceased first, heirs last
 
 PROMPT = """You work for doValue Greece, a loan servicer, reading one customer email and its attachments.
 The email's principal request is already classified as: {principal}.
@@ -58,6 +59,13 @@ The email's principal request is already classified as: {principal}.
   Several values can identify the same case (co-debtors, an AFM and an account of the same loan): mark each.
   A lawyer's, notary's or company's tax ID does not identify the case unless they write about their own loan.
   If the debtor died, the deceased debtor's AFM identifies the case; an heir's only when that is absent.
+  Deceased or heir: the deceased debtor (deceased_debtor) is the person who died: written next to
+  αποβιώσας/αποβιώσαντος, θανών/θανόντος, εκλιπών/εκλιπόντος, ο/η μακαρίτης, απεβίωσε, "του αποβιώσαντος
+  πατέρα μου", or named as the deceased in a ληξιαρχική πράξη θανάτου, πιστοποιητικό εγγυτέρων συγγενών or
+  κληρονομητήριο. The heirs (heir) are the living relatives: whoever writes "ο πατέρας μου απεβίωσε", "ως
+  κληρονόμος", "οι κληρονόμοι του", or is listed as spouse/child/relative of the deceased. The sender of an
+  inheritance email is almost always an heir, not the deceased. A value written next to the deceased's name
+  belongs to the deceased.
   doValue's own details and those of banks and funds never do.
 - certainty: high, medium or low.
 Words next to a number decide what it is; hint and label are only guesses.
@@ -67,7 +75,8 @@ signatures of doValue). For each: name as written; registry_form = the same name
 write it, in Greek capitals, surname first, full first name (Γιάννης -> ΙΩΑΝΝΗΣ; Latin letters transliterated
 to Greek), or the company's registered name; role; is_principal = true for the ONE person the email is about
 (the customer whose case it concerns; usually the debtor or the deceased debtor). At most one is principal;
-none if unclear. evidence: a short quote (max 15 words) showing who they are; source: where it appears.
+none if unclear. When someone has died, the principal is the deceased debtor, never the heir who writes.
+evidence: a short quote (max 15 words) showing who they are; source: where it appears.
 
 3. flags: set each true only if the email or its attachments clearly say so:
 {flags}
@@ -345,13 +354,21 @@ def understand(
         for p in answer["people"]
     ]
 
+    # Inheritance: the deceased debtor's identifiers find the customer; an heir's are the fallback (priority 2),
+    # used even when the model did not mark them as identifying the case.
     def evidence(kinds: set[str]) -> list[dict]:
         return [
-            {"value": e["value"], "where": e["sources"][0] if e["sources"] else {}}
+            {"value": e["value"], "where": e["sources"][0] if e["sources"] else {}, "rank": ROLE_RANK.get(e["role"], 2),
+             "role": e["role"]}
             for e in extracted
-            if e["type"] in kinds and e["identifiesCase"]
+            if e["type"] in kinds and (e["identifiesCase"] or e["role"] in ("deceased_debtor", "heir"))
         ]
 
+    # When someone has died, the email is about the deceased debtor, never the heir who writes.
+    deceased = [p for p in people if p["role"] == "deceased_debtor"]
+    if deceased:
+        for p in people:
+            p["principal"] = p is deceased[0]
     names = [
         {"value": p["registryForm"] or p["name"], "where": p["where"], "principal": p["principal"], "role": p["role"]}
         for p in people

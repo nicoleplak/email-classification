@@ -236,6 +236,8 @@ def understanding_reasons(understanding: dict[str, Any] | None) -> list[str]:
         reasons.append("no customer found in the registry by tax ID or account")
     elif any(a.get("caveat") == "account_not_identified" for a in actions):
         reasons.append("the account or portfolio (SPV) the request concerns is not identified")
+    if confirmed and (understanding.get("customerFacts") or {}).get("identified_via") == "heir":
+        reasons.append("the customer was identified only by an heir's tax ID or account, not the deceased debtor's")
     if understanding.get("complaintDemoted"):
         reasons.append("the complaint is not the main request: the email also asks for "
                        + str(understanding.get("principalCategory")))

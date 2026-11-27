@@ -130,7 +130,10 @@ const T = {
     rs_no_customer: "Δεν βρέθηκε πελάτης", rs_details_unread: "Στοιχεία πελάτη δεν διαβάστηκαν",
     rs_email_missing: "Λείπει το email", rs_reset: "Επαναφορά ελέγχου", rs_other: "Άλλο",
     rs_account_unknown: "Δεν ταυτοποιήθηκε λογαριασμός/SPV", rs_complaint_secondary: "Παράπονο μαζί με άλλο αίτημα",
-    rs_distress: "Αυτοτραυματισμός ή απειλή νομικών μέτρων",
+    rs_distress: "Αυτοτραυματισμός ή απειλή νομικών μέτρων", rs_heir_only: "Ταυτοποίηση μόνο από κληρονόμο",
+    viaDeceased: "Αποβιώσας οφειλέτης", viaHeir: "Από κληρονόμο (προτεραιότητα 2)",
+    viaDeceasedTip: "Βρέθηκε από ΑΦΜ ή λογαριασμό του αποβιώσαντος οφειλέτη",
+    viaHeirTip: "Βρέθηκε μόνο από ΑΦΜ ή λογαριασμό κληρονόμου: ο αποβιώσας οφειλέτης δεν βρέθηκε στο μητρώο",
   },
   en: {
     appName: "Email review", signIn: "Sign in", signOut: "Sign out", yourName: "Full name",
@@ -259,7 +262,10 @@ const T = {
     rs_no_customer: "No customer found", rs_details_unread: "Customer details not read",
     rs_email_missing: "Email missing", rs_reset: "Review reset", rs_other: "Other",
     rs_account_unknown: "Account/SPV not identified", rs_complaint_secondary: "Complaint with another request",
-    rs_distress: "Self-harm or legal threat",
+    rs_distress: "Self-harm or legal threat", rs_heir_only: "Identified only through an heir",
+    viaDeceased: "Deceased debtor", viaHeir: "Through an heir (priority 2)",
+    viaDeceasedTip: "Found by the deceased debtor's tax ID or account",
+    viaHeirTip: "Found only by an heir's tax ID or account: the deceased debtor is not in the registry",
   },
 };
 const FIELD = {
@@ -286,6 +292,7 @@ const ACTION = {
         activity: "Log a Qualco activity", no_action: "No action", outlook_folder: "Move to an Outlook folder" },
 };
 const REASONS_EL = [
+  [/^the customer was identified only by an heir/, "Ο πελάτης ταυτοποιήθηκε μόνο από ΑΦΜ ή λογαριασμό κληρονόμου, όχι του αποβιώσαντος οφειλέτη"],
   [/^no tax ID \(AFM\) found/, "Δεν βρέθηκε ΑΦΜ στο email ή στα συνημμένα"],
   [/^tax ID not found in the customer registry/, "Ο ΑΦΜ δεν υπάρχει στο μητρώο πελατών"],
   [/^confidence (\d+)% is below (\d+)%/, "Βεβαιότητα $1% (κάτω από το όριο $2%)"],
@@ -1187,7 +1194,9 @@ function customerCard(u) {
       h("table", { class: "mini" }, h("tr", {}, ...[t("type"), t("status"), t("created")].map((x) => h("th", { text: x }))),
         ...c.recentRequests.map((r) => h("tr", {}, ...[r.type, r.status, r.created].map((x) => h("td", { text: x || "—" })))))) : null;
     return h("div", { class: "person" },
-      h("div", { class: "row" }, h("span", { class: "name", text: c.name || c.taxId }), " ", status),
+      h("div", { class: "row" }, h("span", { class: "name", text: c.name || c.taxId }), " ", status,
+        c.status === "confirmed" && c.rank === 1 ? h("span", { class: "pill plain", title: t("viaDeceasedTip"), text: t("viaDeceased") }) : "",
+        c.status === "confirmed" && c.rank === 3 ? h("span", { class: "pill review", title: t("viaHeirTip"), text: t("viaHeir") }) : ""),
       c.nameMismatch ? h("div", { class: "caveat", text: t("nameMismatch") }) : null,
       c.sameNameCount > 1 ? h("div", { class: "caveat", text: t("sameName", { n: c.sameNameCount }) }) : null,
       kv, matched, accounts, recent);

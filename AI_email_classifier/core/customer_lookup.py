@@ -227,7 +227,8 @@ def find_customers(
 
     def add(tax_id: str, kind: str, item: dict, strong: bool) -> None:
         clues.setdefault(tax_id, []).append(
-            {"kind": kind, "value": item["value"], "where": item.get("where", ""), "strong": strong}
+            {"kind": kind, "value": item["value"], "where": item.get("where", ""), "strong": strong,
+             "rank": item.get("rank", 2), **({"role": item["role"]} if item.get("role") else {})}
         )
 
     for item in tax_ids:
@@ -264,6 +265,8 @@ def find_customers(
             {
                 # Only a tax ID or an account confirms; names and emails stay complementary.
                 "status": "confirmed" if any(e["strong"] for e in evidence) else "possible",
+                # 1 = the deceased debtor's tax ID or account, 2 = the debtor's (or no role), 3 = an heir's.
+                "rank": min((e["rank"] for e in evidence if e["strong"]), default=None),
                 "matchedOn": evidence,
                 "sameNameCount": same_name,
                 "principal": any(e["kind"] == "name" and e["value"] in principal_names for e in evidence),
@@ -279,9 +282,13 @@ def find_customers(
             if registry_tokens and not any(set(_name_tokens(n)) & registry_tokens for n in principal_names):
                 card["nameMismatch"] = True
 
-    customers.sort(key=lambda c: (c["status"] != "confirmed", not c["principal"], -len(c["matchedOn"])))
+    customers.sort(key=lambda c: (c["status"] != "confirmed", c["rank"] or 9, not c["principal"], -len(c["matchedOn"])))
     confirmed = [c for c in customers if c["status"] == "confirmed"]
-    facts_from = [c for c in confirmed if c["principal"]] or confirmed
+    # The customer is the deceased debtor when the email names one in the registry; an heir only when neither
+    # the deceased nor the debtor is found (business rule, Nov 2026).
+    best = min((c["rank"] for c in confirmed), default=None)
+    first = [c for c in confirmed if c["rank"] == best]
+    facts_from = [c for c in first if c["principal"]] or first
     rows = [registry.rows_for_tax(c["taxId"]) for c in facts_from]
     customer_accounts = [a for c in facts_from for a in registry.accounts(c["taxId"])]
     # Account numbers written in the email that belong to these customers (any of the three numbers).
@@ -295,6 +302,7 @@ def find_customers(
             # Identified = the email gives a tax ID or an account number; known = it is in the registry.
             "identified": bool(confirmed) or bool(tax_ids) or bool(accounts),
             "known": bool(confirmed),
+            "identified_via": {1: "deceased_debtor", 3: "heir"}.get(best, "debtor") if confirmed else None,
             "portal": any(c["portal"] for c in facts_from),
             "erb": any((r["SOURCE"] == "Datamart").any() for r in rows if "SOURCE" in r.columns),
             "is_3869": any(r["CST_STS_NM"].str.contains("3869").any() for r in rows if "CST_STS_NM" in r.columns),

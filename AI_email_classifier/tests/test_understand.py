@@ -235,3 +235,54 @@ def test_category_reasons_banks_and_the_erb_marker(registry):
     reasons = out["categoryReasons"]
     assert reasons[0]["reason"] == "Ζητά βεβαίωση οφειλής." and reasons[0]["quote"] == "Παρακαλώ βεβαίωση οφειλής"
     assert reasons[1]["quote"] == ""  # a quote not found in the text is dropped
+
+
+# Inheritance: the deceased debtor is searched first; an heir's identifiers only when the deceased is not found.
+def test_the_deceased_debtor_comes_before_the_heir(registry):
+    heir = {"value": "094014298", "where": {"kind": "body"}, "rank": 3, "role": "heir"}
+    deceased = {"value": "090000045", "where": {"kind": "attachment"}, "rank": 1, "role": "deceased_debtor"}
+    found = find_customers(registry, RequestHistory.empty(), tax_ids=[heir, deceased], accounts=[], emails=[], names=[])
+    assert [c["taxId"] for c in found["customers"]] == ["090000045", "094014298"]
+    assert found["facts"]["identified_via"] == "deceased_debtor"
+    assert [a["account"] for a in found["facts"]["accounts"]] == ["1000000000002"]  # the deceased's, not the heir's
+    missing = {**deceased, "value": "123456783"}  # the deceased is not in the registry: the heir is the fallback
+    found = find_customers(registry, RequestHistory.empty(), tax_ids=[heir, missing], accounts=[], emails=[], names=[])
+    assert found["facts"]["identified_via"] == "heir" and found["facts"]["accounts"][0]["account"] == "1000000000001"
+    understanding = {"customers": found["customers"], "customerFacts": found["facts"], "actions": [{"do": "request"}]}
+    assert any("only by an heir" in r for r in rc.understanding_reasons(understanding))
+
+
+class HeirClient(FakeClient):
+    """The model calls the sender (an heir) principal and does not mark the heir's tax ID as identifying."""
+
+    def create(self, **kwargs):
+        from core.action_rules import FLAGS
+
+        user = json.loads(kwargs["messages"][1]["content"])
+        roles = {"094014298": "heir", "090000045": "deceased_debtor"}
+        answer = {
+            "analysis": "heirs", "other_requests": [], "categories": [], "evidence": [],
+            "candidates": [{"id": c["id"], "field": "afm", "role": roles.get(c["value"], "none"),
+                            "identifies_case": False, "certainty": "high"} for c in user["candidates"]],
+            "people": [
+                {"name": "Γιάννης Παπαδόπουλος", "registry_form": "ΠΑΠΑΔΟΠΟΥΛΟΣ ΙΩΑΝΝΗΣ", "role": "heir",
+                 "is_principal": True, "evidence": "ως κληρονόμος", "source": "body"},
+                {"name": "Νικόλαος Παπαδόπουλος", "registry_form": "ΠΑΠΑΔΟΠΟΥΛΟΣ ΝΙΚΟΛΑΟΣ", "role": "deceased_debtor",
+                 "is_principal": False, "evidence": "του αποβιώσαντος", "source": "body"},
+            ],
+            "flags": {k: k == "is_heir" for k in FLAGS},
+        }
+        return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=json.dumps(answer)))])
+
+
+def test_understand_searches_the_deceased_and_makes_them_principal(registry):
+    message = {
+        "id": "m1", "subject": "Κληρονομιά",
+        "from": {"emailAddress": {"address": "heir@example.test", "name": "Γιάννης Παπαδόπουλος"}},
+        "body": {"body_clean": "Ως κληρονόμος (ΑΦΜ 094014298) του αποβιώσαντος πατέρα μου, ΑΦΜ 090000045, ζητώ βεβαίωση."},
+    }
+    out = understand(client=HeirClient(), model="m", message=message, records=[{"category": "Βεβαιώσεις οφειλής"}],
+                     text_dir=None, categories=["Βεβαιώσεις οφειλής"], registry=registry, history=RequestHistory.empty())
+    assert [p["role"] for p in out["people"] if p["principal"]] == ["deceased_debtor"]
+    assert out["customerFacts"]["identified_via"] == "deceased_debtor"
+    assert out["customers"][0]["taxId"] == "090000045" and out["customers"][0]["rank"] == 1

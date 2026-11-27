@@ -601,7 +601,7 @@ REASON_TEXT = {
     "name_mismatch": "Το όνομα διαφέρει", "possible_customer": "Μόνο πιθανός πελάτης", "no_customer": "Δεν βρέθηκε πελάτης",
     "details_unread": "Στοιχεία πελάτη δεν διαβάστηκαν", "email_missing": "Λείπει το email", "reset": "Επαναφορά ελέγχου",
     "account_unknown": "Δεν ταυτοποιήθηκε λογαριασμός/SPV", "complaint_secondary": "Παράπονο μαζί με άλλο αίτημα",
-    "distress": "Αυτοτραυματισμός ή απειλή νομικών μέτρων", "other": "Άλλο",
+    "distress": "Αυτοτραυματισμός ή απειλή νομικών μέτρων", "heir_only": "Ταυτοποίηση μόνο από κληρονόμο", "other": "Άλλο",
 }
 ACTION_TEXT = {"request": "Αίτημα Qualco", "portal_referral": "Παραπομπή στο Portal", "ask_identification": "Need more Info",
                "manual": "Χειρισμός από το προσωπικό", "forward": "Προώθηση", "reply": "Απάντηση",

@@ -37,6 +37,7 @@ REASON_KEYS = [
     ("account_unknown", r"^the account or portfolio \(SPV\) the request concerns is not identified"),
     ("complaint_secondary", r"^the complaint is not the main request"),
     ("distress", r"^the email mentions self-harm"),
+    ("heir_only", r"^the customer was identified only by an heir"),
 ]
 REASON_RES = [(key, re.compile(pattern)) for key, pattern in REASON_KEYS]
 # Certainty bands for threshold tuning: [low, high) in percent; the last one includes 100.
