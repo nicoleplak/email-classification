@@ -581,3 +581,14 @@ def test_a_registered_request_of_the_same_type_gets_only_a_follow_up_activity():
 def test_a_request_without_its_own_activity_follows_up_with_the_default():
     from core.action_rules import follow_up_activities
     assert follow_up_activities("111") == ["2090"] and follow_up_activities("154") == ["6567"]
+
+
+# Contract and account numbers written after their label, in shapes the long-number search misses.
+def test_labelled_contract_and_account_numbers_are_found_in_any_shape():
+    from core.identifiers import find_candidates
+
+    text = ("ΣΥΜΒΑΣΗ ΔΑΝΕΙΟΥ Αρ. 1234/2008\nΑριθμός Σύμβασης: 512345\nΑρ. Λογαριασμού: 0026.0123.45.0200123456\n"
+            "Contract no. LN-778899\nΣύμβαση της 12/03/2008 αρ. 7788/2008 με ποσό 25.000 ευρώ\nΔάνειο ύψους 150.000")
+    found = {(c["value"], c["hint"]) for c in find_candidates(text, "att1p1")}
+    assert found == {("1234/2008", "contract_like"), ("512345", "contract_like"), ("00260123450200123456", "account_like"),
+                     ("LN-778899", "contract_like"), ("7788/2008", "contract_like")}  # no dates, no amounts

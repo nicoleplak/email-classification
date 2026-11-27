@@ -341,3 +341,22 @@ def test_an_account_without_the_qualco_number_still_counts_by_its_other_numbers(
                           "ACC_ID": "", "PRTFL_NM": "P", "PRTFL_CD": "PC", "CST_STS_NM": "Active", "SOURCE": "Qualco"}])
     accounts = Registry(rows).accounts("094014298")
     assert [(a["account"], a["spv"], a["spvCode"]) for a in accounts] == [("5000000000001", "P", "PC")]
+
+
+def test_values_the_model_does_not_label_are_kept_from_their_pattern(registry):
+    class Silent(FakeClient):
+        def create(self, **kwargs):
+            answer = json.loads(super().create(**kwargs).choices[0].message.content)
+            answer["candidates"] = []  # the model labelled nothing
+            return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=json.dumps(answer)))])
+
+    message = {"id": "m1", "subject": "Σύμβαση", "from": {"emailAddress": {"address": "c@example.test", "name": "Π"}},
+               "body": {"body_clean": "ΑΦΜ 094014298, αριθμός σύμβασης 1234/2008, λογαριασμός 1000000000001."}}
+    out = understand(client=Silent(), model="m", message=message, records=[{"category": "Βεβαιώσεις οφειλής"}],
+                     text_dir=None, categories=["Βεβαιώσεις οφειλής"], registry=registry, history=RequestHistory.empty())
+    got = {(e["type"], e["value"]) for e in out["extracted"] if e["type"] != "email"}
+    assert got == {("afm", "094014298"), ("contract", "1234/2008"), ("account", "1000000000001")}
+    assert all(not e["identifiesCase"] for e in out["extracted"] if e["type"] != "email")
+    # The account number is in the registry, so it still finds the customer; the unlabelled tax ID alone would not.
+    assert [c["taxId"] for c in out["customers"] if c["status"] == "confirmed"] == ["094014298"]
+    assert "afm" not in [m["kind"] for m in out["customers"][0]["matchedOn"]]

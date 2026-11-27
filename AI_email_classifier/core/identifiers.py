@@ -28,9 +28,14 @@ _IBAN = re.compile(r"\bGR(?:[ ]?\d){25}\b")
 _RF = re.compile(r"\bRF[ ]?\d{2}(?:[ ]?[0-9A-Z]){1,21}\b")
 _ADT = re.compile(r"(?<![\w])([Α-ΩA-Z]{1,2}[ \-]?)?\d{3}[ ]?\d{3}(?![ ]?\d)")
 _DIGITS = re.compile(r"(?<![\d,.])\d(?:[ .\-]?\d){6,24}(?![\d])(?!,\d)")
-_DATE = re.compile(r"^\d{1,2}[.\-]\d{1,2}[.\-]\d{2,4}$")
+_DATE = re.compile(r"^\d{1,2}[./\-]\d{1,2}[./\-]\d{2,4}$")
 _THOUSANDS = re.compile(r"^\d{1,3}(?:\.\d{3})+$")
 _WINDOW = 160
+# A contract or account number written right after its label, in any shape the 7+ digit search misses:
+# short (512345), with a slash or letters (1234/2008, LN-778899). Matched on text without accents.
+_LABEL_WORD = re.compile(r"συμβασ\w*|συμβολαι\w*|contract|δανει\w*|loan|λογαριασμ\w*|account", re.IGNORECASE)
+_LABEL_REACH = 40
+_TOKEN = re.compile(r"(?<![\w/])((?:[A-Z]{1,4}[\- ]?)?(\d[\d/\-.]{2,24}\d))(?![\w/])")
 # Most useful first, so an over-long document loses phone numbers before tax IDs.
 _RANK = (
     "afm",
@@ -42,6 +47,7 @@ _RANK = (
     "rf_bad_checksum",
     "payment_code_like",
     "account_like",
+    "contract_like",
     "adt_like",
     "cid_or_number",
     "number",
@@ -137,6 +143,22 @@ def find_candidates(text: str, source: str) -> list[dict]:
         value = match.group(0).replace(" ", "")
         hint = "rf" if mod97_valid(value) else "rf_bad_checksum"
         add(value, hint, match.start(), match.end(), "payment")
+    plain = "".join(unicodedata.normalize("NFD", ch)[0] for ch in text)  # same length, no accents
+    for label in _LABEL_WORD.finditer(plain):
+        reach = plain[label.end(): label.end() + _LABEL_REACH].split("\n")[0]
+        for token in _TOKEN.finditer(reach):  # the first number after the label that is not a date or an amount
+            start, end = label.end() + token.start(1), label.end() + token.end(1)
+            raw, core = text[start:end], token.group(2)
+            digits = re.sub(r"\D", "", raw)
+            if len(digits) < 4 or _DATE.match(core) or _THOUSANDS.match(core):
+                continue
+            if any(a < end and start < b for a, b in taken) or (len(digits) >= 7 and raw.isdigit()):
+                break  # already found, or a plain long number the digit search below gives its own hint
+            hint = "account_like" if label.group(0).lower().startswith(("λογαρ", "acc")) else "contract_like"
+            # Account numbers are compared digit by digit with the registry; contract numbers keep their slash.
+            value = digits if hint == "account_like" and not re.search(r"[A-Za-z]", raw) else re.sub(r"\s", "", raw)
+            add(value, hint, start, end, "account" if hint == "account_like" else "contract")
+            break
     for match in _ADT.finditer(text):
         start, end = match.span()
         if any(a < end and start < b for a, b in taken):

@@ -179,6 +179,7 @@ They go into `LOCAL_BLOB_DIR` from `.env`. Then steps 3c and 3d. The customer re
 | Server prints `(0 emails)` | nothing classified in that folder yet, or the wrong folder | for the demo: `python tools\local_demo.py --serve-only`; for real emails: step 3c |
 | The app shows only demo emails | the server reads `local_data\` instead of `.env` | start it with `python review_app\server.py` in a new terminal (not `local_demo.py`) |
 | Blank page or a spinner that never stops | old version of the code | use the latest version, then Ctrl+F5 in the browser |
+| Tax IDs, accounts or contract numbers of an attachment missing from «Στοιχεία που βρέθηκαν» | the attachment was not read, the reading step failed, or the number has an unusual shape | `python tools\check_extraction.py` (all emails) or `--case <id>` (one email): shows per attachment whether its text was read, what the pattern search finds in it and what the case shows |
 | «Δεν υπάρχουν email εδώ» | the queue or a filter is empty | click «Όλα», «Ημέρα» = «Όλες οι μέρες», clear «Κατηγορία» and «Αποστολέας» |
 
 ## Why not connect straight to Azure storage?

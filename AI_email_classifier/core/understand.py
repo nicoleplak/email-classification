@@ -30,6 +30,10 @@ OWN_DOMAINS = ("dovalue", "eurobank", "qualco")
 EMAIL_RE = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
 PAGE_BREAK = "<!-- PageBreak -->"
 CHECKED_HINTS = {"afm", "afm_padded", "iban", "rf"}  # the value passed a check digit
+# What a value is when the model did not label it: from its shape, or the word written before it.
+PATTERN_FIELDS = {"afm": "afm", "afm_padded": "afm", "iban": "iban", "rf": "payment_code", "payment_code_like": "payment_code",
+                  "account_like": "account", "contract_like": "contract", "adt_like": "adt", "phone_like": "phone",
+                  "label:account": "account", "label:contract": "contract", "label:afm": "afm"}
 FIELDS = ["afm", "case_ref", "account", "contract", "iban", "payment_code", "phone", "adt", "other"]
 ROLES = [
     "debtor",
@@ -370,6 +374,9 @@ def understand(
     extracted = []
     for candidate in candidates:
         label = labels.get(candidate["id"])
+        if not label:  # the model skipped it: keep what the pattern says, never as identifying the case
+            field = PATTERN_FIELDS.get(candidate["hint"]) or PATTERN_FIELDS.get(f"label:{candidate['label']}")
+            label = field and {"field": field, "role": "none", "identifies_case": False, "certainty": "low", "unlabeled": True}
         if not label or label["field"] == "other":
             continue
         extracted.append(
@@ -380,7 +387,9 @@ def understand(
                 "identifiesCase": label["identifies_case"],
                 "certainty": label["certainty"],
                 "checked": candidate["hint"] in CHECKED_HINTS,
-                "method": "pattern + check digit" if candidate["hint"] in CHECKED_HINTS else "pattern + model",
+                "modelLabel": not label.get("unlabeled"),
+                "method": ("pattern + check digit" if candidate["hint"] in CHECKED_HINTS else "pattern")
+                + ("" if label.get("unlabeled") else " + model"),
                 "sources": _sources(candidate["sightings"], by_key),
             }
         )
@@ -404,7 +413,9 @@ def understand(
             {"value": e["value"], "where": e["sources"][0] if e["sources"] else {}, "rank": ROLE_RANK.get(e["role"], 2),
              "role": e["role"]}
             for e in extracted
-            if e["type"] in kinds and (e["identifiesCase"] or e["role"] in ("deceased_debtor", "heir"))
+            if e["type"] in kinds and (e["identifiesCase"] or e["role"] in ("deceased_debtor", "heir")
+                                       # an account number the model skipped still finds its owner, if the registry has it
+                                       or (not e["modelLabel"] and e["type"] in ("account", "contract", "payment_code")))
         ]
 
     # When someone has died, the email is about the deceased debtor, never the heir who writes.
