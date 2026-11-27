@@ -40,7 +40,11 @@ configure_job() {
       "REGISTER_RUNS_FROM=$from" \
       "AZURE_OPENAI_ENDPOINT=$OPENAI" "AZURE_OPENAI_DEPLOYMENT=$OPENAI_DEPLOYMENT" \
       "AZURE_OPENAI_API_VERSION=$OPENAI_VERSION" AZURE_OPENAI_API_KEY=secretref:azure-openai-api-key \
-      "DOC_INTEL_ENDPOINT=$DOCINTEL" DOC_INTEL_API_KEY=secretref:doc-intel-api-key
+      "DOC_INTEL_ENDPOINT=$DOCINTEL" DOC_INTEL_API_KEY=secretref:doc-intel-api-key \
+      DWH_EXPORT_ENABLED=true DWH_EXPORT_SNIPPETS=true
+  # The email data tables the classifier writes (also created by "app"; a no-op when it exists).
+  az cosmosdb sql container create -a "$COSMOS_ACCOUNT" -g "$RG" --subscription "$SUB" -d "$COSMOS_DB" -n data \
+    -p /id --only-show-errors -o none 2>/dev/null || true
   # The trigger is left as it is (every 4 hours today). Each run only fetches mail since the last successful
   # run (Graph delta checkpoint), never the mailbox's history. To change it: deployment/fetch_mode.sh.
   echo "Job configured. Classifier on; trigger unchanged. REGISTER_RUNS_FROM=$from"

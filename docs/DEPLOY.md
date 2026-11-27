@@ -141,6 +141,28 @@ so a missing account typed by hand brings its request and account. The review re
 account are recalculated; the change goes to the history (audit «data changed»). The Excel export has a second
 sheet «Δεδομένα» with every row. Query in Cosmos: `SELECT c.id, r.type, r.value, r.status FROM c JOIN r IN c.rows`.
 
+## Warehouse export (DWH)
+
+After each classification run the job writes what changed since the last export (emails classified or
+reviewed, data tables corrected) as CSV to the storage container, for Synapse (`DWH_EXPORT_ENABLED=true`):
+
+| File (`gold/dwh/…/yyyy/mm/dd/…_<stamp>.csv`) | One row per | Key |
+|---|---|---|
+| `EMCLF_EMAIL` | email: sender, subject, route and reasons, model / final category, certainty, ERB, customer (ΑΦΜ, name, how identified), reviewer, outcome | `case_id` |
+| `EMCLF_EMAIL_DATA` | value of the email's data table: type, value, role, identifies, source (kind, file, page), snippet, status, original value, who changed it | `case_id`, `row_id` |
+| `EMCLF_EMAIL_ACTION` | action, `proposed` by the rules and `final` after review: Qualco code and name, account, SPV, template, folder, forward, follow-up | `case_id`, `stage`, `seq` |
+
+- UTF-8 with header, comma separated, every field quoted, timestamps ISO 8601 UTC. `gold/dwh/_manifests/<stamp>.json`
+  lists the three files of an export with their row counts.
+- A file holds **all** rows of the emails in it, so the warehouse replaces those emails (delete + insert by
+  `case_id`). Tables, staging and the load (`COPY INTO`) are in `deployment/dwh/emclf_tables.sql`; an ADF or
+  Synapse pipeline runs the load per manifest, oldest first.
+- The watermark is `dwh-export-status` in the Cosmos `runs` container. A failed export is logged and does not
+  fail the job; the next run sends the same emails.
+- By hand: `python tools/dwh_export.py` (changed since last time), `--full` (first load), `--since <UTC time>`,
+  `--out <folder>` (files to a folder, watermark unchanged).
+- `DWH_EXPORT_SNIPPETS=false` leaves out the text around each value (it holds personal data such as names).
+
 ## Categories by rule
 
 `AI_email_classifier/inputs/forced_categories.json` (`core/forced.py`), applied whatever the model answers:

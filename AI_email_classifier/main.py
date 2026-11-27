@@ -175,6 +175,15 @@ def run_from_blob() -> None:
     )
     print(json.dumps(summary, indent=2))
     logger.info("Run summary: %s", summary)
+    if env_flag("DWH_EXPORT_ENABLED"):
+        # The emails classified, reviewed or corrected since the last export, as CSV for the warehouse.
+        # A failure is logged, never fails the job: the next run exports the same emails again.
+        from core import dwh_export
+
+        try:
+            print(json.dumps({"dwh_export": dwh_export.export(open_store(), blob_output.upload_bytes)}, indent=2))
+        except Exception:  # noqa: BLE001
+            logger.exception("DWH export failed; it is retried on the next run")
 
 
 def run_local_file() -> None:
