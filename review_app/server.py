@@ -595,7 +595,17 @@ def action_catalog() -> dict:
                 options.append(option)
         if options:
             catalog[category] = options
-    return {"byCategory": catalog, "general": GENERIC_ACTIONS}
+    # Every Qualco request, code and name, for picking any request by its description; the _Cust (closed-case)
+    # code of a request comes from the rule table where it names one.
+    from core.action_rules import QUALCO, request_activities
+
+    closed = {r.get("open"): r.get("closed") for spec in RULES.values() for r in spec.get("rules", []) if r.get("closed")}
+    requests = [{"do": "request", "code": code, "codes": [code], "openCode": code, "closedCode": closed.get(code),
+                 "codeName": name, "activities": request_activities(code)}
+                for code, name in sorted(QUALCO["requests"].items(), key=lambda kv: (kv[0].isdigit() and int(kv[0]), kv[0]))]
+    return {"byCategory": catalog, "general": GENERIC_ACTIONS, "requests": requests,
+            # How each category picks the account (core.action_rules.select_accounts): per_spv, spv or account.
+            "modes": {category: spec.get("accounts") or "per_spv" for category, spec in RULES.items()}}
 
 
 def reply_templates() -> dict:

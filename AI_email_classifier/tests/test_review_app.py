@@ -366,3 +366,12 @@ def test_attachments_and_run_files_are_read_once_and_kept_by_the_browser(app, mo
     for name in ("big1", "big2", "big1"):
         small.get(name)
     assert list(small.items) == ["big2", "big1"] and small.size == 400_000
+
+
+def test_the_action_list_has_every_qualco_request_with_its_name_and_each_categorys_account_rule(app):
+    server, _base, _id = app
+    catalog = server.action_catalog()
+    by_code = {o["code"]: o for o in catalog["requests"]}
+    assert by_code["45"]["codeName"] and by_code["45"]["closedCode"] == "124" and len(by_code) > 90
+    assert [o["code"] for o in catalog["requests"][:3]] == sorted([o["code"] for o in catalog["requests"][:3]], key=int)
+    assert catalog["modes"]["Εξουσιοδοτήσεις"] == "spv" and catalog["modes"]["Δοσολόγιο"] == "account"

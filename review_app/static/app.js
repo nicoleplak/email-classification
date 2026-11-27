@@ -32,6 +32,7 @@ const T = {
     actions: "Τι πρέπει να γίνει", noActions: "Δεν προέκυψαν ενέργειες.",
     customer: "Πελάτης", customerFrom: "από το μητρώο {f}",
     followUp: "Follow-up", followUpOf: "Υπάρχει ήδη αίτημα {c} σε «{s}» ({d}): δεν ανοίγει νέο, καταχωρείται μόνο η δραστηριότητα.",
+    allRequests: "Όλα τα αιτήματα Qualco (κωδικός · περιγραφή)", closedCodeShort: "κλειστή:",
     reasonFilter: "Λόγος ελέγχου", reasonAll: "Όλοι οι λόγοι", markFilter: "Σήμανση", markAll: "Όλα",
     markERB: "ERB", markERBTip: "Το email ή συνημμένο αναφέρει τη Eurobank", erbWhere: "Η Eurobank αναφέρεται",
     reviewReason: "Λόγος ελέγχου", reviewedReason: "Πήγε για έλεγχο επειδή",
@@ -165,6 +166,7 @@ const T = {
     actions: "What needs to happen", noActions: "No actions.",
     customer: "Customer", customerFrom: "from registry {f}",
     followUp: "Follow-up", followUpOf: "Request {c} is already registered («{s}», {d}): no new request, only the activity.",
+    allRequests: "All Qualco requests (code · description)", closedCodeShort: "closed:",
     reasonFilter: "Review reason", reasonAll: "All reasons", markFilter: "Mark", markAll: "All",
     markERB: "ERB", markERBTip: "The email or an attachment names Eurobank", erbWhere: "Eurobank is named",
     reviewReason: "Review reason", reviewedReason: "Went to review because",
@@ -1072,7 +1074,7 @@ function actionRow(a, u, editable) {
       actionPicker(a.category || finalCategoryNow(S.detail.case) || S.detail.case.modelCategory, (o, cat) => {
         // A replaced proposal counts as removed + added (Metrics), so the new one is the reviewer's own.
         const old = activitiesOf(a);
-        const next = asChoice({ ...o, category: cat }, "added");
+        const next = placeRequest(asChoice({ ...o, category: cat }, "added"), a);
         S.acts = S.acts.filter((x) => !old.includes(x));
         S.acts.splice(S.acts.indexOf(a), 1, next, ...(next.do === "request" ? activityChoices(next, o.activities) : []));
         S.changing = null;
@@ -1081,22 +1083,45 @@ function actionRow(a, u, editable) {
     ...body);
 }
 
+/* A request picked by the reviewer goes on an account, as the rules would put it: the account of the action it
+   replaces; otherwise, when the category allows "one of the customer's accounts" (per SPV / SPV), the same one the
+   rules pick (open case first, then the lowest number); for categories that need the account identified, the only
+   account, or none when there are several (the reviewer picks it). */
+function placeRequest(next, prev) {
+  if (next.do !== "request") return next;
+  const accounts = ((S.detail.case.understanding || {}).customerFacts || {}).accounts || [];
+  const mode = ((S.catalog || {}).modes || {})[next.category] || "per_spv";
+  const ordered = [...accounts].sort((x, y) => (x.state === "closed") - (y.state === "closed") || String(x.account).localeCompare(String(y.account)));
+  const keep = prev && prev.account ? accounts.find((x) => x.account === prev.account) || { account: prev.account, spv: prev.spv, state: prev.accountState } : null;
+  const x = keep || (mode === "account" && ordered.length > 1 ? null : ordered[0]);
+  if (!x) return next;
+  const code = x.state === "closed" && next.closedCode ? next.closedCode : next.openCode || next.code;
+  return Object.assign(next, { account: x.account, spv: x.spv, accountState: x.state, code, codes: [code],
+    codeName: (S.codeNames || {})[code] || next.codeName });
+}
+
 /* Actions to pick from: the rule table's actions for the category first, then general ones; typing searches all. */
 function actionPicker(category, onPick, focus) {
   const catalog = S.catalog || { byCategory: {}, general: [] };
   const input = h("input", { type: "search", class: "picker-search", placeholder: t("findAction"), autocomplete: "off" });
   const list = h("div", { class: "picker-list" });
   const paint = () => {
-    const q = norm(input.value.trim());
-    const label = (o, cat) => norm(`${actionText(o)} ${codesOf(o).join(" ")} ${catLabel(cat || "")}`);
+    const q = norm(input.value.trim()).replace(/_/g, " ");
+    const label = (o, cat) => norm(`${actionText(o)} ${codesOf(o).join(" ")} ${o.codeName || ""} ${catLabel(cat || "")}`).replace(/_/g, " ");
     const groups = [];
     if (category && catalog.byCategory[category]) groups.push([catLabel(category), catalog.byCategory[category].map((o) => [o, category])]);
     groups.push([t("generalActions"), catalog.general.map((o) => [o, null])]);
     if (q) for (const [cat, options] of Object.entries(catalog.byCategory)) if (cat !== category) groups.push([catLabel(cat), options.map((o) => [o, cat])]);
+    // Every Qualco request by code and description; it is filed under the email's category.
+    const ruled = new Set(((category && catalog.byCategory[category]) || []).map((o) => o.code).filter(Boolean));
+    groups.push([t("allRequests"), (catalog.requests || []).filter((o) => !ruled.has(o.code)).map((o) => [o, category || null])]);
     const shown = groups.map(([title, items]) => [title, items.filter(([o, cat]) => !q || label(o, cat).includes(q))]).filter(([, items]) => items.length);
     list.replaceChildren(...shown.flatMap(([title, items]) => [h("div", { class: "picker-group", text: title }),
-      ...items.map(([o, cat]) => h("button", { type: "button", class: "picker-opt", onclick: () => onPick(o, cat) },
-        actionText(o), codesOf(o).length ? h("span", { class: "muted small", text: `  ${codesOf(o).join(" · ")}` }) : ""))]),
+      ...items.map(([o, cat]) => h("button", { type: "button", class: `picker-opt${o.do === "request" ? " req" : ""}`, onclick: () => onPick(o, cat) },
+        ...(o.do === "request" && o.code
+          ? [h("code", { text: o.code }), " ", h("span", { text: o.codeName || "" }),
+             o.closedCode ? h("span", { class: "muted small", text: `  · ${t("closedCodeShort")} ${o.closedCode}` }) : ""]
+          : [actionText(o), codesOf(o).length ? h("span", { class: "muted small", text: `  ${codesOf(o).join(" · ")}` }) : ""])))]),
     shown.length ? "" : h("div", { class: "picker-none", text: t("noMatchCats") }));
   };
   input.addEventListener("input", paint);
@@ -1111,7 +1136,7 @@ function actionAdder(category) {
     ontoggle: (e) => { S.addOpen = e.target.open; } },
   h("summary", { text: t("addAction") }),
   actionPicker(category, (o, cat) => {
-    const next = asChoice({ ...o, category: cat }, "added");
+    const next = placeRequest(asChoice({ ...o, category: cat }, "added"), null);
     S.acts.push(next, ...(next.do === "request" ? activityChoices(next, o.activities) : []));
     S.addOpen = true;
     renderCase();

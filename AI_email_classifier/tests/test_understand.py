@@ -334,3 +334,10 @@ def test_the_reader_sees_whole_pages_and_the_people_further_down_long_ones():
     seen = readable(long, 60)  # many pages: each gets its share, plus the passages about people
     assert len(seen["text"]) == PAGE_MIN and any("ΑΠΟΒΙΩΣΑΣ ΠΑΠΑΔΟΠΟΥΛΟΣ" in m for m in seen["more"])
     assert len(readable({"text": "x" * 9000, "where": {"kind": "thread", "date": None}}, 1)["text"]) == 1500
+
+
+def test_an_account_without_the_qualco_number_still_counts_by_its_other_numbers():
+    rows = pd.DataFrame([{"TAX_ID_NO": "094014298", "NAME": "Χ", "ACC_UNQ_CD": "", "SRV_ACC_UNQ_CD": "5000000000001",
+                          "ACC_ID": "", "PRTFL_NM": "P", "PRTFL_CD": "PC", "CST_STS_NM": "Active", "SOURCE": "Qualco"}])
+    accounts = Registry(rows).accounts("094014298")
+    assert [(a["account"], a["spv"], a["spvCode"]) for a in accounts] == [("5000000000001", "P", "PC")]

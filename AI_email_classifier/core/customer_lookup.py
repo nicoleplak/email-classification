@@ -71,7 +71,8 @@ class Registry:
         """Every account of a customer: number, portfolio (SPV), open/closed state, Ν.3869, ERB."""
         out, seen = [], set()
         for row in self.rows_for_tax(tax_id).to_dict("records"):
-            number = str(row.get("ACC_UNQ_CD") or "").strip()
+            # The Qualco account number; rows without it still count by their other account numbers.
+            number = next((str(row.get(c) or "").strip() for c in ACCOUNT_COLUMNS if str(row.get(c) or "").strip()), "")
             if not number or number in seen:
                 continue
             seen.add(number)
