@@ -123,6 +123,19 @@ The mailbox ingest keeps doValue's own senders (`EXCLUDE_DOMAINS` default `eurob
 also has a customer's email in the same run, the customer's email opens the case (`INTERNAL_DOMAINS`, default
 `dovaluegreece`). It also saves CC addresses (`ccRecipients`); emails fetched before have none.
 
+## Categories by rule
+
+`AI_email_classifier/inputs/forced_categories.json` (`core/forced.py`), applied whatever the model answers:
+
+- **Board:** a board member's name or title (`board.names`, `board.titles`) in the subject, the email text, an
+  attachment or the To/Cc makes the email «Διοίκηση», the main request; the model's category stays as a further
+  request with its actions.
+- **Documents:** an attachment whose document type is listed (`documents`, today «Εξουσιοδότηση /
+  πληρεξούσιο» → Εξουσιοδοτήσεις) adds that category and its request (45, or 124 for a closed case), unless the
+  attachment was judged irrelevant.
+
+The case page marks these categories «Κανόνας» instead of a certainty.
+
 ## Banks, SPV and ERB
 
 `AI_email_classifier/inputs/banks.json` lists the banks an email or attachment may name (aliases in Greek and

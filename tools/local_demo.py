@@ -132,6 +132,8 @@ def invented_email(n: int, now: datetime, upload, hours_ago: float | None = None
         extra = f"\nΛογαριασμός: {demo_accounts(n)[-1][0]}"
     elif n % 7 == 3:
         extra = "\nΤο αίτημα αφορά όλες τις οφειλές μου."
+    if n % 13 == 5:  # a board member named: always Διοίκηση, the main request
+        extra += "\nΥπόψιν κ. Πανούση."
     if n % 5 == 1:  # Eurobank named: the email is marked ERB
         extra += "\nΤο δάνειο ήταν αρχικά της Eurobank."
     elif n % 5 == 3:  # an SPV named: the request goes to that SPV's account
@@ -192,6 +194,11 @@ class TextConfig:
     extracted_text_debug_directory: str = ""
 
 
+def n_auth(email: dict) -> bool:
+    """Every 4th PDF is an authorization: the rule adds Εξουσιοδοτήσεις and its request."""
+    return int(hashlib.sha256(email["id"].encode()).hexdigest(), 16) % 4 == 0
+
+
 class FakeProcessor:
     """Stands in for the classifier: a fixed category and certainty per email, never a network call.
 
@@ -219,7 +226,8 @@ class FakeProcessor:
             (folder / f"{stem}.json").write_text(json.dumps({"filename": item["name"]}), encoding="utf-8")
             pdf = item["name"].endswith(".pdf")
             records.append({"filename": item["name"], "status": "ANALYZED", "relevance": "relevant",
-                            "document_type": "Αίτηση / επιστολή πελάτη" if pdf else "Υπεύθυνη δήλωση",
+                            "document_type": ("Εξουσιοδότηση / πληρεξούσιο" if pdf and n_auth(email) else
+                                              "Αίτηση / επιστολή πελάτη" if pdf else "Υπεύθυνη δήλωση"),
                             "lender": "Τράπεζα Πειραιώς" if pdf and number % 2 else "",
                             "summary": ("Αίτηση του πελάτη για το αίτημα του email, με τον ΑΦΜ του." if pdf
                                         else "Σημείωση του πελάτη που επαναλαμβάνει το αίτημα του email."),

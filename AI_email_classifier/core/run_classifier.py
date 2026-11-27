@@ -402,10 +402,19 @@ def _classify_one(store, blob, processor, understand_fn, threshold, now_fn, clf_
             blob.upload_bytes(f"{silver}text/{text.name}", text.read_bytes())
 
     category = records[0].get("category") if records else None
-    if understanding and understanding.get("complaintDemoted") and understanding.get("principalCategory"):
-        category = understanding["principalCategory"]  # the request, not the complaint, leads (it goes to review)
+    if understanding and understanding.get("principalCategory") and (
+            understanding.get("complaintDemoted") or understanding.get("principalByRule")):
+        # The request, not the complaint, leads (it goes to review); a board member named makes it Διοίκηση.
+        category = understanding["principalCategory"]
     # Second and third categories found with 80%+ certainty: part of the case, final when it is automatic.
     auto = extra_categories((records[0] if records else {}).get("model_other_categories") or {}, category)
+    # Categories added by rule (an authorization attached, ...) count like sure ones.
+    for rule in (understanding or {}).get("ruleCategories") or []:
+        if rule["category"] != category and rule["category"] not in [a["category"] for a in auto]:
+            auto.append({"category": rule["category"], "confidence": 1.0, "byRule": True})
+    if understanding and understanding.get("principalByRule") and (records[0] if records else {}).get("category") \
+            not in (None, "No Match Found", category) and records[0]["category"] not in [a["category"] for a in auto]:
+        auto.append({"category": records[0]["category"], "confidence": confidence, "byRule": False})
     now = now_fn()
     updated = {
         **case,

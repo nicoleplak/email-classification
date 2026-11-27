@@ -19,7 +19,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-from core import banks
+from core import banks, forced
 from core.action_rules import FLAGS, decide, explain, extra_categories, order_requests
 from core.customer_lookup import Registry, RequestHistory, find_customers
 from core.identifiers import find_candidates, merge_candidates
@@ -394,6 +394,32 @@ def understand(
     # Second and third categories the classifier is sure of (80%+) are added with their actions.
     auto = extra_categories((records[0] if records else {}).get("model_other_categories") or {}, principal)
     other_requests = list(dict.fromkeys([*other_requests, *(a["category"] for a in auto)]))
+    # Categories by rule, whatever the model said: a board member named → Διοίκηση, the main request;
+    # an authorization attached → Εξουσιοδοτήσεις (inputs/forced_categories.json).
+    by_rule = []
+    board = forced.board_mentions(own_text, [*(message.get("toRecipients") or []), *(message.get("ccRecipients") or [])])
+    if board and forced.board_category() in categories:
+        by_rule.append({"category": forced.board_category(), "main": True, "where": board[0]["where"],
+                        "quote": board[0]["written"],
+                        "reason": f"Αναφέρεται μέλος της διοίκησης της doValue («{board[0]['written']}»), οπότε η κατηγορία "
+                                  "Διοίκηση επιλέγεται πάντα, ως κύριο αίτημα."})
+    for doc in forced.document_categories(attachment_info.values()):
+        if doc["category"] in categories:
+            by_rule.append({"category": doc["category"], "main": False, "quote": "",
+                            "where": {"kind": "attachment", "file": doc["file"], "page": 1},
+                            "reason": f"Το συνημμένο «{doc['file']}» είναι {doc['documentType'].lower()}, οπότε "
+                                      f"επιλέγεται πάντα η κατηγορία {doc['category']} με το αίτημά της."})
+    model_principal = principal
+    for rule in by_rule:
+        if rule["main"] and principal != rule["category"]:
+            other_requests = [principal, *other_requests] if principal != "No Match Found" else other_requests
+            principal = rule["category"]
+        elif not rule["main"] and rule["category"] != principal:
+            if principal == "No Match Found":
+                principal = rule["category"]
+            else:
+                other_requests = [*other_requests, rule["category"]]
+    other_requests = [c for c in dict.fromkeys(other_requests) if c != principal]
     # Most important request first; a complaint is first only when nothing else is asked.
     ordered, complaint_demoted = order_requests(principal, other_requests)
     principal, other_requests = ordered[0], ordered[1:]
@@ -411,6 +437,8 @@ def understand(
         "principalCategory": principal,
         "otherRequests": other_requests,
         "complaintDemoted": complaint_demoted,
+        "ruleCategories": [{k: r[k] for k in ("category", "main", "reason", "where")} for r in by_rule],
+        "principalByRule": ordered[0] != model_principal if ordered else False,
         "autoCategories": auto,
         "extracted": extracted + emails,
         "candidatesDropped": dropped,
@@ -425,6 +453,10 @@ def understand(
         "markers": banks.flags(named_banks),
         # Why each category was chosen (or considered and left out), in Greek, with a quote really found.
         "categoryReasons": [
+            {"category": r["category"], "applies": True, "reason": r["reason"], "quote": r["quote"], "where": r["where"],
+             "byRule": True}
+            for r in by_rule
+        ] + [
             {"category": r["category"], "applies": r["applies"], "reason": r["reason"],
              "quote": r["quote"] if _found_in(r["quote"], texts.get(r["source"], "")) else "",
              "where": by_key.get(r["source"], {"kind": r["source"]})}

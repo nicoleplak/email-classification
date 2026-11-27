@@ -1,0 +1,33 @@
+{
+  "_comment": [
+    "Categories added by rule, whatever the model answers.",
+    "board: a member of doValue's management named in the subject, the email text, an attachment, or the To/Cc",
+    "addresses makes the email a 'Διοίκηση' one; it becomes the main request (Priority 1). Names match whole words",
+    "with Greek case endings ignored (Πανούσης = κ. Πανούση). Titles are matched the same way.",
+    "documents: an attachment of one of these document types (core/attachment_processor.py DOCUMENT_TYPES) adds",
+    "the category as a request, unless the attachment was judged irrelevant to the email."
+  ],
+  "board": {
+    "category": "Διοίκηση",
+    "names": [
+      "Πανούσης",
+      "Panousis",
+      "Panousi",
+      "Καλαντώνης",
+      "Kalantonis",
+      "Kalantoni",
+      "Καραβίας",
+      "Karavias",
+      "Karavia"
+    ],
+    "titles": [
+      "CEO",
+      "Διευθύνων Σύμβουλος",
+      "Διευθύνοντα Σύμβουλο",
+      "Διευθύνουσα Σύμβουλο"
+    ]
+  },
+  "documents": {
+    "Εξουσιοδότηση / πληρεξούσιο": "Εξουσιοδοτήσεις"
+  }
+}

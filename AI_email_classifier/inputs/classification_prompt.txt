@@ -237,6 +237,29 @@ select the category of that request instead: the Portal problem is the
 reason it is asked by email, not the request itself.
 
 
+------------------------------------------------------------
+Rule G — doValue management (Διοίκηση)
+------------------------------------------------------------
+
+When the email is addressed to, written for the attention of (υπόψιν), or
+mentions a member of doValue's management named in the keywords of
+Διοίκηση (κ. Πανούσης, κ. Καλαντώνης, κ. Καραβίας, the CEO, the Διευθύνων
+Σύμβουλος, the Πρόεδρος of doValue), select:
+
+Διοίκηση
+
+If the email also asks for something concrete, put that category in
+Other_Categories. Never leave Διοίκηση out when such a person is named.
+
+------------------------------------------------------------
+Rule H — Authorization document (Εξουσιοδότηση)
+------------------------------------------------------------
+
+When an attachment is an authorization or power of attorney
+(εξουσιοδότηση, πληρεξούσιο) for a lawyer or another person to act for
+the customer, Εξουσιοδοτήσεις must be the category or in Other_Categories,
+next to whatever else the email asks.
+
 # ============================================================
 # 13. COMPLAINTS AND AUTHORITIES
 # ============================================================

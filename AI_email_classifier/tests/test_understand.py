@@ -286,3 +286,38 @@ def test_understand_searches_the_deceased_and_makes_them_principal(registry):
     assert [p["role"] for p in out["people"] if p["principal"]] == ["deceased_debtor"]
     assert out["customerFacts"]["identified_via"] == "deceased_debtor"
     assert out["customers"][0]["taxId"] == "090000045" and out["customers"][0]["rank"] == 1
+
+
+# Categories by rule: a board member named → Διοίκηση (main); an authorization attached → Εξουσιοδοτήσεις.
+CATS = ["Βεβαιώσεις οφειλής", "Διοίκηση", "Εξουσιοδοτήσεις"]
+
+
+def read(registry, body, records, to=()):
+    message = {"id": "m1", "subject": "Αίτημα", "from": {"emailAddress": {"address": "c@example.test", "name": "Πελάτης"}},
+               "body": {"body_clean": body}, "toRecipients": list(to)}
+    return understand(client=FakeClient(), model="m", message=message, records=records, text_dir=None,
+                      categories=CATS, registry=registry, history=RequestHistory.empty())
+
+
+def test_a_board_member_makes_the_email_a_management_one(registry):
+    out = read(registry, "Υπόψιν κ. Πανούση: παρακαλώ βεβαίωση οφειλής, ΑΦΜ 094014298.", [{"category": "Βεβαιώσεις οφειλής"}])
+    assert out["principalCategory"] == "Διοίκηση" and out["principalByRule"]
+    assert "Βεβαιώσεις οφειλής" in out["otherRequests"]  # what the email asks is still done
+    assert any(a.get("folder") == "ΦΟΡΕΙΣ" for a in out["actions"])
+    assert any(a["category"] == "Βεβαιώσεις οφειλής" for a in out["actions"])  # its Portal reply here
+    assert out["categoryReasons"][0]["byRule"] and "Πανούση" in out["categoryReasons"][0]["reason"]
+    to = [{"emailAddress": {"name": "Kalantonis Ioannis", "address": "i.kalantonis@example.test"}}]
+    assert read(registry, "Παρακαλώ βεβαίωση οφειλής.", [{"category": "Βεβαιώσεις οφειλής"}], to)["principalCategory"] == "Διοίκηση"
+    assert not read(registry, "Ο πρόεδρος του δικαστηρίου αποφάσισε.", [{"category": "Βεβαιώσεις οφειλής"}])["principalByRule"]
+
+
+def test_an_authorization_attached_brings_the_authorization_request(registry):
+    records = [{"category": "Βεβαιώσεις οφειλής", "attachment_summaries": [
+        {"filename": "exousiodotisi.pdf", "document_type": "Εξουσιοδότηση / πληρεξούσιο", "relevance": "relevant"}]}]
+    out = read(registry, "Παρακαλώ βεβαίωση οφειλής, ΑΦΜ 094014298.", records)
+    assert out["principalCategory"] == "Βεβαιώσεις οφειλής" and "Εξουσιοδοτήσεις" in out["otherRequests"]
+    assert any(a["category"] == "Εξουσιοδοτήσεις" and a["do"] == "request" and a["code"] == "45" for a in out["actions"])
+    nothing = [{"category": "No Match Found", "attachment_summaries": records[0]["attachment_summaries"]}]
+    assert read(registry, "Σας στέλνω το έγγραφο, ΑΦΜ 094014298.", nothing)["principalCategory"] == "Εξουσιοδοτήσεις"
+    irrelevant = [{**records[0], "attachment_summaries": [{**records[0]["attachment_summaries"][0], "relevance": "irrelevant"}]}]
+    assert "Εξουσιοδοτήσεις" not in read(registry, "Παρακαλώ βεβαίωση οφειλής.", irrelevant)["otherRequests"]

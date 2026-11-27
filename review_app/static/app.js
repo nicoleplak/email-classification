@@ -35,6 +35,7 @@ const T = {
     reasonFilter: "Λόγος ελέγχου", reasonAll: "Όλοι οι λόγοι", markFilter: "Σήμανση", markAll: "Όλα",
     markERB: "ERB", markERBTip: "Το email ή συνημμένο αναφέρει τη Eurobank", erbWhere: "Η Eurobank αναφέρεται",
     reviewReason: "Λόγος ελέγχου", reviewedReason: "Πήγε για έλεγχο επειδή",
+    byRule: "Κανόνας", byRuleTip: "Επιλέχθηκε από κανόνα (inputs/forced_categories.json), όχι από το μοντέλο",
     catsChosen: "Κατηγορίες", catMain: "Κύρια", catExtra: "Επιπλέον αίτημα", catWhy: "Γιατί επιλέχθηκε",
     catNoWhy: "Δεν δόθηκε αιτιολόγηση για αυτή την κατηγορία.", catNotApply: "Εξετάστηκε, δεν ισχύει",
     possibleCustomers: "Πιθανοί πελάτες ({n})", possiblePick: "Επιλέξτε πιθανό πελάτη για λεπτομέρειες",
@@ -167,6 +168,7 @@ const T = {
     reasonFilter: "Review reason", reasonAll: "All reasons", markFilter: "Mark", markAll: "All",
     markERB: "ERB", markERBTip: "The email or an attachment names Eurobank", erbWhere: "Eurobank is named",
     reviewReason: "Review reason", reviewedReason: "Went to review because",
+    byRule: "Rule", byRuleTip: "Chosen by a rule (inputs/forced_categories.json), not by the model",
     catsChosen: "Categories", catMain: "Main", catExtra: "Further request", catWhy: "Why it was chosen",
     catNoWhy: "No reasoning was given for this category.", catNotApply: "Considered, does not apply",
     possibleCustomers: "Possible customers ({n})", possiblePick: "Pick a possible customer for details",
@@ -780,14 +782,18 @@ function categoryBlocks(c, u) {
   const extras = [...new Set([...(c.autoCategories || []).map((a) => a.category), ...(u.otherRequests || [])])]
     .filter((x) => x && x !== main);
   const classQuotes = (u.evidence || []).filter((e) => e.supports === "category");
+  // The model's own category keeps its quotes, also when a rule put another category first.
+  const modelCat = ((((c.payload || {}).records || [])[0] || {}).category) || main;
   const block = (cat, isMain) => {
     const r = why(cat);
-    const pct = isMain ? c.confidence : certainty[cat];
+    const byRule = !!(r && r.byRule);
+    const pct = byRule ? null : isMain ? c.confidence : certainty[cat];
     const quotes = [r && r.quote ? { quote: r.quote, supports: "category", where: r.where } : null,
-      ...(isMain ? classQuotes.filter((q) => !r || q.quote !== r.quote) : [])].filter(Boolean);
+      ...(cat === modelCat ? classQuotes.filter((q) => !r || q.quote !== r.quote) : [])].filter(Boolean);
     return h("article", { class: `catblock${isMain ? " main" : ""}` },
       h("div", { class: "cathead" }, h("span", { class: `pill ${isMain ? "main-tag" : "plain"}`, text: isMain ? t("catMain") : t("catExtra") }),
-        pct != null ? h("span", { class: "muted small", text: certaintyWord(pct) }) : null),
+        byRule ? h("span", { class: "pill rule", title: t("byRuleTip"), text: t("byRule") })
+          : pct != null ? h("span", { class: "muted small", text: certaintyWord(pct) }) : null),
       h("div", { class: "catname", text: catLabel(cat) }),
       h("div", { class: "small muted", text: t("catWhy") }),
       h("p", { class: `catwhy${r && r.reason ? "" : " muted"}`, text: r && r.reason ? r.reason : t("catNoWhy") }),
