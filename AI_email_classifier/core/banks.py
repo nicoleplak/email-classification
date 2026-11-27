@@ -1,4 +1,4 @@
-"""Banks and funds named in an email or its attachments (inputs/banks.json).
+"""Banks and SPVs named in an email or its attachments (inputs/spvmapping.json, optionally spvmapping.csv).
 
 Two uses:
 - the customer's portfolio (SPV): a bank or SPV name in the text points at the accounts that came from it,
@@ -17,7 +17,8 @@ import unicodedata
 from pathlib import Path
 from typing import Any, Iterable
 
-FILE = Path(__file__).resolve().parents[1] / "inputs" / "banks.json"
+FILE = Path(__file__).resolve().parents[1] / "inputs" / "spvmapping.json"
+CSV_FILE = FILE.with_suffix(".csv")
 WORD = re.compile(r"\w+")
 GREEK_ENDINGS = ("ΟΥΣ", "ΑΣ", "ΗΣ", "ΟΣ", "ΟΥ", "ΩΝ", "ΕΣ", "ΩΣ", "ΑΙ", "Α", "Η", "Ο", "Ε", "Σ", "Υ", "Ι")
 # Words in portfolio names that say nothing about which one it is.
@@ -44,18 +45,53 @@ def _phrase(text: str) -> tuple[str, ...]:
     return tuple(stem(w) for w in WORD.findall(text))
 
 
-def config() -> dict[str, Any]:
-    """banks.json, re-read when the file changes."""
-    mtime = FILE.stat().st_mtime if FILE.exists() else 0
-    if _cache.get("mtime") != mtime:
-        data = json.loads(FILE.read_text(encoding="utf-8")) if FILE.exists() else {"banks": {}}
+def _load() -> dict[str, Any]:
+    """spvmapping.json (+ spvmapping.csv), re-read when either file changes."""
+    stamp = tuple(f.stat().st_mtime if f.exists() else 0 for f in (FILE, CSV_FILE))
+    if _cache.get("stamp") != stamp:
+        data = json.loads(FILE.read_text(encoding="utf-8")) if FILE.exists() else {}
         banks = {}
         for name, spec in (data.get("banks") or {}).items():
             aliases = {_phrase(a) for a in [name, *spec.get("aliases", [])]} - {()}
             banks[name] = {"aliases": sorted(aliases, key=len, reverse=True), "spvs": list(spec.get("spvs", [])),
                            "flag": spec.get("flag")}
-        _cache.update(mtime=mtime, banks=banks)
-    return _cache["banks"]
+        rows = list(data.get("spvs") or [])
+        if CSV_FILE.exists():
+            import csv
+
+            text = CSV_FILE.read_text(encoding="utf-8-sig")
+            dialect = csv.Sniffer().sniff(text.splitlines()[0], delimiters=";,\t") if text.strip() else csv.excel
+            rows += [{k.strip().upper(): (v or "").strip() for k, v in r.items() if k}
+                     for r in csv.DictReader(text.splitlines(), dialect=dialect)]
+        spvs = []
+        for row in rows:
+            name, code = str(row.get("SPVNAME") or "").strip(), str(row.get("SPVCODE") or "").strip()
+            if not name and not code:
+                continue
+            aliases = row.get("ALIASES") or []
+            aliases = [a.strip() for a in (aliases.split("|") if isinstance(aliases, str) else aliases) if a.strip()]
+            # A code is looked for in the text only when it has a letter: bare numbers are everywhere in emails.
+            written = [_name_phrase(name), *(_phrase(a) for a in aliases),
+                       *([_phrase(code)] if re.search(r"[^\W\d_]", code) and len(code) >= 3 else [])]
+            spvs.append({"name": name, "code": code, "bank": str(row.get("BANK") or "").strip(),
+                         "phrases": sorted({p for p in written if p and len("".join(p)) >= 3}, key=len, reverse=True)})
+        _cache.update(stamp=stamp, banks=banks, spvs=spvs)
+    return _cache
+
+
+def config() -> dict[str, Any]:
+    """The banks: {name: {aliases, spvs, flag}}."""
+    return _load()["banks"]
+
+
+def spv_rows() -> list[dict[str, Any]]:
+    """The SPV mapping rows: {name, code, bank, phrases}."""
+    return _load()["spvs"]
+
+
+def _name_phrase(name: str) -> tuple[str, ...]:
+    """An SPV name as words that say which one it is (no SPV, DAC, roman numerals...)."""
+    return tuple(w for w in _phrase(name) if w not in NOT_A_NAME and not ROMAN.fullmatch(w) and not w.isdigit())
 
 
 def _find(phrase: tuple[str, ...], tokens: list[tuple[str, int, int]]) -> tuple[int, int] | None:
@@ -102,25 +138,47 @@ def flags(found: list[dict[str, Any]]) -> list[str]:
 
 
 def spvs_for(found: list[dict[str, Any]], texts: Iterable[str], accounts: list[dict[str, Any]]) -> dict[str, str]:
-    """The customer's SPVs the email points at: {spv: why}. Why is the bank or the SPV name as written.
+    """The customer's SPVs the email points at: {spv as in the accounts: why}. Why is what was written.
 
-    An SPV matches when it is listed under a bank the email names, or when its own name is in the text.
+    Through the SPV mapping: the text writes an SPV's name, code or alias, or names its bank; that SPV is the
+    customer's when its SPVCODE is the account's PRTFL_CD or its SPVNAME the account's PRTFL_NM. Without a
+    mapping row, an SPV whose own registry name is written in the text also counts.
     """
     banks = config()
-    spvs = {a.get("spv") for a in accounts if a.get("spv") and a.get("spv") != "—"}
-    out: dict[str, str] = {}
-    for m in found:
-        listed = {_phrase(s) for s in banks.get(m["bank"], {}).get("spvs", [])}
-        for spv in spvs:
-            if _phrase(spv) in listed:
-                out.setdefault(spv, m["written"])
+    texts = list(texts)
+    owned = [a for a in accounts if a.get("spv") and a.get("spv") != "—"]
     all_tokens = [_tokens(t) for t in texts]
-    for spv in spvs:
-        phrase = tuple(w for w in _phrase(spv) if w not in NOT_A_NAME and not ROMAN.fullmatch(w) and not w.isdigit())
-        if not phrase or len("".join(phrase)) < 4:
-            continue
-        for tokens in all_tokens:
-            if _find(phrase, tokens):
-                out.setdefault(spv, spv)
-                break
+    out: dict[str, str] = {}
+
+    def written(phrases: list[tuple[str, ...]]) -> tuple[int, int, int] | None:
+        for i, tokens in enumerate(all_tokens):
+            for phrase in phrases:
+                hit = _find(phrase, tokens)
+                if hit:
+                    return i, *hit
+        return None
+
+    def same(row: dict, account: dict) -> bool:
+        code = str(account.get("spvCode") or "").strip().upper()
+        return (bool(row["code"]) and row["code"].upper() == code) or (
+            bool(row["name"]) and _phrase(row["name"]) == _phrase(account["spv"]))
+
+    named_banks = {m["bank"]: m["written"] for m in found}
+    for row in spv_rows():
+        hit = written(row["phrases"])
+        why = (" ".join(texts[hit[0]][hit[1]:hit[2]].split()) if hit
+               else named_banks.get(row["bank"]) if row["bank"] else None)
+        if why:
+            for account in owned:
+                if same(row, account):
+                    out.setdefault(account["spv"], why)
+    for m in found:  # older form: SPV names listed under the bank
+        listed = {_phrase(s) for s in banks.get(m["bank"], {}).get("spvs", [])}
+        for account in owned:
+            if _phrase(account["spv"]) in listed:
+                out.setdefault(account["spv"], m["written"])
+    for account in owned:
+        phrase = _name_phrase(account["spv"])
+        if phrase and len("".join(phrase)) >= 4 and written([phrase]):
+            out.setdefault(account["spv"], account["spv"])
     return out

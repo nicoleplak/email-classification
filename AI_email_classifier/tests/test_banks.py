@@ -19,11 +19,21 @@ def test_spv_named_in_the_text_matches_the_customers_portfolio():
     assert banks.spvs_for([], ["τίποτα σχετικό"], accounts) == {}
 
 
-def test_spv_listed_under_a_bank_matches(monkeypatch):
-    real = banks.config()
-    monkeypatch.setattr(banks, "config", lambda: {**real, "Τράπεζα Πειραιώς": {**real["Τράπεζα Πειραιώς"], "spvs": ["Sunrise I"]}})
+def test_the_spv_mapping_maps_names_codes_and_banks_to_the_customers_accounts(monkeypatch, tmp_path):
+    csv = tmp_path / "spvmapping.csv"
+    csv.write_text("SPVNAME;SPVCODE;BANK;ALIASES\nSUNRISE I DAC;SUN1;Τράπεζα Πειραιώς;\n"
+                   "FRONTIER II;FRT2;;Frontier 2|Φροντίερ\n", encoding="utf-8")
+    monkeypatch.setattr(banks, "CSV_FILE", csv)
+    banks._cache.clear()
+    accounts = [{"spv": "SUNRISE I DAC", "spvCode": "SUN1"}, {"spv": "Frontier II (renamed)", "spvCode": "FRT2"},
+                {"spv": "CAIRO", "spvCode": "CAI"}]
+    # The bank the SPV came from (BANK column), its code, an alias.
     found = banks.mentions([BODY])
-    assert banks.spvs_for(found, [BODY["text"]], [{"spv": "SUNRISE I"}, {"spv": "FRONTIER"}]) == {"SUNRISE I": "Τράπεζας Πειραιώς"}
+    assert banks.spvs_for(found, ["δάνειο της Τράπεζας Πειραιώς"], accounts)["SUNRISE I DAC"] == "Τράπεζας Πειραιώς"
+    assert banks.spvs_for([], ["κωδικός χαρτοφυλακίου FRT2"], accounts) == {"Frontier II (renamed)": "FRT2"}
+    assert banks.spvs_for([], ["το δάνειο του Φροντίερ"], accounts) == {"Frontier II (renamed)": "Φροντίερ"}
+    assert banks.spvs_for([], ["τίποτα σχετικό"], accounts) == {}
+    banks._cache.clear()
 
 
 def test_new_reasons_have_greek_text():

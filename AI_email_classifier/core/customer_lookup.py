@@ -79,6 +79,7 @@ class Registry:
                 "account": number,
                 "otherNumbers": _unique(str(row.get(c) or "") for c in ACCOUNT_COLUMNS[1:]),
                 "spv": str(row.get("PRTFL_NM") or row.get("PRTFL_CD") or "").strip() or "—",
+                "spvCode": str(row.get("PRTFL_CD") or "").strip(),
                 "state": account_state(row),
                 "is3869": "3869" in str(row.get("CST_STS_NM") or ""),
                 "erb": str(row.get("SOURCE") or "").strip() == "Datamart",

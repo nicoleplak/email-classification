@@ -138,14 +138,18 @@ The case page marks these categories «Κανόνας» instead of a certainty.
 
 ## Banks, SPV and ERB
 
-`AI_email_classifier/inputs/banks.json` lists the banks an email or attachment may name (aliases in Greek and
-Latin; Greek case endings and accents are ignored) and, per bank, the registry portfolios (`PRTFL_NM`) that came
-from it. `core/banks.py` finds them in the subject, the email text and the attachments (not earlier messages of
-the thread), plus the lender each attachment's analysis names:
+`AI_email_classifier/inputs/spvmapping.json` is the SPV mapping. Its `spvs` rows have the columns **SPVNAME**
+and **SPVCODE** (the registry's `PRTFL_NM` and `PRTFL_CD`), **BANK** (the bank the loans came from) and
+**ALIASES** (other spellings, separated by `|`). The same rows can be kept as a table in
+`inputs/spvmapping.csv` (`SPVNAME;SPVCODE;BANK;ALIASES`, e.g. saved from Excel as CSV UTF-8); rows of both files
+are used. Its `banks` section lists how each bank may be written (Greek and Latin; case endings and accents are
+ignored). `core/banks.py` looks in the subject, the email text and the attachments (not earlier messages of the
+thread), plus the lender each attachment's analysis names:
 
-- **SPV:** a bank or SPV name narrows the customer's accounts to that SPV before the account rule applies. While
-  a bank's `spvs` list is empty, only an SPV whose own name is written in the text matches. When the SPV still is
-  not known for an "SPV" category, one request is opened per SPV instead of asking for the account.
+- **SPV:** the text writes an SPV's name, code or alias, or names its bank → that SPV. It is matched to the
+  customer's accounts by SPVCODE = `PRTFL_CD` or SPVNAME = `PRTFL_NM`, and narrows the accounts before the account
+  rule applies. Without a mapping row, only an SPV whose registry name is written in the text matches. When the SPV
+  still is not known for an "SPV" category, one request is opened per SPV instead of asking for the account.
 - **ERB:** Eurobank named anywhere marks the email `ERB` (`markers` on the case): a pill in the list, the
   «Σήμανση» filter and a column in the Excel export. It changes no action or route.
 
