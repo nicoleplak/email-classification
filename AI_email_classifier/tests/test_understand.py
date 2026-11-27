@@ -321,3 +321,16 @@ def test_an_authorization_attached_brings_the_authorization_request(registry):
     assert read(registry, "Σας στέλνω το έγγραφο, ΑΦΜ 094014298.", nothing)["principalCategory"] == "Εξουσιοδοτήσεις"
     irrelevant = [{**records[0], "attachment_summaries": [{**records[0]["attachment_summaries"][0], "relevance": "irrelevant"}]}]
     assert "Εξουσιοδοτήσεις" not in read(registry, "Παρακαλώ βεβαίωση οφειλής.", irrelevant)["otherRequests"]
+
+
+def test_the_reader_sees_whole_pages_and_the_people_further_down_long_ones():
+    from core.understand import PAGE_MIN, readable
+
+    short = {"text": "Πιστοποιητικό εγγυτέρων συγγενών " * 20, "where": {"kind": "attachment"}}
+    assert readable(short, 3) == {"text": short["text"]}  # a normal page is read whole, not its first 600 characters
+    filler = "Λοιπά στοιχεία της πράξης. " * 400
+    long = {"text": filler + "Ο ΑΠΟΒΙΩΣΑΣ ΠΑΠΑΔΟΠΟΥΛΟΣ ΝΙΚΟΛΑΟΣ, κληρονόμοι: η σύζυγος ΜΑΡΙΑ. " + filler,
+            "where": {"kind": "attachment"}}
+    seen = readable(long, 60)  # many pages: each gets its share, plus the passages about people
+    assert len(seen["text"]) == PAGE_MIN and any("ΑΠΟΒΙΩΣΑΣ ΠΑΠΑΔΟΠΟΥΛΟΣ" in m for m in seen["more"])
+    assert len(readable({"text": "x" * 9000, "where": {"kind": "thread", "date": None}}, 1)["text"]) == 1500
