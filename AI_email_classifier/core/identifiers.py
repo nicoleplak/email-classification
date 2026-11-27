@@ -25,7 +25,8 @@ LABELS = {
 }
 
 _IBAN = re.compile(r"\bGR(?:[ ]?\d){25}\b")
-_RF = re.compile(r"\bRF[ ]?\d{2}(?:[ ]?[0-9A-Z]){1,21}\b")
+# RF payment code: RF, two check digits, up to 21 more, in groups or not; OCR may read the R as Greek Ρ.
+_RF = re.compile(r"(?<![\w])[RΡ][FΦ][ ]?\d{2}(?:[ ]{0,2}[0-9A-Z]){1,21}(?![\w])", re.IGNORECASE)
 _ADT = re.compile(r"(?<![\w])([Α-ΩA-Z]{1,2}[ \-]?)?\d{3}[ ]?\d{3}(?![ ]?\d)")
 _DIGITS = re.compile(r"(?<![\d,.])\d(?:[ .\-]?\d){6,24}(?![\d])(?!,\d)")
 _DATE = re.compile(r"^\d{1,2}[./\-]\d{1,2}[./\-]\d{2,4}$")
@@ -140,7 +141,7 @@ def find_candidates(text: str, source: str) -> list[dict]:
         if mod97_valid(value):
             add(value, "iban", match.start(), match.end(), "iban")
     for match in _RF.finditer(text):
-        value = match.group(0).replace(" ", "")
+        value = "RF" + match.group(0).replace(" ", "")[2:].upper()
         hint = "rf" if mod97_valid(value) else "rf_bad_checksum"
         add(value, hint, match.start(), match.end(), "payment")
     plain = "".join(unicodedata.normalize("NFD", ch)[0] for ch in text)  # same length, no accents

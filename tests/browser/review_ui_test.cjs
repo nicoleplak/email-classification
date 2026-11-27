@@ -201,7 +201,7 @@ async function behaviour(browser) {
     const comments = await page.$eval("#rv-comment", (el) => ({ inCard: !!el.closest(".card"), sticky: getComputedStyle(el.closest(".card")).position }));
     ok("step 3 is comments, in the page flow (not pinned)", comments.inCard && comments.sticky !== "sticky", comments);
     const found = await page.$$eval(".found-scroll", (els) => els.map((e) => ({ max: getComputedStyle(e).maxHeight, h: e.clientHeight })));
-    ok("details found sit in a short scrolling window", found.every((f) => f.max !== "none" && f.h <= 212), { found: found.length });
+    ok("the data table sits in a short scrolling window", found.every((f) => f.max !== "none" && f.h <= 322), { found: found.length });
   } else ok("an unreviewed email exists to test actions", false);
 
   // Clock: hovering shows how and when emails arrive.

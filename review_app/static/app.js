@@ -33,6 +33,14 @@ const T = {
     customer: "Πελάτης", customerFrom: "από το μητρώο {f}",
     followUp: "Follow-up", followUpOf: "Υπάρχει ήδη αίτημα {c} σε «{s}» ({d}): δεν ανοίγει νέο, καταχωρείται μόνο η δραστηριότητα.",
     allRequests: "Όλα τα αιτήματα Qualco (κωδικός · περιγραφή)", closedCodeShort: "κλειστή:",
+    dataTable: "Δεδομένα email και εγγράφων", rowType: "Στοιχείο", rowName: "Πρόσωπο", useForId: "Ταυτοποίηση",
+    addValue: "Προσθήκη στοιχείου", saveRecalc: "Αποθήκευση και επανυπολογισμός ενεργειών", byReviewer: "Ελεγκτής",
+    afmInvalid: "μη έγκυρος ΑΦΜ", row_added: "Προστέθηκε", row_edited: "Διορθώθηκε", row_removed: "Αφαιρέθηκε", restore: "Επαναφορά",
+    dataHelp: "Διορθώστε, προσθέστε ή αφαιρέστε στοιχεία (π.χ. τον λογαριασμό που λείπει). Με «Αποθήκευση και επανυπολογισμός» βρίσκεται ξανά ο πελάτης και προτείνονται ξανά αιτήματα και ενέργειες.",
+    recalcDone: "Τα στοιχεία αποθηκεύτηκαν· πελάτης και ενέργειες υπολογίστηκαν ξανά", dataSavedOnly: "Τα στοιχεία αποθηκεύτηκαν (χωρίς επανυπολογισμό: το μητρώο δεν είναι διαθέσιμο)",
+    registryLoading: "Φόρτωση μητρώου πελατών… ο επανυπολογισμός θα είναι διαθέσιμος σε λίγο",
+    registryFailed: "Το μητρώο πελατών δεν φορτώθηκε ({e}): τα στοιχεία αποθηκεύονται χωρίς επανυπολογισμό",
+    registryOff: "Το μητρώο πελατών δεν φορτώνεται εδώ (REVIEW_REGISTRY): τα στοιχεία αποθηκεύονται χωρίς επανυπολογισμό",
     reasonFilter: "Λόγος ελέγχου", reasonAll: "Όλοι οι λόγοι", markFilter: "Σήμανση", markAll: "Όλα",
     markERB: "ERB", markERBTip: "Το email ή συνημμένο αναφέρει τη Eurobank", erbWhere: "Η Eurobank αναφέρεται",
     reviewReason: "Λόγος ελέγχου", reviewedReason: "Πήγε για έλεγχο επειδή",
@@ -167,6 +175,14 @@ const T = {
     customer: "Customer", customerFrom: "from registry {f}",
     followUp: "Follow-up", followUpOf: "Request {c} is already registered («{s}», {d}): no new request, only the activity.",
     allRequests: "All Qualco requests (code · description)", closedCodeShort: "closed:",
+    dataTable: "Email and document data", rowType: "Item", rowName: "Person", useForId: "Identifies",
+    addValue: "Add a value", saveRecalc: "Save and recalculate actions", byReviewer: "Reviewer",
+    afmInvalid: "invalid tax ID", row_added: "Added", row_edited: "Corrected", row_removed: "Removed", restore: "Restore",
+    dataHelp: "Correct, add or remove values (e.g. the missing account). «Save and recalculate» finds the customer again and proposes requests and actions again.",
+    recalcDone: "Data saved; customer and actions recalculated", dataSavedOnly: "Data saved (not recalculated: the registry is not available)",
+    registryLoading: "Loading the customer registry… recalculation will be available shortly",
+    registryFailed: "The customer registry did not load ({e}): data is saved without recalculation",
+    registryOff: "The customer registry is not loaded here (REVIEW_REGISTRY): data is saved without recalculation",
     reasonFilter: "Review reason", reasonAll: "All reasons", markFilter: "Mark", markAll: "All",
     markERB: "ERB", markERBTip: "The email or an attachment names Eurobank", erbWhere: "Eurobank is named",
     reviewReason: "Review reason", reviewedReason: "Went to review because",
@@ -706,6 +722,7 @@ async function openCase(id, keepViewer) {
   S.addOpen = false;
   S.extraOpen = false;
   S.changing = null;
+  S.rows = null;
   S.enter = true; // animate this render only, not re-renders while reviewing
   if (!keepViewer) S.viewer = { tab: "email", page: null, images: false };
   api(`/api/cases/${encodeURIComponent(id)}/open`, { json: {} });
@@ -1276,16 +1293,105 @@ function customerCard(u) {
   return card(t("customer"), file ? t("customerFrom", { f: file }) : null, ...body);
 }
 
-function foundCard(u) {
-  const rows = (u.extracted || []);
-  if (!rows.length) return card(t("found"), null, h("p", { class: "muted", text: t("foundNone") }));
-  return card(t("found"), t("foundCount", { n: rows.length }), h("div", { class: "found-scroll", tabindex: "0", role: "region", "aria-label": t("found") }, h("table", { class: "mini" },
-    h("tr", {}, ...[lang === "el" ? "Στοιχείο" : "Item", t("value"), t("belongs"), t("where")].map((x) => h("th", { text: x }))),
-    ...rows.map((e) => h("tr", {},
-      h("td", { text: FIELD[lang][e.type] || e.type }),
-      h("td", {}, h("strong", { text: e.value }), e.checked ? h("div", { class: "ok", text: `✓ ${t("checked")}` }) : null),
-      h("td", { text: e.role ? ROLE[lang][e.role] || e.role : "—" }),
-      h("td", {}, ...(e.sources || []).map((s) => h("div", {}, sourceChip(s), snippet(s.snippet, e.value)))))))));
+/* The email's data table: every value found in the email and its documents, where, whose, and whether it is
+   used to find the customer. While reviewing, values can be corrected, added or removed; saving finds the
+   customer and picks the actions again (server: /data). Stored per email, also for the Excel export. */
+const ROW_TYPES = ["afm", "account", "contract", "payment_code", "iban", "adt", "phone", "email", "case_ref", "name", "spv"];
+const ID_TYPES = new Set(["afm", "account", "contract", "payment_code"]);
+const rowTypeName = (k) => k === "name" ? t("rowName") : k === "spv" ? "SPV" : FIELD[lang][k] || k;
+function afmValid(v) {
+  const d = String(v || "").replace(/\D/g, "");
+  if (d.length !== 9) return false;
+  let sum = 0;
+  for (let i = 0; i < 8; i++) sum += +d[i] * 2 ** (8 - i);
+  return (sum % 11) % 10 === +d[8];
+}
+function rowSource(r) {
+  const src = r.source || {};
+  if (src.kind === "user" || r.status === "added") return h("span", { class: "muted small", text: r.by ? `${t("byReviewer")} · ${r.by}` : t("byReviewer") });
+  if (["subject", "body", "thread", "attachment", "sender"].includes(src.kind)) return sourceChip({ ...src, snippet: r.snippet });
+  return h("span", { class: "muted small", title: r.snippet || null, text: r.snippet || src.kind || "—" });
+}
+function dataCard(c, d) {
+  const editable = editing(c);
+  if (!S.rows || S.rowsFor !== c.id) { S.rows = (d.data || []).map((r) => ({ ...r })); S.rowsFor = c.id; S.rowsDirty = false; }
+  const rows = S.rows;
+  const changed = () => { S.rowsDirty = true; renderCase(); };
+  const typeSel = (r) => h("select", { "aria-label": t("rowType"), onchange: (e) => { r.type = e.target.value; changed(); } },
+    ...ROW_TYPES.map((k) => h("option", { value: k, selected: r.type === k ? true : null, text: rowTypeName(k) })));
+  const roleSel = (r) => h("select", { "aria-label": t("belongs"), onchange: (e) => { r.role = e.target.value || null; changed(); } },
+    h("option", { value: "", text: "—" }),
+    ...Object.keys(ROLE[lang]).filter((k) => k !== "none").map((k) => h("option", { value: k, selected: r.role === k ? true : null, text: ROLE[lang][k] })));
+  const note = (r) => r.type === "afm" && r.value ? (afmValid(r.value) ? h("span", { class: "ok small", text: "✓" })
+    : h("span", { class: "caveat small", text: t("afmInvalid") })) : r.checked ? h("span", { class: "ok small", text: "✓" }) : "";
+  const statusPill = (r) => r.status && r.status !== "found" ? h("span", { class: `pill ${r.status === "removed" ? "bad" : "plain"}`, text: t(`row_${r.status}`) }) : "";
+  const body = rows.map((r, i) => {
+    const off = r.status === "removed";
+    if (!editable) {
+      return off ? null : h("tr", {},
+        h("td", { text: rowTypeName(r.type) }),
+        h("td", {}, h("strong", { text: r.value }), " ", note(r)),
+        h("td", { text: r.role ? ROLE[lang][r.role] || r.role : "—" }),
+        h("td", { text: ID_TYPES.has(r.type) && r.identifiesCase ? "✓" : "" }),
+        h("td", {}, rowSource(r)), h("td", {}, statusPill(r)));
+    }
+    const value = h("input", { type: "text", id: `dt-v-${i}`, value: r.value || "", "aria-label": t("value"), disabled: off ? true : null,
+      oninput: (e) => { r.value = e.target.value; S.rowsDirty = true; $("#dt-save") && ($("#dt-save").disabled = false); },
+      onchange: () => renderCase() });
+    // Two lines per value, so the table fits the column: what and which value; then whose, use, source, state.
+    return h("div", { class: `drow${off ? " off" : ""}` },
+      h("div", { class: "drow-main" }, off ? h("span", { class: "dtype", text: rowTypeName(r.type) }) : typeSel(r), value, off ? "" : note(r)),
+      h("div", { class: "drow-meta" },
+        off ? "" : roleSel(r),
+        ID_TYPES.has(r.type) && !off ? h("label", { class: "small" }, h("input", { type: "checkbox", checked: r.identifiesCase ? true : null,
+          onchange: (e) => { r.identifiesCase = e.target.checked; changed(); } }), ` ${t("useForId")}`) : "",
+        rowSource(r), statusPill(r),
+        h("button", { type: "button", class: "link", text: off ? t("restore") : t("remove"),
+          onclick: () => {
+            if (!off && !r.id) rows.splice(i, 1);
+            else r.status = off ? (r.original || r.method === "user" ? "edited" : "found") : "removed";
+            changed();
+          } })));
+  }).filter(Boolean);
+  const head = h("tr", {}, ...[t("rowType"), t("value"), t("belongs"), t("useForId"), t("where"), ""].map((x) => h("th", { text: x })));
+  const table = editable
+    ? h("div", { class: "found-scroll data-table edit", tabindex: "0", role: "region", "aria-label": t("dataTable") }, ...body)
+    : h("div", { class: "found-scroll data-table", tabindex: "0", role: "region", "aria-label": t("dataTable") },
+      h("table", { class: "mini" }, head, ...body));
+  const reg = d.registry || {};
+  const tools = editable ? h("div", { class: "data-tools" },
+    h("button", { type: "button", class: "secondary", text: `+ ${t("addValue")}`, onclick: () => {
+      rows.push({ type: "account", value: "", role: null, identifiesCase: true, status: "added", source: { kind: "user" } });
+      changed();
+      requestAnimationFrame(() => document.getElementById(`dt-v-${rows.length - 1}`)?.focus());
+    } }),
+    h("button", { type: "button", id: "dt-save", class: "primary", disabled: S.rowsDirty ? null : true, text: t("saveRecalc"),
+      onclick: (e) => saveData(c, e.currentTarget) }),
+    reg.state !== "ready" ? h("span", { class: "muted small", text: reg.state === "loading" ? t("registryLoading")
+      : reg.state === "failed" ? t("registryFailed", { e: reg.error || "" }) : t("registryOff") }) : "") : "";
+  const active = rows.filter((r) => r.status !== "removed").length;
+  return card(t("dataTable"), t("foundCount", { n: active }), editable ? h("p", { class: "muted small", text: t("dataHelp") }) : "",
+    rows.length ? table : h("p", { class: "muted", text: t("foundNone") }), tools);
+}
+
+async function saveData(c, button) {
+  const restore = busy(button, t("saving"));
+  const categories = [finalCategoryNow(c) === NO_MATCH ? c.modelCategory : finalCategoryNow(c), ...(S.pickExtras || [])].filter(Boolean);
+  const res = await api(`/api/cases/${encodeURIComponent(c.id)}/data`, { json: {
+    _etag: c._etag, categories,
+    rows: S.rows.map((r) => ({ id: r.id, type: r.type, value: r.value, role: r.role, identifiesCase: !!r.identifiesCase, status: r.status })) } })
+    .catch(() => ({ ok: false, data: {} }));
+  restore();
+  if (res.status === 409) { S.detail = res.data.case || S.detail; S.rows = null; renderCase(); notice(t("changed")); return; }
+  if (!res.ok) { notice(t("error")); return; }
+  S.detail = res.data.detail;
+  S.rows = null;
+  if (res.data.recalculated) {
+    // The proposals change with the data: the reviewer starts again from them (their category choice stays).
+    S.acts = ((S.detail.case.understanding || {}).actions || []).map((a) => asChoice(a, "suggested"));
+    toast(t("recalcDone"));
+  } else toast(t("dataSavedOnly"));
+  renderCase();
 }
 
 /* One audit entry as a timeline row: when, who, what changed. Used per case and in the activity log. */
@@ -1420,7 +1526,7 @@ function renderCase() {
     c.understanding && !u.error ? customerCard(u) : "",
     decisionCard(c),
     actionsCard(u, c),
-    c.understanding && !u.error ? foundCard(u) : "",
+    dataCard(c, d),
     attachmentsCard(c),
     u.analysis ? h("p", { class: "muted small", text: `${t("analysis")}: ${u.analysis}` }) : "",
     commentCard(c),

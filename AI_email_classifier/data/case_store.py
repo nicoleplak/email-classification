@@ -4,7 +4,7 @@ Cosmos DB in Azure (database EmailClassification in cosmos-db-data-llm-dev); a f
 local runs and tests. Both give every document an ``_etag``: ``replace`` only succeeds when the caller's
 etag is still current, so a slow writer (the classifier) never overwrites a reviewer's save.
 
-Containers and partition keys: cases, runs, users, locks on /id; audit on /caseId (it is only ever read
+Containers and partition keys: cases, runs, users, locks, data (an email's data table, id = case id) on /id; audit on /caseId (it is only ever read
 per case). Lock documents carry ``ttl`` (seconds) and expire on their own in Cosmos.
 """
 
@@ -16,7 +16,7 @@ import uuid
 from pathlib import Path
 from typing import Any
 
-COLLECTIONS = ("cases", "audit", "runs", "locks", "users")
+COLLECTIONS = ("cases", "audit", "runs", "locks", "users", "data")
 PARTITION = {"audit": "caseId"}  # everything else: /id
 
 

@@ -375,3 +375,36 @@ def test_the_action_list_has_every_qualco_request_with_its_name_and_each_categor
     assert by_code["45"]["codeName"] and by_code["45"]["closedCode"] == "124" and len(by_code) > 90
     assert [o["code"] for o in catalog["requests"][:3]] == sorted([o["code"] for o in catalog["requests"][:3]], key=int)
     assert catalog["modes"]["Εξουσιοδοτήσεις"] == "spv" and catalog["modes"]["Δοσολόγιο"] == "account"
+
+
+def test_saving_the_data_table_recalculates_the_customer_and_actions(app):
+    import pandas as pd
+
+    from core.customer_lookup import Registry
+
+    server, _base, case_id = app
+    case = server.STORE.get("cases", case_id)
+    case["understanding"] = {"principalCategory": "Δοσολόγιο", "otherRequests": [], "flags": [], "people": [], "customers": [],
+                             "extracted": [], "actions": [{"do": "ask_identification"}], "customerFacts": {}}
+    case["routeReasons"] = ["no customer found in the registry by tax ID or account", "confidence 70% is below 90%"]
+    case = server.STORE.replace("cases", case)
+    user = {"id": "dev-1", "name": "Ελεγκτής Α"}
+    rows = [{"type": "account", "value": "1000000000002", "role": "debtor", "identifiesCase": True}]
+    # Without the registry: the data is kept, nothing is recalculated.
+    status, out = server.save_data(user, case_id, {"_etag": case["_etag"], "rows": rows, "categories": ["Δοσολόγιο"]})
+    assert status == 200 and not out["recalculated"] and server.STORE.get("data", case_id)["rows"][0]["status"] == "added"
+    server.REGISTRY.update(state="ready", registry=Registry(pd.DataFrame([
+        {"TAX_ID_NO": "094014298", "NAME": "Χ", "ACC_UNQ_CD": "1000000000002", "SRV_ACC_UNQ_CD": "", "ACC_ID": "",
+         "SOURCE": "Qualco", "CST_STS_NM": "Active", "PORTAL_FLAG": "N", "CST_UNQ_CD": "C1", "PRTFL_NM": "BETA", "PRTFL_CD": "B"}])))
+    case = server.STORE.get("cases", case_id)
+    rows = out["detail"]["data"]
+    status, out = server.save_data(user, case_id, {"_etag": case["_etag"], "rows": rows, "categories": ["Δοσολόγιο"]})
+    assert status == 200 and out["recalculated"]
+    saved = server.STORE.get("cases", case_id)
+    assert any(a["do"] == "request" and a["account"] == "1000000000002" for a in saved["understanding"]["actions"])
+    assert saved["routeReasons"] == ["confidence 70% is below 90%"]  # the customer reason is gone, the rest stays
+    events = server.STORE.find("audit", "caseId", case_id)
+    assert any(e["action"] == "data changed" and e["after"]["recalculated"] for e in events)
+    status, _ = server.save_data(user, case_id, {"_etag": "stale", "rows": rows})
+    assert status == 409
+    server.REGISTRY.update(state="off", registry=None)

@@ -162,6 +162,10 @@ They go into `LOCAL_BLOB_DIR` from `.env`. Then steps 3c and 3d. The customer re
 - **SPV**: an SPV name or code written in the email or an attachment picks the SPV of the request; otherwise an
   "SPV" category opens one request per SPV. Fill the SPV mapping (SPVNAME;SPVCODE) in
   `AI_email_classifier\inputs\spvmapping.csv`.
+- **Data table** («Δεδομένα email και εγγράφων»): every value found, with its source; add the missing account (or
+  correct a tax ID) and press «Αποθήκευση και επανυπολογισμός ενεργειών»: customer, request and account are
+  picked again. The app loads the registry from `C:\emclf-data\blob\in\` (or `REGISTRY_CSV`) at start: wait for
+  `Registry ready` in the terminal.
 - **Statistics**: click a number to open exactly those emails; the Excel export lists the current list.
 - The rules for the business: `docs\decision_rules.html` and `docs\decision_rules.drawio`.
 

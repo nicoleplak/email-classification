@@ -31,7 +31,7 @@ EMAIL_RE = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
 PAGE_BREAK = "<!-- PageBreak -->"
 CHECKED_HINTS = {"afm", "afm_padded", "iban", "rf"}  # the value passed a check digit
 # What a value is when the model did not label it: from its shape, or the word written before it.
-PATTERN_FIELDS = {"afm": "afm", "afm_padded": "afm", "iban": "iban", "rf": "payment_code", "payment_code_like": "payment_code",
+PATTERN_FIELDS = {"afm": "afm", "afm_padded": "afm", "iban": "iban", "rf": "payment_code", "rf_bad_checksum": "payment_code", "payment_code_like": "payment_code",
                   "account_like": "account", "contract_like": "contract", "adt_like": "adt", "phone_like": "phone",
                   "label:account": "account", "label:contract": "contract", "label:afm": "afm"}
 FIELDS = ["afm", "case_ref", "account", "contract", "iban", "payment_code", "phone", "adt", "other"]

@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import re
 import tempfile
 import time
@@ -366,6 +367,22 @@ def _classify_internal(store, blob, now_fn, clf_run, case: dict, totals: dict[st
     totals["internal"] = totals.get("internal", 0) + 1
 
 
+def save_data_table(store, case_id: str, understanding: dict[str, Any] | None, now: str) -> None:
+    """The email's data table (core.data_rows): the classifier's findings, plus any rows a reviewer added,
+    corrected or removed earlier, which are kept when an email is classified again."""
+    if not understanding or understanding.get("error"):
+        return
+    from core.data_rows import merge, rows_from_understanding
+
+    try:
+        existing = store.get("data", case_id) or {}
+        rows = merge(rows_from_understanding(case_id, understanding), existing.get("rows") or [])
+        store.upsert("data", {"id": case_id, "caseId": case_id, "rows": rows, "updatedAt": now,
+                              "updatedBy": existing.get("updatedBy") or "classifier"})
+    except Exception as exc:  # noqa: BLE001 - the case still counts; the page rebuilds the table from the case
+        logging.getLogger(__name__).warning("data table for %s not saved: %s", case_id, exc)
+
+
 def _classify_one(store, blob, processor, understand_fn, threshold, now_fn, clf_run,
                   case: dict, message: dict | None, totals: dict[str, int]) -> None:
     refs = case["sourceRefs"]
@@ -383,6 +400,7 @@ def _classify_one(store, blob, processor, understand_fn, threshold, now_fn, clf_
                 understanding = understand_fn(message, records, Path(tmp))
             except Exception as exc:  # The classification still counts; a person reads the details.
                 understanding = {"error": f"{type(exc).__name__}: {exc}"}
+        save_data_table(store, case["id"], understanding, now_fn())
         route, reasons, confidence = decide_route(records, threshold, error)
         if route == "REVIEW" and identification_waived(understanding):
             reasons = [r for r in reasons if r not in REVIEW_STATUSES.values()]

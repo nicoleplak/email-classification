@@ -539,3 +539,13 @@ details.template summary { font-size: 13px; color: var(--blue); cursor: pointer;
 .followup { font-size: 12.5px; color: var(--ink-2); }
 .pill.rule { color: #fff; background: #5b3fa8; }
 .picker-opt.req code { font-weight: 700; margin-right: 4px; }
+.data-table.edit { max-height: 320px; display: grid; gap: 0; align-content: start; }
+.drow { padding: 8px 2px; border-bottom: 1px solid var(--line); display: grid; gap: 6px; min-width: 0; }
+.drow:last-child { border-bottom: 0; }
+.drow-main { display: grid; grid-template-columns: minmax(120px, 11em) minmax(0, 1fr) auto; gap: 8px; align-items: center; }
+.drow-main input[type=text] { width: 100%; min-width: 0; }
+.drow-meta { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; }
+.drow-meta select { max-width: 13em; }
+.drow.off .drow-main { opacity: .55; text-decoration: line-through; }
+.data-tools { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; margin-top: 10px; }
+.data-table.edit { padding: 0 10px; }

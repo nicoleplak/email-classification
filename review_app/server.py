@@ -430,6 +430,8 @@ def case_detail(case_id: str) -> dict | None:
             "original": "msg" if message.get("msg_blob_path") else ("eml" if message.get("eml_blob_path") else None),
         },
         "attachments": attachments,
+        "data": data_rows(case),
+        "registry": {"state": REGISTRY["state"], "source": REGISTRY["source"], "error": REGISTRY["error"]},
         "events": [{k: e.get(k) for k in ("at", "by", "byName", "action", "before", "after", "comment")} for e in events],
         "lock": {"holderName": lock.get("holderName"), "holder": lock.get("holder")}
         if lock and str(lock.get("until", "")) > now() else None,
@@ -649,6 +651,145 @@ def clean_actions(raw) -> tuple[list[dict], str | None]:
     return out, None
 
 
+# ------------------------------------------------------------------ the email's data table
+REGISTRY: dict = {"state": "off", "registry": None, "source": None, "error": None}
+REGISTRY_COLUMNS = ["TAX_ID_NO", "NAME", "SOURCE", "CST_STS_NM", "CST_UNQ_CD", "PRTFL_CD", "PRTFL_NM", "ACC_UNQ_CD",
+                    "SRV_ACC_UNQ_CD", "ACC_ID", "PORTAL_FLAG", "IDV_ORG_IND", "ACC_TP_NM", "ASST_CLS", "SETL_STS_NM", "ASSIGNED"]
+
+
+def load_registry() -> None:
+    """The customer registry, read in the background at start (REVIEW_REGISTRY=true, the default), so a reviewer's
+    corrections to the data table can find the customer and pick the actions again. Only the columns the lookup
+    reads are kept in memory."""
+    import pandas as pd
+    import tempfile
+
+    from core.customer_lookup import Registry
+
+    def read(path: str):
+        status = os.getenv("ACCOUNT_STATUS_COLUMN", "").strip()
+        wanted = set(REGISTRY_COLUMNS) | ({status} if status else set())
+        df = pd.read_csv(path, sep=";", dtype=str, encoding="utf-8-sig", usecols=lambda c: c.strip() in wanted).fillna("")
+        df.columns = [c.strip() for c in df.columns]
+        df["TAX_ID_NO"] = df["TAX_ID_NO"].str.strip().str.replace("\ufeff", "", regex=False)
+        return df
+
+    def run() -> None:
+        REGISTRY.update(state="loading")
+        try:
+            local = os.getenv("REGISTRY_CSV")
+            if local:
+                df, source = read(local), local
+            else:
+                names = sorted(n for n in blob().list_names("in/qualco_output_") if n.endswith(".csv"))
+                if not names:
+                    raise FileNotFoundError("no in/qualco_output_*.csv")
+                with tempfile.TemporaryDirectory() as tmp:
+                    path = Path(tmp) / "registry.csv"
+                    path.write_bytes(blob().download(names[-1]))
+                    df, source = read(str(path)), names[-1]
+            REGISTRY.update(state="ready", registry=Registry(df, source), source=source, error=None)
+            print(f"Registry ready: {source} ({len(df)} rows)", flush=True)
+        except Exception as exc:  # noqa: BLE001 - the app works without it; recalculation says why it cannot
+            REGISTRY.update(state="failed", error=f"{type(exc).__name__}: {exc}")
+            print(f"Registry not loaded: {REGISTRY['error']}", flush=True)
+
+    if os.getenv("REVIEW_REGISTRY", "true").strip().lower() == "true":
+        threading.Thread(target=run, daemon=True).start()
+
+
+def data_rows(case: dict) -> list[dict]:
+    """The email's data table: the stored one, or the classifier's findings for emails classified before it existed."""
+    from core.data_rows import rows_from_understanding
+
+    doc = store().get("data", case["id"])
+    if doc and doc.get("rows") is not None:
+        return doc["rows"]
+    return rows_from_understanding(case["id"], case.get("understanding"))
+
+
+ROW_TYPES = ("afm", "account", "contract", "payment_code", "iban", "adt", "phone", "email", "case_ref", "name", "spv")
+ROW_ROLES = ("debtor", "co_debtor", "deceased_debtor", "heir", "representative", "authority", "dovalue_or_bank",
+             "other_party", "none")
+UNDERSTANDING_REASONS = {"no_customer", "account_unknown", "heir_only", "details_unread", "possible_customer", "name_mismatch"}
+
+
+def clean_rows(raw, before: list[dict], user: dict, case_id: str) -> tuple[list[dict] | None, str | None]:
+    """The reviewer's table, kept to known types and short values; what changed is marked with who and when."""
+    from core.data_rows import row_id
+
+    if not isinstance(raw, list) or len(raw) > 300:
+        return None, "rows"
+    old = {r["id"]: r for r in before}
+    out, seen = [], set()
+    for item in raw:
+        if not isinstance(item, dict) or item.get("type") not in ROW_TYPES:
+            return None, "rows"
+        value = " ".join(str(item.get("value") or "").split())[:80]
+        if not value:
+            continue
+        role = item.get("role") if item.get("role") in ROW_ROLES else None
+        uses = bool(item.get("identifiesCase"))
+        prior = old.get(str(item.get("id") or ""))
+        row = {**(prior or {}), "type": item["type"], "value": value, "role": role, "identifiesCase": uses}
+        if prior is None:
+            row.update(id=row_id(case_id, item["type"], value), status="added", method="user", source={"kind": "user"},
+                       snippet="", checked=False, by=user["name"], at=now())
+        elif item.get("status") == "removed":
+            row.update(status="removed", by=user["name"], at=now())
+        elif (prior["type"], prior["value"], prior.get("role"), bool(prior.get("identifiesCase"))) != (row["type"], value, role, uses):
+            row.update(status="edited" if prior.get("status") != "added" else "added", by=user["name"], at=now(),
+                       original=prior.get("original") or {k: prior.get(k) for k in ("type", "value", "role", "identifiesCase")})
+        elif prior.get("status") == "removed":
+            row.update(status="edited", by=user["name"], at=now())
+        if row["id"] in seen:
+            continue
+        seen.add(row["id"])
+        out.append(row)
+    return out, None
+
+
+def save_data(user: dict, case_id: str, body: dict) -> tuple[int, dict]:
+    """Save the data table and, when the registry is loaded, find the customer and pick the actions again."""
+    from core.data_rows import redecide
+    from core.run_classifier import REVIEW_STATUSES, identification_waived, understanding_reasons
+
+    case = store().get("cases", case_id)
+    if case is None:
+        return 404, {"error": "not_found"}
+    if body.get("_etag") != case.get("_etag"):
+        return 409, {"error": "changed", "case": case_detail(case_id)}
+    before = data_rows(case)
+    rows, error = clean_rows(body.get("rows"), before, user, case_id)
+    if error:
+        return 400, {"error": error}
+    store().upsert("data", {"id": case_id, "caseId": case_id, "rows": rows, "updatedAt": now(), "updatedBy": user["name"]})
+    changed = [r for r in rows if r.get("status") in ("added", "edited", "removed") and r.get("at")]
+    recalculated = False
+    u = case.get("understanding") or {}
+    if REGISTRY["state"] == "ready" and u and not u.get("error"):
+        categories = [c for c in body.get("categories") or [] if c in CATEGORIES and c != metrics.NO_MATCH] \
+            or [c for c in [u.get("principalCategory"), *(u.get("otherRequests") or [])] if c]
+        new = redecide(u, rows, REGISTRY["registry"], categories)
+        kept = [r for r in case.get("routeReasons") or [] if metrics.reason_key(r) not in UNDERSTANDING_REASONS]
+        if identification_waived(new):
+            kept = [r for r in kept if r not in REVIEW_STATUSES.values()]
+        case = {**case, "understanding": {**new, "recalculatedAt": now(), "recalculatedBy": user["name"]},
+                "routeReasons": kept + understanding_reasons(new), "updatedAt": now()}
+        try:
+            store().replace("cases", case)
+        except Conflict:
+            return 409, {"error": "changed", "case": case_detail(case_id)}
+        CASES.drop()
+        recalculated = True
+    store().create("audit", {"id": uuid.uuid4().hex, "caseId": case_id, "at": now(), "by": user["id"],
+                             "byName": user["name"], "action": "data changed",
+                             "after": {"rows": [{k: r.get(k) for k in ("type", "value", "status", "original")} for r in changed][:30],
+                                       "recalculated": recalculated}})
+    return 200, {"saved": True, "recalculated": recalculated, "registry": REGISTRY["state"], "registryError": REGISTRY["error"],
+                 "detail": case_detail(case_id)}
+
+
 def save_review(user: dict, case_id: str, body: dict) -> tuple[int, dict]:
     case = store().get("cases", case_id)
     if case is None:
@@ -751,6 +892,17 @@ def attachment_summaries(case: dict) -> list[dict]:
     return list((records[0] if records else {}).get("attachment_summaries") or [])
 
 
+ROW_TYPE_TEXT = {"afm": "ΑΦΜ", "account": "Λογαριασμός", "contract": "Αρ. σύμβασης", "payment_code": "Κωδ. πληρωμής (RF)",
+                 "iban": "IBAN", "adt": "ΑΔΤ", "phone": "Τηλέφωνο", "email": "Email", "case_ref": "Αρ. υπόθεσης",
+                 "name": "Πρόσωπο", "spv": "SPV"}
+ROW_ROLE_TEXT = {"debtor": "Οφειλέτης", "co_debtor": "Συνοφειλέτης / εγγυητής", "deceased_debtor": "Αποβιώσας οφειλέτης",
+                 "heir": "Κληρονόμος", "representative": "Εκπρόσωπος", "authority": "Αρχή", "dovalue_or_bank": "doValue / τράπεζα",
+                 "other_party": "Άλλος", "none": ""}
+ROW_SOURCE = {"subject": "Θέμα", "body": "Κείμενο email", "thread": "Προηγούμενο μήνυμα", "sender": "Αποστολέας",
+              "user": "Ελεγκτής", "text": "Κείμενο", "recipient": "Παραλήπτης"}
+ROW_STATUS_TEXT = {"found": "Βρέθηκε", "added": "Προστέθηκε", "edited": "Διορθώθηκε", "removed": "Αφαιρέθηκε"}
+
+
 def export_xlsx(ids: list[str]) -> bytes:
     """The listed emails as an Excel sheet: email, categories, actions, reviewer, status."""
     from openpyxl import Workbook
@@ -764,6 +916,7 @@ def export_xlsx(ids: list[str]) -> bytes:
         ("Προτεινόμενες ενέργειες", 50), ("Τελικές ενέργειες", 50), ("Ενέργειες: αποτέλεσμα", 18),
         ("Ελεγκτής", 22), ("Ημ. ελέγχου (ώρα Ελλάδας)", 17), ("Σχόλιο", 40), ("ID", 26),
     ]
+    COL = {name: n for n, (name, _) in enumerate(columns)}
     book = Workbook()
     sheet = book.active
     sheet.title = "Emails"
@@ -813,9 +966,31 @@ def export_xlsx(ids: list[str]) -> bytes:
     for row in sheet.iter_rows(min_row=2):
         for cell in row:
             cell.alignment = Alignment(vertical="top", wrap_text=True)
-        row[0].number_format = row[18].number_format = "dd/mm/yyyy hh:mm"
-        row[10].number_format = "0%"
+        row[0].number_format = row[COL["Ημ. ελέγχου (ώρα Ελλάδας)"]].number_format = "dd/mm/yyyy hh:mm"
+        row[COL["Βεβαιότητα"]].number_format = "0%"
     sheet.freeze_panes = "A2"
+    # The data table of each listed email, one row per value: what was found where, and what reviewers changed.
+    data = book.create_sheet("Δεδομένα")
+    data_columns = [("ID email", 26), ("Λήψη (ώρα Ελλάδας)", 17), ("Στοιχείο", 18), ("Τιμή", 26), ("Ανήκει σε", 18),
+                    ("Ταυτοποίηση", 12), ("Πηγή", 30), ("Μέθοδος", 22), ("Κατάσταση", 12), ("Αρχική τιμή", 22),
+                    ("Από", 20), ("Πότε", 20)]
+    data.append([name for name, _ in data_columns])
+    for n, (_, width) in enumerate(data_columns, 1):
+        data.column_dimensions[get_column_letter(n)].width = width
+    for cell in data[1]:
+        cell.font = Font(bold=True, color="FFFFFF")
+        cell.fill = PatternFill("solid", fgColor="155E8F")
+    for case in rows:
+        for r in data_rows(case):
+            src = r.get("source") or {}
+            where = (f"{src.get('file')}, σελ. {src.get('page')}" if src.get("kind") == "attachment"
+                     else ROW_SOURCE.get(src.get("kind") or "", src.get("kind") or ""))
+            data.append([case["id"], metrics.athens_time(case.get("receivedAt")), ROW_TYPE_TEXT.get(r["type"], r["type"]),
+                         r.get("value"), ROW_ROLE_TEXT.get(r.get("role") or "", r.get("role") or ""),
+                         "Ναι" if r.get("identifiesCase") else "", where, r.get("method") or "",
+                         ROW_STATUS_TEXT.get(r.get("status") or "", r.get("status") or ""),
+                         (r.get("original") or {}).get("value") or "", r.get("by") or "", r.get("at") or ""])
+    data.freeze_panes = "A2"
     sheet.auto_filter.ref = sheet.dimensions
     buffer = io.BytesIO()
     book.save(buffer)
@@ -1107,6 +1282,9 @@ class Handler(BaseHTTPRequestHandler):
             if tail == ["reset"] and method == "POST":
                 status, data = reset_review(user, case_id, self.body())
                 return self.json(status, data)
+            if tail == ["data"] and method == "POST":
+                status, data = save_data(user, case_id, self.body())
+                return self.json(status, data)
             if tail == ["review"] and method == "POST":
                 status, data = save_review(user, case_id, self.body())
                 return self.json(status, data)
@@ -1227,4 +1405,5 @@ if __name__ == "__main__":
     for line in startup_report():
         print(line, flush=True)
     warm_queue()
+    load_registry()
     server.serve_forever()

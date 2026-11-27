@@ -17,6 +17,7 @@ APP=ca-emclf-llm-gr
 UAMI=id-email-classification-uat
 COSMOS="https://cosmos-db-data-llm-dev.documents.azure.com:443/"
 COSMOS_DB=EmailClassification
+COSMOS_ACCOUNT=cosmos-db-data-llm-dev
 OPENAI="https://openai-data-llm.openai.azure.com/"
 OPENAI_DEPLOYMENT=gpt-4.1-gs
 OPENAI_VERSION=2024-12-01-preview
@@ -59,15 +60,19 @@ configure_app() {
   azq containerapp secret set -n "$APP" -g "$RG" \
     --secrets "review-access-code=$REVIEW_ACCESS_CODE" "review-session-secret=$session"
   # Replaces the whole environment: the review app holds no mailbox secret and no AI keys.
-  # 1 CPU / 2 GiB: up to 768 MB of attachments and ~10 days of emails are kept in memory, so they open at once.
+  # The email data table (reviewer corrections): one document per email, partition /id. No-op when it exists.
+  az cosmosdb sql container create -a "$COSMOS_ACCOUNT" -g "$RG" --subscription "$SUB" -d "$COSMOS_DB" -n data \
+    -p /id --only-show-errors -o none 2>/dev/null || true
+  # 2 CPU / 4 GiB: the customer registry (~900k rows, lookup columns only) for recalculating a case after a
+  # reviewer corrects its data, plus up to 768 MB of attachments and ~10 days of emails kept for fast opening.
   azq containerapp update -n "$APP" -g "$RG" --command python --args /app/review_app/server.py \
-    --min-replicas 1 --max-replicas 1 --cpu 1.0 --memory 2.0Gi \
+    --min-replicas 1 --max-replicas 1 --cpu 2.0 --memory 4.0Gi \
     --replace-env-vars \
       REVIEW_AUTH=demo REVIEW_ACCESS_CODE=secretref:review-access-code \
       REVIEW_SESSION_SECRET=secretref:review-session-secret HOST=0.0.0.0 PORT=8000 \
       CASE_STORE=cosmos "COSMOS_ENDPOINT=$COSMOS" "COSMOS_DATABASE=$COSMOS_DB" \
       RESULT_STORAGE_ACCOUNT=datallmdev RESULT_CONTAINER=email-classification "AZURE_CLIENT_ID=$uami_client" \
-      "FETCH_CRON=$cron" REVIEW_CACHE_MB=768 REVIEW_RUNS_KEPT=60
+      "FETCH_CRON=$cron" REVIEW_CACHE_MB=768 REVIEW_RUNS_KEPT=60 REVIEW_REGISTRY=true REGISTRY_SOURCE=csv
   azq containerapp ingress enable -n "$APP" -g "$RG" --type external --target-port 8000 --transport auto
   for secret in graph-client-secret azure-openai-api-key doc-intel-api-key; do
     azq containerapp secret remove -n "$APP" -g "$RG" --secret-names "$secret" 2>/dev/null || true

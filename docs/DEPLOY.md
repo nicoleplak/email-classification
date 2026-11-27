@@ -76,9 +76,11 @@ Review app (`ca-emclf-llm-gr`, set by `configure_azure.sh app`):
 | `CASE_STORE`, `COSMOS_*`, `RESULT_STORAGE_ACCOUNT`, `RESULT_CONTAINER`, `AZURE_CLIENT_ID` | data access with the managed identity `id-email-classification-uat` |
 
 | `REVIEW_CACHE_MB` | memory for attachments and their OCR text (default 512, deployed 768); least recently used go first |
+| `REVIEW_REGISTRY` | `true` (default): the app reads the newest `in/qualco_output_*.csv` (lookup columns only) in the background at start, to recalculate an email after its data table is corrected; `false`: corrections are saved without recalculating |
 | `REVIEW_RUNS_KEPT` | ingest run files kept in memory (default 60, about 10 days at one run every 4 hours) |
 
-Size: 1 CPU / 2 GiB, exactly one replica (the caches and the review locks live in that one process).
+Size: 2 CPU / 4 GiB (the registry for recalculation, plus the caches), exactly one replica (the caches and the
+review locks live in that one process).
 
 **Opening attachments fast** (300 emails a day, most with attachments): an email's run file is read from storage
 once and kept, without the earlier thread messages its body already quotes; each run has its own lock, so one
@@ -122,6 +124,22 @@ never makes a case automatic.
 The mailbox ingest keeps doValue's own senders (`EXCLUDE_DOMAINS` default `eurobank`). In a conversation that
 also has a customer's email in the same run, the customer's email opens the case (`INTERNAL_DOMAINS`, default
 `dovaluegreece`). It also saves CC addresses (`ccRecipients`); emails fetched before have none.
+
+## Email data table
+
+Every email has a data table (Cosmos container **`data`**, partition `/id`, one document per email with `id` = case
+id and the values in `rows`; `configure_azure.sh app` creates it): each tax ID, account, contract number, RF
+payment code, IBAN, ID card, phone, email, person and SPV found in the email and its documents, with its source
+(subject, text, earlier message, attachment + page, sender), the text around it, whose it is, whether it finds the
+customer, and how it was found. The classifier writes it; a later classification keeps the rows a reviewer added,
+corrected or removed.
+
+On the case page («Δεδομένα email και εγγράφων», replacing «Στοιχεία που βρέθηκαν») a reviewer corrects, adds or
+removes values and presses **Αποθήκευση και επανυπολογισμός ενεργειών**: the app looks the customer up again in the
+registry and runs the action rules on the table (no model call; categories and what the email asks stay as read),
+so a missing account typed by hand brings its request and account. The review reasons about the customer and
+account are recalculated; the change goes to the history (audit «data changed»). The Excel export has a second
+sheet «Δεδομένα» with every row. Query in Cosmos: `SELECT c.id, r.type, r.value, r.status FROM c JOIN r IN c.rows`.
 
 ## Categories by rule
 
