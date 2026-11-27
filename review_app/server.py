@@ -142,20 +142,122 @@ class CaseCache:
 CASES = CaseCache()
 _runs: dict[str, dict] = {}
 _runs_lock = threading.Lock()
+_run_locks: dict[str, threading.Lock] = {}
+RUNS_KEPT = int(os.getenv("REVIEW_RUNS_KEPT", "60"))  # ingest runs every 4 h: about 10 days
+
+
+def _slim(message: dict) -> dict:
+    """What the review app shows of an email: everything but the earlier messages of the thread, which the
+    body already quotes (as Outlook does) and which can be most of a run file's size."""
+    return {k: v for k, v in message.items() if k != "conversation_thread"}
 
 
 def run_message(case: dict) -> dict | None:
-    """The email as ingested (Graph shape), from its bronze run file; small LRU over run files."""
+    """The email as ingested (Graph shape), from its bronze run file.
+
+    Run files are read once and kept (most recent RUNS_KEPT). Each run file has its own lock, so a slow
+    download blocks only the emails of that run, never the whole app.
+    """
     from core.run_classifier import email_id, unwrap_run
 
     run_file = case["sourceRefs"]["runFile"]
     with _runs_lock:
-        if run_file not in _runs:
-            messages, _ = unwrap_run(json.loads(blob().download(run_file)))
-            if len(_runs) > 20:
+        if run_file in _runs:
+            _runs[run_file] = _runs.pop(run_file)  # most recently used last
+            return _runs[run_file].get(case["id"])
+        lock = _run_locks.setdefault(run_file, threading.Lock())
+    with lock:
+        with _runs_lock:
+            if run_file in _runs:
+                return _runs[run_file].get(case["id"])
+        messages, _ = unwrap_run(json.loads(blob().download(run_file)))
+        found = {email_id(m): _slim(m) for m in messages}
+        with _runs_lock:
+            _runs[run_file] = found
+            while len(_runs) > RUNS_KEPT:
                 _runs.pop(next(iter(_runs)))
-            _runs[run_file] = {email_id(m): m for m in messages}
-        return _runs[run_file].get(case["id"])
+        return found.get(case["id"])
+
+
+class BytesCache:
+    """Attachments and their OCR text, kept in memory up to REVIEW_CACHE_MB (least recently used goes).
+    Blob names never change content (a new email gets new names), so nothing needs to expire."""
+
+    def __init__(self, limit_mb: int):
+        self.limit = limit_mb * 1024 * 1024
+        self.items: dict[str, bytes] = {}
+        self.size = 0
+        self.lock = threading.Lock()
+
+    def get(self, name: str) -> bytes:
+        with self.lock:
+            if name in self.items:
+                self.items[name] = self.items.pop(name)
+                return self.items[name]
+        data = blob().download(name)
+        if len(data) <= self.limit // 4:
+            with self.lock:
+                if name not in self.items:
+                    self.items[name] = data
+                    self.size += len(data)
+                while self.size > self.limit and self.items:
+                    self.size -= len(self.items.pop(next(iter(self.items))))
+        return data
+
+
+FILES = BytesCache(int(os.getenv("REVIEW_CACHE_MB", "512")))
+_texts: dict[str, dict[str, str]] = {}  # silver folder -> {attachment file name: its .txt blob}
+
+
+def text_index(case: dict) -> dict[str, str]:
+    """Which OCR text belongs to which attachment, read once per email from the sidecars in silver."""
+    silver = (case.get("sourceRefs") or {}).get("silver")
+    if not silver:
+        return {}
+    if silver in _texts:
+        return _texts[silver]
+    names = blob().list_names(silver + "text/")
+    index = {}
+    for sidecar in (n for n in names if n.endswith(".json")):
+        text = sidecar[:-5] + ".txt"
+        if text in names:
+            index[json.loads(FILES.get(sidecar)).get("filename")] = text
+    index["\0all"] = "\n".join(n for n in names if n.endswith(".txt"))  # for runs saved before sidecars existed
+    if len(_texts) > 5000:
+        _texts.clear()
+    _texts[silver] = index
+    return index
+
+
+def warm(case: dict) -> None:
+    """Read an email's attachments into the cache in the background, so opening one is instant."""
+    def run() -> None:
+        try:
+            message = run_message(case) or {}
+            for item in message.get("attachments") or []:
+                if item.get("blob_name"):
+                    FILES.get(item["blob_name"])
+            text_index(case)
+        except Exception:  # noqa: BLE001 - only a head start; the real request reports errors
+            pass
+
+    threading.Thread(target=run, daemon=True).start()
+
+
+def warm_queue(limit: int = 300) -> None:
+    """At start: read the run files of the emails waiting for review, newest first, in the background."""
+    def run() -> None:
+        try:
+            waiting = [c for c in CASES.get() if c.get("status") != "REVIEWED" and (c.get("sourceRefs") or {}).get("runFile")]
+            seen = set()
+            for case in sorted(waiting, key=lambda c: c.get("receivedAt") or "", reverse=True)[:limit]:
+                if case["sourceRefs"]["runFile"] not in seen:
+                    seen.add(case["sourceRefs"]["runFile"])
+                    run_message(case)
+        except Exception:  # noqa: BLE001
+            pass
+
+    threading.Thread(target=run, daemon=True).start()
 
 
 # ---------------------------------------------------------------- users and sessions
@@ -298,8 +400,8 @@ def case_detail(case_id: str) -> dict | None:
         return None
     events = sorted(store().find("audit", "caseId", case_id), key=lambda e: e.get("at") or "")
     message = run_message(case) or {}
-    silver = (case.get("sourceRefs") or {}).get("silver")
-    has_text = bool(silver) and any(n.endswith(".txt") for n in blob().list_names(silver + "text/"))
+    has_text = bool(text_index(case).get("\0all"))
+    warm(case)
     read = {r.get("filename") for rec in (case.get("payload") or {}).get("records", [])[:1]
             for r in rec.get("attachment_records") or [] if r.get("status") == "ANALYZED"}
     attachments = [
@@ -762,18 +864,13 @@ def evidence_terms(case: dict, file: str | None = None) -> list[tuple[str, str, 
 
 def attachment_text(case: dict, name: str) -> str | None:
     """The attachment's OCR text the classifier saved in silver, found through its sidecar (real file name)."""
-    prefix = ((case.get("sourceRefs") or {}).get("silver") or "") + "text/"
-    if prefix == "text/":
-        return None
-    names = blob().list_names(prefix)
-    for sidecar in (n for n in names if n.endswith(".json")):
-        if json.loads(blob().download(sidecar)).get("filename") == name:
-            text = sidecar[:-5] + ".txt"
-            return blob().download(text).decode("utf-8") if text in names else None
+    index = text_index(case)
+    if name in index:
+        return FILES.get(index[name]).decode("utf-8")
     # Runs before sidecars existed: the reader names the file after the attachment's own name.
     stem = re.sub(r"[^A-Za-z0-9._-]+", "_", Path(name).stem).strip("_") or "attachment"
-    guess = [n for n in names if n.rsplit("/", 1)[-1].startswith(stem + "_") and n.endswith(".txt")]
-    return blob().download(guess[0]).decode("utf-8") if len(guess) == 1 else None
+    guess = [n for n in (index.get("\0all") or "").split("\n") if n.rsplit("/", 1)[-1].startswith(stem + "_")]
+    return FILES.get(guess[0]).decode("utf-8") if len(guess) == 1 else None
 
 
 def message_html(case: dict, show_images: bool, highlight: bool = False) -> bytes:
@@ -808,7 +905,7 @@ def attachment(case: dict, n: int) -> tuple[dict, bytes] | None:
     items = message.get("attachments") or []
     if not 0 <= n < len(items) or not items[n].get("blob_name"):
         return None
-    return items[n], blob().download(items[n]["blob_name"])
+    return items[n], FILES.get(items[n]["blob_name"])
 
 
 def original(case: dict) -> tuple[str, bytes] | None:
@@ -835,7 +932,7 @@ def export_zip(case: dict) -> tuple[str, bytes]:
             if name in used:
                 name = f"{n + 1:02d}_{name}"
             used.add(name)
-            archive.writestr(f"attachments/{name}", blob().download(item["blob_name"]))
+            archive.writestr(f"attachments/{name}", FILES.get(item["blob_name"]))
     return f"{case['id']}.zip", buffer.getvalue()
 
 
@@ -860,8 +957,9 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("Referrer-Policy", "no-referrer")
-        self.send_header("Cache-Control", "no-store")
-        for key, value in (headers or {}).items():
+        headers = dict(headers or {})
+        self.send_header("Cache-Control", headers.pop("Cache-Control", "no-store"))
+        for key, value in headers.items():
             self.send_header(key, value)
         self.end_headers()
         if self.command != "HEAD":
@@ -1021,7 +1119,8 @@ class Handler(BaseHTTPRequestHandler):
                 terms = evidence_terms(case, name) if query.get("hl") == ["1"] else []
                 page = text_page(text, terms, name, "Σελίδα {n}").encode("utf-8")
                 return self.send(200, page, "text/html; charset=utf-8",
-                                 {"Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; sandbox"})
+                                 {"Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; sandbox",
+                                  "Cache-Control": "private, max-age=600"})
             if len(tail) == 2 and tail[0] == "files" and tail[1].isdigit() and method == "GET":
                 found = attachment(case, int(tail[1]))
                 if not found:
@@ -1029,8 +1128,10 @@ class Handler(BaseHTTPRequestHandler):
                 item, data = found
                 kind = _content_type(item)
                 download = query.get("download") == ["1"] or kind not in INLINE_TYPES
+                # An attachment never changes: the browser keeps it, so going back to it is instant.
                 headers = {"Content-Disposition": _disposition("attachment" if download else "inline",
-                                                               item.get("name") or "file")}
+                                                               item.get("name") or "file"),
+                           "Cache-Control": "private, max-age=86400, immutable"}
                 if kind.startswith("image/") or kind == "text/plain":
                     headers["Content-Security-Policy"] = "default-src 'none'; img-src 'self'; sandbox"
                 return self.send(200, data, kind if not download else "application/octet-stream", headers)
@@ -1115,4 +1216,5 @@ if __name__ == "__main__":
     print(f"Review app ({AUTH}) on http://{server.server_address[0]}:{server.server_address[1]}", flush=True)
     for line in startup_report():
         print(line, flush=True)
+    warm_queue()
     server.serve_forever()

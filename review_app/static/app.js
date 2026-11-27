@@ -65,7 +65,7 @@ const T = {
     evClassifiedAs: "Πρόταση: {c} ({p}) → {r}", evChanged: "{a} → {b}", evFirst: "Ορίστηκε: {b}",
     routeAUTO: "αυτόματο", routeREVIEW: "προς έλεγχο", routeEXCEPTION: "σφάλμα",
     evRerouted: "Νέο όριο αυτόματης ταξινόμησης",
-    signingIn: "Σύνδεση…", saving: "Αποθήκευση…", loading: "Φόρτωση…", loadingEmail: "Φόρτωση email…",
+    signingIn: "Σύνδεση…", saving: "Αποθήκευση…", loading: "Φόρτωση…", loadingFile: "Φόρτωση {n} ({s})…", loadingEmail: "Φόρτωση email…",
     resetReview: "Επαναφορά σε «Προς έλεγχο»", resetConfirm: "Ναι, επαναφορά", cancel: "Άκυρο",
     resetQuestion: "Ο έλεγχος θα αναιρεθεί και το email θα επιστρέψει στα «Προς έλεγχο». Το ιστορικό τον κρατά.",
     resetDone: "Επέστρεψε στα «Προς έλεγχο»", evReset: "Ο έλεγχος αναιρέθηκε", evResetDetail: "Ήταν: {b}",
@@ -197,7 +197,7 @@ const T = {
     evClassifiedAs: "Suggested: {c} ({p}) → {r}", evChanged: "{a} → {b}", evFirst: "Set to: {b}",
     routeAUTO: "automatic", routeREVIEW: "to review", routeEXCEPTION: "error",
     evRerouted: "New automatic threshold",
-    signingIn: "Signing in…", saving: "Saving…", loading: "Loading…", loadingEmail: "Loading email…",
+    signingIn: "Signing in…", saving: "Saving…", loading: "Loading…", loadingFile: "Loading {n} ({s})…", loadingEmail: "Loading email…",
     resetReview: "Reset to “To review”", resetConfirm: "Yes, reset", cancel: "Cancel",
     resetQuestion: "The review will be undone and the email goes back to “To review”. The history keeps it.",
     resetDone: "Back in “To review”", evReset: "Review reset", evResetDetail: "Was: {b}",
@@ -664,13 +664,14 @@ function showCaseLoading() {
   $("#viewer-body").replaceChildren(spinner(t("loadingEmail")));
 }
 /* Wrap an iframe/img so a spinner covers it until it has actually loaded. */
+const sizeText = (b) => b >= 1048576 ? `${(b / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(b / 1024))} KB`;
 function whenLoaded(el, label, watch = el) {
   const cover = spinner(label);
   cover.classList.add("cover");
   const done = () => cover.remove();
   watch.addEventListener("load", done);
   watch.addEventListener("error", done);
-  setTimeout(done, 20000);  // never leave a spinner over a frame the browser handled silently
+  setTimeout(done, 60000);  // never leave a spinner over a frame the browser handled silently
   return h("div", { class: "frame-wrap" }, el, cover);
 }
 function busy(button, label) {
@@ -706,6 +707,14 @@ async function openCase(id, keepViewer) {
   api(`/api/cases/${encodeURIComponent(id)}/open`, { json: {} });
   renderCase();
   renderViewer();
+  prefetchNext(id);
+}
+
+/* The next email in the list is read on the server while this one is reviewed, so it opens at once. */
+function prefetchNext(id) {
+  const ids = [...document.querySelectorAll("#list .item")].map((x) => x.dataset.id);
+  const next = ids[ids.indexOf(id) + 1];
+  if (next) setTimeout(() => fetch(`/api/cases/${encodeURIComponent(next)}`, { credentials: "same-origin" }).catch(() => {}), 1500);
 }
 
 function card(title, sub, ...body) {
@@ -1398,6 +1407,12 @@ function renderViewer() {
   pane.hidden = false;
   const id = encodeURIComponent(d.case.id);
   const tabs = [{ key: "email", label: t("email") }, ...d.attachments.map((a) => ({ key: `a${a.n}`, label: a.name, a }))];
+  // Each attachment starts downloading in the background as soon as the email opens; the browser keeps it.
+  if (S.prefetched !== d.case.id) {
+    S.prefetched = d.case.id;
+    d.attachments.filter((a) => a.viewable && (a.size || 0) < 15 * 1048576)
+      .forEach((a) => fetch(`/api/cases/${encodeURIComponent(d.case.id)}/files/${a.n}`, { credentials: "same-origin", priority: "low" }).catch(() => {}));
+  }
   $("#viewer-tabs").replaceChildren(...tabs.map((tab) => h("button", { role: "tab", type: "button", title: tab.label,
     "aria-selected": String(S.viewer.tab === tab.key), text: tab.label,
     onclick: () => { S.viewer = { tab: tab.key, page: null, images: S.viewer.images }; renderViewer(); } })));
@@ -1439,9 +1454,10 @@ function renderViewer() {
   } else if (!att.viewable) body.replaceChildren(h("div", { class: "nopreview" }, h("p", { text: t("noPreview") }), h("a", { class: "secondary", href: `${url}?download=1`, text: t("download") })));
   else if (kind.startsWith("image/")) {
     const img = h("img", { src: url, alt: att.name });
-    body.replaceChildren(whenLoaded(h("div", { class: "img" }, img), t("loading"), img));
+    body.replaceChildren(whenLoaded(h("div", { class: "img" }, img), att.size ? t("loadingFile", { n: att.name, s: sizeText(att.size) }) : t("loading"), img));
   }
-  else body.replaceChildren(whenLoaded(h("iframe", { title: att.name, src: S.viewer.page ? `${url}#page=${S.viewer.page}` : url }), t("loading")));
+  else body.replaceChildren(whenLoaded(h("iframe", { title: att.name, src: S.viewer.page ? `${url}#page=${S.viewer.page}` : url }),
+    att.size ? t("loadingFile", { n: att.name, s: sizeText(att.size) }) : t("loading")));
 }
 
 // ------------------------------------------------------------------ chrome

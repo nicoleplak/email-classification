@@ -75,6 +75,19 @@ Review app (`ca-emclf-llm-gr`, set by `configure_azure.sh app`):
 | `REVIEW_SESSION_SECRET` (secret) | signs the browser cookie; changing it signs everyone out |
 | `CASE_STORE`, `COSMOS_*`, `RESULT_STORAGE_ACCOUNT`, `RESULT_CONTAINER`, `AZURE_CLIENT_ID` | data access with the managed identity `id-email-classification-uat` |
 
+| `REVIEW_CACHE_MB` | memory for attachments and their OCR text (default 512, deployed 768); least recently used go first |
+| `REVIEW_RUNS_KEPT` | ingest run files kept in memory (default 60, about 10 days at one run every 4 hours) |
+
+Size: 1 CPU / 2 GiB, exactly one replica (the caches and the review locks live in that one process).
+
+**Opening attachments fast** (300 emails a day, most with attachments): an email's run file is read from storage
+once and kept, without the earlier thread messages its body already quotes; each run has its own lock, so one
+slow download never blocks the rest. Opening an email reads its attachments into memory in the background, and
+the browser starts downloading them too, so clicking an attachment tab shows it at once. Attachments are sent
+with `Cache-Control: private, max-age=86400, immutable`: going back to one does not download it again. At start
+the app reads the run files of the emails waiting for review, and while one email is open the next one in the
+list is prepared. A file still loading shows a spinner with its name and size.
+
 The review app holds no mailbox secret and no AI keys.
 
 ## Decision rules (prompts and actions)

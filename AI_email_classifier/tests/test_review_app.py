@@ -350,3 +350,19 @@ def test_list_and_email_carry_the_sender_type(app):
     items = json.loads(call(f"{base}/api/cases", cookie=cookie)[2])["items"]
     assert items[0]["senderType"] == "external"
     assert json.loads(call(f"{base}/api/cases/{case_id}", cookie=cookie)[2])["senderType"] == "external"
+
+
+def test_attachments_and_run_files_are_read_once_and_kept_by_the_browser(app, monkeypatch):
+    server, _base, case_id = app
+    reads = []
+    monkeypatch.setattr(FakeBlob, "download", staticmethod(lambda name: reads.append(name) or FILES[name]))
+    case = server.STORE.get("cases", case_id)
+    for _ in range(3):
+        assert server.attachment(case, 0)[1] == b"%PDF"
+        assert "conversation_thread" not in server.run_message(case)
+    assert reads.count("att/a.pdf") == 1 and reads.count("bronze/import-1/emails.json") <= 1
+    small = server.BytesCache(1)  # 1 MB: least recently used files go first
+    FILES["big1"], FILES["big2"] = b"x" * 200_000, b"y" * 200_000
+    for name in ("big1", "big2", "big1"):
+        small.get(name)
+    assert list(small.items) == ["big2", "big1"] and small.size == 400_000
