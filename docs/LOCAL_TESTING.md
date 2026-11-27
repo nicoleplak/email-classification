@@ -159,8 +159,9 @@ They go into `LOCAL_BLOB_DIR` from `.env`. Then steps 3c and 3d. The customer re
   in its own block with why it was chosen; «Συνημμένα» with document type, bank and summary; why the email went to
   review at the top. In the list: the review reason under each email, and the «Λόγος ελέγχου» and «Σήμανση» (ERB)
   filters.
-- **Banks and SPV**: a bank or SPV named in the email or an attachment picks the SPV of the request; otherwise an
-  "SPV" category opens one request per SPV. Fill the SPV mapping (SPVNAME, SPVCODE, BANK) in `AI_email_classifier\inputs\spvmapping.json` or `spvmapping.csv`.
+- **SPV**: an SPV name or code written in the email or an attachment picks the SPV of the request; otherwise an
+  "SPV" category opens one request per SPV. Fill the SPV mapping (SPVNAME;SPVCODE) in
+  `AI_email_classifier\inputs\spvmapping.csv`.
 - **Statistics**: click a number to open exactly those emails; the Excel export lists the current list.
 - The rules for the business: `docs\decision_rules.html` and `docs\decision_rules.drawio`.
 

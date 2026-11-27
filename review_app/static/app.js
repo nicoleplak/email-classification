@@ -40,7 +40,7 @@ const T = {
     catNoWhy: "Δεν δόθηκε αιτιολόγηση για αυτή την κατηγορία.", catNotApply: "Εξετάστηκε, δεν ισχύει",
     possibleCustomers: "Πιθανοί πελάτες ({n})", possiblePick: "Επιλέξτε πιθανό πελάτη για λεπτομέρειες",
     possibleOnly: "Δεν βρέθηκε επιβεβαιωμένος πελάτης από ΑΦΜ ή λογαριασμό.",
-    banksNamed: "Τράπεζα / SPV στο email", spvPointed: "δείχνει SPV {s}",
+    banksNamed: "Eurobank / SPV στο email", spvPointed: "δείχνει SPV {s}",
     attachmentsCard: "Συνημμένα", attType: "Τύπος εγγράφου", attLender: "Τράπεζα", attRelevance: "Σχετικό",
     rel_relevant: "ναι", rel_possibly_relevant: "ίσως", rel_irrelevant: "όχι", rel_unknown: "—",
     aboutPerson: "Το email αφορά", people: "Πρόσωπα στο email",
@@ -173,7 +173,7 @@ const T = {
     catNoWhy: "No reasoning was given for this category.", catNotApply: "Considered, does not apply",
     possibleCustomers: "Possible customers ({n})", possiblePick: "Pick a possible customer for details",
     possibleOnly: "No customer confirmed by tax ID or account.",
-    banksNamed: "Bank / SPV in the email", spvPointed: "points at SPV {s}",
+    banksNamed: "Eurobank / SPV in the email", spvPointed: "points at SPV {s}",
     attachmentsCard: "Attachments", attType: "Document type", attLender: "Bank", attRelevance: "Relevant",
     rel_relevant: "yes", rel_possibly_relevant: "maybe", rel_irrelevant: "no", rel_unknown: "—",
     aboutPerson: "The email is about", people: "People in the email",
@@ -818,8 +818,8 @@ function reviewNotice(c) {
 /* Banks named in the email or its attachments; Eurobank marks the email ERB. */
 function banksLine(u) {
   const named = u.banks || [];
-  if (!named.length) return "";
   const pointed = Object.keys(u.spvMentioned || {});
+  if (!named.length && !pointed.length) return "";
   return h("div", { class: "banks" }, h("span", { class: "muted small", text: `${t("banksNamed")}:` }),
     ...named.map((b) => h("span", { class: `bank${b.flag ? " flagged" : ""}` }, `${b.bank} `, b.flag ? h("b", { text: b.flag }) : "", " ",
       sourceChip({ ...b.where, snippet: b.snippet }))),

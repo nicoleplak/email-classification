@@ -1,4 +1,9 @@
-"""Banks and SPVs named in an email or its attachments (inputs/spvmapping.json, optionally spvmapping.csv).
+"""SPVs and Eurobank named in an email or its attachments.
+
+inputs/spvmapping.csv: one row per SPV, SPVNAME;SPVCODE. An SPV name or code written in the email or an
+attachment points the request at that SPV, matched to the customer's accounts by SPVCODE = PRTFL_CD or
+SPVNAME = PRTFL_NM. (Optional columns BANK and ALIASES are read when present.)
+inputs/spvmapping.json: how Eurobank may be written; named anywhere, it marks the email ERB.
 
 Two uses:
 - the customer's portfolio (SPV): a bank or SPV name in the text points at the accounts that came from it,

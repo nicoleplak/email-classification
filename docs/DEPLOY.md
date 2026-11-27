@@ -138,18 +138,17 @@ The case page marks these categories «Κανόνας» instead of a certainty.
 
 ## Banks, SPV and ERB
 
-`AI_email_classifier/inputs/spvmapping.json` is the SPV mapping. Its `spvs` rows have the columns **SPVNAME**
-and **SPVCODE** (the registry's `PRTFL_NM` and `PRTFL_CD`), **BANK** (the bank the loans came from) and
-**ALIASES** (other spellings, separated by `|`). The same rows can be kept as a table in
-`inputs/spvmapping.csv` (`SPVNAME;SPVCODE;BANK;ALIASES`, e.g. saved from Excel as CSV UTF-8); rows of both files
-are used. Its `banks` section lists how each bank may be written (Greek and Latin; case endings and accents are
-ignored). `core/banks.py` looks in the subject, the email text and the attachments (not earlier messages of the
-thread), plus the lender each attachment's analysis names:
+`AI_email_classifier/inputs/spvmapping.csv` is the SPV mapping: one row per SPV, columns **SPVNAME;SPVCODE**
+(saved from Excel as CSV UTF-8; `;` or `,`). `inputs/spvmapping.json` only says how Eurobank may be written.
+`core/banks.py` looks in the subject, the email text and the attachments (not earlier messages of the thread),
+plus the lender each attachment's analysis names:
 
-- **SPV:** the text writes an SPV's name, code or alias, or names its bank → that SPV. It is matched to the
-  customer's accounts by SPVCODE = `PRTFL_CD` or SPVNAME = `PRTFL_NM`, and narrows the accounts before the account
-  rule applies. Without a mapping row, only an SPV whose registry name is written in the text matches. When the SPV
-  still is not known for an "SPV" category, one request is opened per SPV instead of asking for the account.
+- **SPV:** the text writes an SPV's name or code → that SPV. It is matched to the customer's accounts by
+  SPVCODE = `PRTFL_CD` or SPVNAME = `PRTFL_NM`, and narrows the accounts before the account rule applies. Names
+  match as words, with case endings, accents, roman numerals and words like DAC / Designated Activity ignored
+  («Sunrise» = SUNRISE I DAC); a code only when it has a letter and 3+ characters. An SPV whose registry name is
+  written in the text matches even without a row. When the SPV still is not known for an "SPV" category, one
+  request is opened per SPV instead of asking for the account. A bank's name alone does not point at an SPV.
 - **ERB:** Eurobank named anywhere marks the email `ERB` (`markers` on the case): a pill in the list, the
   «Σήμανση» filter and a column in the Excel export. It changes no action or route.
 

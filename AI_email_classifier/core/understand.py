@@ -431,7 +431,7 @@ def understand(
     lenders = [{"text": a.get("lender") or "", "where": {"kind": "attachment", "file": name, "page": 1}}
                for name, a in attachment_info.items() if a.get("lender")]
     named_banks = banks.mentions([*own_text, *lenders])
-    spv_hint = banks.spvs_for(named_banks, [d["text"] for d in own_text], lookup["facts"]["accounts"])
+    spv_hint = banks.spvs_for(named_banks, [d["text"] for d in [*own_text, *lenders]], lookup["facts"]["accounts"])
     lookup["facts"]["spv_hint"] = list(spv_hint)
     other_requests = [c for c in answer["other_requests"] if c != principal]
     # Second and third categories the classifier is sure of (80%+) are added with their actions.

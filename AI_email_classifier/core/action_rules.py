@@ -20,7 +20,7 @@ about the customer (customer). This module only combines them, in this order (bu
               bank or name the email or an attachment mentions (core.banks), the only SPV, or every SPV
               when the email concerns all debts; when the SPV is still unknown, one request per SPV
               (never one picked at random).
-   A bank or SPV named in the email or an attachment also narrows per_spv and account to that SPV.
+   An SPV name or code written in the email or an attachment also narrows per_spv and account to that SPV.
 6. Code: the open-case request (without _cust); the closed-case _cust request only for an account the
    registry marks closed (that column is not delivered yet, see core.customer_lookup.account_state).
    Each request is followed by its Qualco activity on the same account (``with_activities``, sheet
@@ -144,7 +144,7 @@ REASONS = {
     "all_debts_spv": "Το αίτημα αφορά όλες τις οφειλές, οπότε καταχωρείται ένα αίτημα σε κάθε χαρτοφυλάκιο (SPV).",
     "single_account": "Ο πελάτης έχει έναν μόνο λογαριασμό, οπότε το αίτημα καταχωρείται σε αυτόν.",
     "single_spv": "Ο πελάτης έχει λογαριασμούς σε ένα μόνο χαρτοφυλάκιο (SPV), οπότε το αίτημα καταχωρείται σε έναν από αυτούς.",
-    "spv_mentioned": "Το email ή ένα συνημμένο αναφέρει την τράπεζα ή το χαρτοφυλάκιο (SPV) του δανείου, οπότε το αίτημα καταχωρείται σε λογαριασμό αυτού του SPV.",
+    "spv_mentioned": "Το email ή ένα συνημμένο αναφέρει το όνομα ή τον κωδικό του χαρτοφυλακίου (SPV) του δανείου, οπότε το αίτημα καταχωρείται σε λογαριασμό αυτού του SPV.",
     "spv_each": "Ο λογαριασμός δεν ταυτοποιείται από το email και ο πελάτης έχει λογαριασμούς σε περισσότερα χαρτοφυλάκια (SPV), οπότε καταχωρείται ένα αίτημα σε κάθε SPV αντί να επιλεγεί ένα στην τύχη.",
     "account_not_identified": "Η κατηγορία απαιτεί ταυτοποίηση λογαριασμού, αλλά το email δεν αναφέρει λογαριασμό και ο πελάτης έχει περισσότερους, οπότε ζητάμε τον αριθμό λογαριασμού.",
     "spv_not_identified": "Η κατηγορία απαιτεί ταυτοποίηση χαρτοφυλακίου (SPV), αλλά το email δεν αναφέρει λογαριασμό και ο πελάτης έχει λογαριασμούς σε περισσότερα, οπότε ζητάμε τον αριθμό λογαριασμού.",
@@ -275,7 +275,7 @@ def select_accounts(
 
     "One of its accounts" is not random: open cases first, then Ν.3869 accounts for Ν.3869 requests,
     then the lowest account number, so the same email always gives the same account.
-    spv_hint: the customer's SPVs the email or an attachment names (a bank or SPV name, core.banks);
+    spv_hint: the customer's SPVs the email or an attachment names (an SPV name or code, core.banks);
     without a named account they narrow the choice to those SPVs, unless the email concerns all debts.
     When the SPV still is not known, every SPV gets a request rather than one picked at random.
     """

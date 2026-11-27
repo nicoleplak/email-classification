@@ -1,15 +1,9 @@
 {
   "_comment": [
-    "SPV mapping: which portfolio (SPV) an email means, and the banks it may name.",
-    "spvs: one row per SPV. SPVNAME and SPVCODE are the registry's PRTFL_NM and PRTFL_CD; BANK is the bank the loans",
-    "came from (a key of banks below); ALIASES are other ways the SPV is written. An email or attachment that writes",
-    "the SPV's name, code or an alias, or names its BANK, points the request at that SPV of the customer.",
-    "The same rows can be kept in spvmapping.csv instead (columns SPVNAME;SPVCODE;BANK;ALIASES, aliases separated by |);",
-    "rows of both files are used.",
-    "banks: how each bank may be written (aliases); Greek case endings, accents and case are ignored. flag marks the",
-    "email (ERB = Eurobank)."
+    "Eurobank: how it may be written in an email or attachment (Greek and Latin; case endings, accents and case",
+    "are ignored). Named anywhere, it marks the email ERB (filter «Σήμανση», column in the Excel export).",
+    "The SPV mapping itself (SPVNAME;SPVCODE) is in spvmapping.csv."
   ],
-  "spvs": [],
   "banks": {
     "Eurobank": {
       "aliases": [
@@ -24,83 +18,6 @@
         "τραπεζα εργασιας"
       ],
       "flag": "ERB"
-    },
-    "Alpha Bank": {
-      "aliases": [
-        "alpha bank",
-        "alphabank",
-        "άλφα τράπεζα",
-        "τράπεζα άλφα",
-        "alpha τράπεζα",
-        "άλφα μπανκ",
-        "τράπεζα πίστεως",
-        "εμπορική τράπεζα",
-        "emporiki bank"
-      ]
-    },
-    "Τράπεζα Πειραιώς": {
-      "aliases": [
-        "τράπεζα πειραιώς",
-        "piraeus bank",
-        "τράπεζα πειραιως",
-        "αγροτική τράπεζα",
-        "atebank",
-        "millennium bank",
-        "γενική τράπεζα",
-        "geniki bank"
-      ]
-    },
-    "Εθνική Τράπεζα": {
-      "aliases": [
-        "εθνική τράπεζα",
-        "εθνικη τραπεζα",
-        "national bank of greece",
-        "nbg",
-        "εθνική κτηματική"
-      ]
-    },
-    "Attica Bank": {
-      "aliases": [
-        "attica bank",
-        "τράπεζα αττικής",
-        "τραπεζα αττικης",
-        "αττικής τράπεζα"
-      ]
-    },
-    "Παγκρήτια Τράπεζα": {
-      "aliases": [
-        "παγκρήτια",
-        "pancreta",
-        "παγκρητια"
-      ]
-    },
-    "Ταχυδρομικό Ταμιευτήριο": {
-      "aliases": [
-        "ταχυδρομικό ταμιευτήριο",
-        "ταχυδρομικο ταμιευτηριο",
-        "tt hellenic postbank",
-        "postbank"
-      ]
-    },
-    "Probank": {
-      "aliases": [
-        "probank"
-      ]
-    },
-    "Τράπεζα Κύπρου / Λαϊκή": {
-      "aliases": [
-        "τράπεζα κύπρου",
-        "bank of cyprus",
-        "λαϊκή τράπεζα",
-        "marfin"
-      ]
-    },
-    "Citibank": {
-      "aliases": [
-        "citibank",
-        "citi bank",
-        "σιτιμπανκ"
-      ]
     }
   }
 }
